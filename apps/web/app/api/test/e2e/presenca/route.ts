@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
+import { assertTestRoutesEnabled } from '../../_guard';
 
 export async function POST(req: Request){
-  if(process.env.NODE_ENV === 'production') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  try { assertTestRoutesEnabled(); } catch (e){
+    const err = e as Error & { status?: number };
+    return NextResponse.json({ error: err.message }, { status: err.status ?? 403 });
+  }
   const { matriculaId, status } = await req.json();
   if(!matriculaId || !status) return NextResponse.json({ error: 'params' }, { status: 400 });
   const m = await prisma.matricula.findUnique({ where: { id: matriculaId } });

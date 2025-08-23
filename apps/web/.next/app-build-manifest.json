@@ -21,20 +21,10 @@
       "static/css/app/portal/layout.css",
       "static/chunks/app/portal/layout.js"
     ],
-    "/portal/matriculas/page": [
+    "/dashboard/financeiro/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/portal/matriculas/page.js"
-    ],
-    "/portal/eventos/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/portal/eventos/page.js"
-    ],
-    "/portal/cobrancas/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/portal/cobrancas/page.js"
+      "static/chunks/app/dashboard/financeiro/page.js"
     ]
   }
 }

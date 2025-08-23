@@ -1,18 +1,7 @@
 {
   "/(auth)/login/page": "app/(auth)/login/page.js",
-  "/api/test/e2e/accept-invite/route": "app/api/test/e2e/accept-invite/route.js",
   "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
-  "/api/test/e2e/invite/route": "app/api/test/e2e/invite/route.js",
-  "/api/test/e2e/matricula/route": "app/api/test/e2e/matricula/route.js",
-  "/api/test/e2e/webhook/asaas/route": "app/api/test/e2e/webhook/asaas/route.js",
-  "/api/test/e2e/presenca/route": "app/api/test/e2e/presenca/route.js",
-  "/api/test/e2e/evento-compra/route": "app/api/test/e2e/evento-compra/route.js",
-  "/api/test/e2e/checkin/route": "app/api/test/e2e/checkin/route.js",
-  "/api/portal/matriculas/route": "app/api/portal/matriculas/route.js",
-  "/api/portal/eventos/route": "app/api/portal/eventos/route.js",
-  "/api/portal/cobrancas/route": "app/api/portal/cobrancas/route.js",
-  "/portal/page": "app/portal/page.js",
-  "/portal/matriculas/page": "app/portal/matriculas/page.js",
-  "/portal/eventos/page": "app/portal/eventos/page.js",
-  "/portal/cobrancas/page": "app/portal/cobrancas/page.js"
+  "/api/test/e2e/accept-invite/route": "app/api/test/e2e/accept-invite/route.js",
+  "/dashboard/financeiro/page": "app/dashboard/financeiro/page.js",
+  "/portal/page": "app/portal/page.js"
 }

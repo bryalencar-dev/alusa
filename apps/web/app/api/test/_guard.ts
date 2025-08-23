@@ -1,7 +1,7 @@
-export function assertNonProd() {
-  if (process.env.NODE_ENV === 'production') {
-    const e = new Error('Forbidden in production');
-  // @ts-expect-error adicionar status HTTP custom
+export function assertTestRoutesEnabled() {
+  if (process.env.NODE_ENV === 'production' || process.env.TEST_ROUTES_ENABLED !== 'true') {
+    const e = new Error('Test routes disabled');
+    // @ts-expect-error status custom
     e.status = 403;
     throw e;
   }

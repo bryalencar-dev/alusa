@@ -8,10 +8,12 @@ const publicPaths = ["/login"];
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  const testRoutesEnabled = process.env.TEST_ROUTES_ENABLED === 'true';
+  const isTestRoute = pathname.startsWith('/api/test') || pathname.startsWith('/test');
   const isPublic =
     publicPaths.includes(pathname) ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/test"); // liberar rotas de teste E2E
+    (isTestRoute && testRoutesEnabled);
 
   if (isPublic) return NextResponse.next();
 

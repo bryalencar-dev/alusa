@@ -78,3 +78,70 @@ Logger simples em `@alusa/lib` (`logInfo`, `logError`) imprime JSON: `{ scope:"A
 
 ---
 MIT License. Contribuições bem-vindas.
+
+
+---
+
+### 🤖 Conduta da IA — Autenticação/Sessão (Projeto Alusa)
+
+Stack: Next.js (App Router) + NextAuth (credenciais) + Prisma + PostgreSQL + Playwright + Vitest.
+
+---
+
+#### 🔒 Regras Fixas
+1. **Service First** → toda autenticação via `verifyCredentials(email, password)` usando `prisma.user` + `bcrypt`.  
+2. **Contrato de Sessão imutável** → callbacks do NextAuth DEVEM sempre mapear:
+   - jwt(): `token.id`, `token.email`, `token.name`, `token.role ??= "USER"`.  
+   - session(): `session.user = { id, email, name, role }`.  
+3. **Seed idempotente obrigatório** → sempre criar/upsertar:
+   - aluno@example.com / senha123 (ADMIN)  
+   - professor@example.com / senha123 (PROFESSOR)  
+   - responsavel@example.com / senha123 (RESPONSAVEL)  
+   Usar **modelo User** do Prisma.  
+4. **Unit/Integration SEM HTTP** → nunca rodar `fetch localhost:3000`.  
+   - Testar apenas funções puras (`auth-service`, callbacks).  
+   - Se houver teste HTTP, renomear para `.skip.ts`.  
+5. **E2E resiliente** →  
+   - Sempre usar `expect.poll` em `/api/auth/session`.  
+   - Só navegar para `/portal` quando `session.user` existir.  
+   - Seletores com `data-testid`.  
+6. **Rotas de teste** → só habilitadas com `TEST_ROUTES_ENABLED=true`. Nunca ativas em produção.  
+7. **CI fail-fast** → pipeline executa em ordem:
+   - `lint` → `typecheck`  
+   - unit (auth-service + contrato callbacks)  
+   - build  
+   - E2E (Playwright)  
+
+---
+
+#### 🚨 Quando detectar problema
+- `session.user.email` ou `session.user.role` vem `undefined`.  
+- E2E trava no `/portal` ou entra em loop `/login ↔ /portal`.  
+- Seeds não criam professor/responsável.  
+- Algum unit test sobe servidor HTTP.  
+
+---
+
+#### 🛠️ Correção rápida (passo a passo)
+1. Rodar `pnpm -w prisma migrate deploy && pnpm -w tsx prisma/seed.ts`.  
+2. Conferir `verifyCredentials()` retorna `{ id,email,name,role }`.  
+3. Ajustar callbacks `jwt/session` para sempre preencher `email/name/role`.  
+4. Rodar `auth-callbacks.contract.test.ts` → deve passar.  
+5. Garantir middleware libera `/login` e `/api/auth/*`.  
+6. Se erro “Test routes disabled” → habilitar flag `TEST_ROUTES_ENABLED=true` no `webServer.env`.  
+7. Se erro de cache (`EPERM`) → apagar `.next/cache` e reexecutar.  
+
+---
+
+#### ✅ Saídas esperadas
+- `verifyCredentials()` autentica aluno, professor e responsável.  
+- `session.user` sempre contém `{ id, email, name, role }`.  
+- `auth-callbacks.contract.test.ts` verde.  
+- E2E “Roles Access Control” 3/3 verde.  
+
+---
+
+⚠️ Nunca aceitar PR que:  
+- Tenha `session.user` parcial.  
+- Dependa de testes HTTP em unit.  
+- Não rode seeds antes de validar.  

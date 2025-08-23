@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { assertNonProd } from "../../_guard";
+import { assertTestRoutesEnabled } from "../../_guard";
 import { prisma } from "../../../../../lib/prisma";
 import { RoleName } from "@prisma/client";
 
@@ -14,7 +14,7 @@ const Body = z.object({
 
 export async function POST(req: Request) {
   try {
-    assertNonProd();
+  assertTestRoutesEnabled();
     const { token, email: emailIn, password, passwordHash, role } = Body.parse(await req.json());
     let email = emailIn;
     if (token && !email) {
