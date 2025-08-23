@@ -1,0 +1,52 @@
+{
+  "name": "alusa-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "build": "turbo run build",
+    "postinstall": "prisma generate",
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:e2e": "playwright test",
+    "dev:web": "pnpm --filter web dev",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "seed:login-user": "node -r ts-node/register scripts/seed-login-user.ts"
+  },
+  "prisma": {
+    "seed": "ts-node --compiler-options {\"module\":\"NodeNext\"} prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.2",
+    "@types/archiver": "^6.0.3",
+    "@types/node": "^20.14.9",
+    "@types/nodemailer": "^7.0.1",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/ui": "^1.6.0",
+    "archiver": "^7.0.1",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "playwright": "^1.47.0",
+    "prettier": "^3.2.5",
+    "prisma": "^5.19.0",
+    "rimraf": "^5.0.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.4",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.620.0",
+    "@prisma/client": "^5.19.0",
+    "bcryptjs": "^3.0.2",
+    "cloudinary": "^1.41.0",
+    "nodemailer": "^7.0.5",
+    "xlsx": "^0.18.5"
+  }
+}

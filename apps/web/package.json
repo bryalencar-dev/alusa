@@ -1,0 +1,39 @@
+{
+  "name": "@alusa/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+  "start": "next start",
+  "lint": "next lint",
+  "test:unit": "vitest run",
+  "test:unit:watch": "vitest",
+  "test:e2e": "playwright test",
+  "pretest:e2e": "rimraf apps/web/.next/cache || true"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0",
+    "bcryptjs": "^3.0.2",
+    "next": "14.2.5",
+    "next-auth": "4.24.8",
+    "react": "18.3.1",
+  "react-dom": "18.3.1",
+  "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.2.2",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/node": "20.11.19",
+    "@types/react": "18.2.74",
+    "@types/react-dom": "18.2.24",
+    "@playwright/test": "^1.47.0",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5",
+    "typescript": "5.4.5",
+  "vitest": "^1.6.0",
+  "rimraf": "^5.0.0"
+  }
+}

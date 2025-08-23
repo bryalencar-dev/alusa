@@ -1,0 +1,54 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+  "types": ["node"],
+    "paths": {
+      "@/*": [
+        "./app/*"
+      ],
+      "@alusa/lib": [
+        "../../packages/lib/src/index"
+      ],
+      "@alusa/lib/*": [
+        "../../packages/lib/src/*"
+      ],
+      "@alusa/ui": [
+        "../../packages/ui/src/index"
+      ],
+      "@alusa/ui/*": [
+        "../../packages/ui/src/*"
+      ]
+    },
+    "jsx": "preserve",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "strict": true,
+    "noEmit": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+  "allowJs": false,
+  "module": "ESNext",
+  "moduleResolution": "Bundler",
+  "esModuleInterop": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "app",
+    "lib",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

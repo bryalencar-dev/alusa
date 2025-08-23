@@ -1,0 +1,609 @@
+// Prisma schema inicial Alusa
+generator client {
+	provider = "prisma-client-js"
+}
+
+datasource db {
+	provider = "postgresql"
+	url      = env("DATABASE_URL")
+}
+
+enum RoleName {
+	ADMIN
+	USER
+}
+
+enum PerfilUsuario {
+	ADMIN
+	PROFESSOR
+	RESPONSAVEL
+	ALUNO
+}
+
+model Role {
+	id        String    @id @default(cuid())
+	name      RoleName  @unique
+	users     User[]
+	createdAt DateTime  @default(now())
+	updatedAt DateTime  @updatedAt
+}
+
+model User {
+	id         String    @id @default(cuid())
+	email      String    @unique
+	deletedAt  DateTime?
+	senhaHash  String
+	roleId     String
+	perfil     PerfilUsuario @default(ALUNO)
+	role       Role      @relation(fields: [roleId], references: [id])
+	invites    Invite[]
+	ingressosCheckins Ingresso[]
+	vendas      Venda[]
+	logsAuditoria LogAuditoria[]
+	consentimentos Consentimento[]
+	notificacoes  Notificacao[]
+	arquivos      Arquivo[]
+	createdAt  DateTime  @default(now())
+	updatedAt  DateTime  @updatedAt
+}
+
+model Invite {
+	id        String    @id @default(cuid())
+	email     String
+	token     String    @unique
+	expiresAt DateTime
+	usedAt    DateTime?
+	createdAt DateTime  @default(now())
+	userId    String?
+	user      User?     @relation(fields: [userId], references: [id])
+
+	@@unique([email, token])
+	@@index([userId])
+}
+
+model Customer {
+	id        String   @id @default(cuid())
+	name      String
+	cpfCnpj   String   @unique
+	email     String
+	phone     String
+	address   String?
+	createdAt DateTime @default(now())
+	updatedAt DateTime @updatedAt
+	billings  Billing[]
+}
+
+enum BillingStatus {
+	PENDING
+	PAID
+	CANCELLED
+	REFUNDED
+}
+
+model Billing {
+	id         String        @id @default(cuid())
+	customerId String
+	customer   Customer      @relation(fields: [customerId], references: [id])
+	externalId String        @unique
+	status     BillingStatus @default(PENDING)
+	amount     Decimal       @db.Decimal(10,2)
+	dueDate    DateTime
+	createdAt  DateTime      @default(now())
+
+	@@index([customerId])
+	@@index([status])
+	@@index([dueDate])
+	@@index([status, dueDate])
+}
+
+// ===== Combos =====
+
+enum MatriculaStatus {
+	ATIVA
+	CANCELADA
+	CONCLUIDA
+}
+
+enum DescontoTipo {
+	PERCENTUAL
+	FIXO
+}
+
+enum DescontoEscopo {
+	MATRICULA
+	MENSALIDADE
+	COMBO
+}
+
+model Aluno {
+	id              String       @id @default(cuid())
+	nome            String
+	cpfCnpj         String       @unique
+	email           String
+	asaasCustomerId String?      @unique
+	createdAt       DateTime     @default(now())
+	updatedAt       DateTime     @updatedAt
+	matriculas      Matricula[]
+	presencas       Presenca[]
+	inscricoesEvento InscricaoEvento[]
+	vendas          Venda[]
+	arquivos        Arquivo[]
+}
+
+model Turma {
+	id         String       @id @default(cuid())
+	nome       String
+	inicio     DateTime?
+	fim        DateTime?
+	createdAt  DateTime     @default(now())
+	updatedAt  DateTime     @updatedAt
+	matriculas Matricula[]
+	combos     ComboTurma[]
+	presencas  Presenca[]
+}
+
+model Plano {
+	id           String       @id @default(cuid())
+	nome         String
+	mensalidade  Decimal       @db.Decimal(10,2)
+	ativo        Boolean       @default(true)
+	createdAt    DateTime      @default(now())
+	updatedAt    DateTime      @updatedAt
+	matriculas   Matricula[]
+}
+	
+model Matricula {
+	id            String              @id @default(cuid())
+	alunoId       String
+	turmaId       String?
+	planoId       String
+	comboId       String?
+	dataInicio    DateTime
+	dataFim       DateTime?
+	status        MatriculaStatus     @default(ATIVA)
+	taxaMatricula Decimal?            @db.Decimal(10,2)
+	asaasId       String?             @unique
+	createdAt     DateTime            @default(now())
+	updatedAt     DateTime            @updatedAt
+	aluno         Aluno               @relation(fields: [alunoId], references: [id])
+	turma         Turma?              @relation(fields: [turmaId], references: [id])
+	combo         Combo?              @relation(fields: [comboId], references: [id])
+	plano         Plano               @relation(fields: [planoId], references: [id])
+	descontos     DescontoMatricula[]
+	cobrancas     Cobranca[]
+
+	@@index([alunoId])
+	@@index([turmaId])
+	@@index([planoId])
+	@@index([comboId])
+	@@index([status])
+	@@index([createdAt])
+	@@index([alunoId, status])
+}
+
+model Desconto {
+	id         String              @id @default(cuid())
+	nome       String
+	tipo       DescontoTipo
+	valor      Decimal             @db.Decimal(10,2)
+	escopo     DescontoEscopo
+	cumulativo Boolean             @default(false)
+	ativo      Boolean             @default(true)
+	createdAt  DateTime            @default(now())
+	updatedAt  DateTime            @updatedAt
+	aplicacoes DescontoMatricula[]
+}
+
+model DescontoMatricula {
+	matriculaId String
+	descontoId  String
+	valorFinal  Decimal @db.Decimal(10,2) // valor de desconto aplicado (positivo)
+	matricula   Matricula @relation(fields: [matriculaId], references: [id])
+	desconto    Desconto  @relation(fields: [descontoId], references: [id])
+
+	@@id([matriculaId, descontoId])
+	@@index([descontoId])
+}
+
+// Log bruto de eventos/webhooks Asaas para auditoria
+model WebhookAsaasLog {
+	id        String   @id @default(cuid())
+	event     String
+	payload   Json
+	createdAt DateTime @default(now())
+}
+
+// ===== Combos =====
+enum ComboStatus {
+	ATIVO
+	INATIVO
+}
+
+model Combo {
+	id         String       @id @default(cuid())
+	nome       String
+	descricao  String?
+	valor      Decimal       @db.Decimal(10,2)
+	status     ComboStatus   @default(ATIVO)
+	createdAt  DateTime      @default(now())
+	updatedAt  DateTime      @updatedAt
+	turmas     ComboTurma[]
+	matriculas Matricula[]
+}
+
+model ComboTurma {
+	comboId String
+	turmaId String
+	combo   Combo  @relation(fields: [comboId], references: [id])
+	turma   Turma  @relation(fields: [turmaId], references: [id])
+
+	@@id([comboId, turmaId])
+	@@index([turmaId])
+}
+
+// ===== Presenças =====
+
+enum PresencaStatus {
+	PRESENTE
+	FALTA
+	ATRASO
+}
+
+// ===== Eventos & Ingressos =====
+
+// Modelos de suporte mínimos para atender FKs solicitadas (multi-tenant + responsáveis)
+model Conta {
+	id        String    @id @default(cuid())
+	nome      String
+	createdAt DateTime  @default(now())
+	updatedAt DateTime  @updatedAt
+	eventos   Evento[]
+	produtos  Produto[]
+	vendas    Venda[]
+}
+
+model Responsavel {
+	id         String             @id @default(cuid())
+	nome       String
+	email      String             @unique
+	telefone   String?
+	createdAt  DateTime           @default(now())
+	updatedAt  DateTime           @updatedAt
+	inscricoes InscricaoEvento[]
+	vendas      Venda[]
+}
+
+enum EventoStatus {
+	ATIVO
+	INATIVO
+}
+enum EventoTipo {
+	WORKSHOP
+	APRESENTACAO
+	OUTRO
+}
+enum InscricaoEventoStatus {
+	RESERVADO
+	PAGO
+	CANCELADO
+}
+enum FormaPagamento {
+	DINHEIRO
+	PIX
+	CARTAO
+	BOLETO
+}
+enum PagamentoEventoStatus {
+	CONFIRMADO
+	ESTORNADO
+}
+
+model Evento {
+	id          String        @id @default(cuid())
+	contaId     String
+	nome        String
+	descricao   String?
+	local       String?
+	dataInicio  DateTime
+	dataFim     DateTime
+	capacidade  Int?
+	tipo        EventoTipo
+	status      EventoStatus  @default(ATIVO)
+	createdAt   DateTime      @default(now())
+	updatedAt   DateTime      @updatedAt
+	conta       Conta         @relation(fields: [contaId], references: [id])
+	tipos       TipoIngresso[]
+	inscricoes  InscricaoEvento[]
+	cobrancas   Cobranca[]
+
+	@@index([contaId])
+	@@index([status])
+}
+
+model TipoIngresso {
+	id            String       @id @default(cuid())
+	eventoId      String
+	nome          String
+	valor         Decimal       @db.Decimal(10,2)
+	qtdDisponivel Int
+	evento        Evento       @relation(fields: [eventoId], references: [id])
+	inscricoes    InscricaoEvento[]
+
+	@@index([eventoId])
+}
+
+model InscricaoEvento {
+	id             String                @id @default(cuid())
+	eventoId       String
+	tipoIngressoId String
+	alunoId        String?
+	responsavelId  String?
+	externo        Boolean               @default(false)
+	quantidade     Int
+	valorTotal     Decimal               @db.Decimal(10,2)
+	status         InscricaoEventoStatus @default(RESERVADO)
+	dataReg        DateTime              @default(now())
+	evento         Evento                @relation(fields: [eventoId], references: [id])
+	tipoIngresso   TipoIngresso          @relation(fields: [tipoIngressoId], references: [id])
+	aluno          Aluno?                @relation(fields: [alunoId], references: [id])
+	responsavel    Responsavel?          @relation(fields: [responsavelId], references: [id])
+	ingressos      Ingresso[]
+	pagamentos     PagamentoEvento[]
+
+	@@index([eventoId])
+	@@index([tipoIngressoId])
+	@@index([alunoId])
+	@@index([responsavelId])
+	@@index([status])
+	@@index([dataReg])
+}
+
+model PagamentoEvento {
+	id             String                @id @default(cuid())
+	inscricaoId    String
+	formaPagamento FormaPagamento
+	valorPago      Decimal               @db.Decimal(10,2)
+	status         PagamentoEventoStatus @default(CONFIRMADO)
+	dataPagamento  DateTime
+	comprovante    String?
+	inscricao      InscricaoEvento       @relation(fields: [inscricaoId], references: [id])
+
+	@@index([inscricaoId])
+}
+
+model Ingresso {
+	id             String         @id @default(cuid())
+	inscricaoId    String
+	qrCode         String         @unique
+	usadoEm        DateTime?
+	usadoPorUserId String?
+	usadoDevice    String?
+	inscricao      InscricaoEvento @relation(fields: [inscricaoId], references: [id])
+	usadoPorUser   User?           @relation(fields: [usadoPorUserId], references: [id])
+
+	@@index([inscricaoId])
+	@@index([usadoPorUserId])
+	@@index([usadoEm])
+}
+
+model Presenca {
+	id          String         @id @default(cuid())
+	alunoId     String
+	turmaId     String
+	dataAula    DateTime
+	status      PresencaStatus
+	observacao  String?
+	createdAt   DateTime       @default(now())
+	updatedAt   DateTime       @updatedAt
+	aluno       Aluno          @relation(fields: [alunoId], references: [id])
+	turma       Turma          @relation(fields: [turmaId], references: [id])
+
+	@@unique([alunoId, turmaId, dataAula])
+	@@index([turmaId, dataAula])
+	@@index([status])
+	@@index([dataAula])
+}
+
+// ===== LGPD Consentimento =====
+model Consentimento {
+	id          String   @id @default(cuid())
+	usuarioId   String
+	versaoTermo String
+	aceitoEm    DateTime @default(now())
+	usuario     User     @relation(fields: [usuarioId], references: [id])
+
+	@@index([usuarioId])
+	@@index([versaoTermo])
+}
+
+// ===== Auditoria =====
+model LogAuditoria {
+	id         String   @id @default(cuid())
+	usuarioId  String?
+	acao       String
+	entidade   String
+	entidadeId String
+	detalhes   Json
+	criadoEm   DateTime @default(now())
+	usuario    User?    @relation(fields: [usuarioId], references: [id])
+
+	@@index([usuarioId])
+	@@index([entidade, entidadeId])
+	@@index([acao])
+	@@index([criadoEm])
+}
+
+// ===== Financeiro Cobranças =====
+enum CobrancaStatus {
+	PENDENTE
+	PAGA
+	CANCELADA
+	VENCIDA
+}
+
+// ===== Notificações =====
+enum NotificacaoTipo {
+	CONVITE
+	COBRANCA
+	EVENTO
+}
+
+model Notificacao {
+	id         String           @id @default(cuid())
+	usuarioId  String?
+	tipo       NotificacaoTipo
+	titulo     String
+	mensagem   String
+	lida       Boolean          @default(false)
+	criadoEm   DateTime         @default(now())
+	usuario    User?            @relation(fields: [usuarioId], references: [id])
+
+	@@index([usuarioId])
+	@@index([tipo])
+	@@index([lida])
+	@@index([criadoEm])
+}
+
+model Cobranca {
+	id          String         @id @default(cuid())
+	matriculaId String?
+	eventoId    String?
+	vendaId     String?
+	status      CobrancaStatus @default(PENDENTE)
+	valor       Decimal        @db.Decimal(10,2)
+	vencimento  DateTime
+	pagoEm      DateTime?
+	createdAt   DateTime       @default(now())
+	matricula   Matricula?     @relation(fields: [matriculaId], references: [id])
+	evento      Evento?        @relation(fields: [eventoId], references: [id])
+	venda       Venda?         @relation(fields: [vendaId], references: [id])
+
+	@@index([vencimento])
+	@@index([status])
+	@@index([matriculaId])
+	@@index([eventoId])
+	@@index([vendaId])
+	@@index([pagoEm])
+}
+
+// ===== Loja =====
+
+enum ProdutoStatus {
+	ATIVO
+	INATIVO
+}
+
+enum MovEstoqueTipo {
+	ENTRADA
+	SAIDA
+	AJUSTE
+}
+
+enum VendaStatus {
+	CONFIRMADA
+	CANCELADA
+}
+
+model Produto {
+	id            String        @id @default(cuid())
+	contaId       String
+	nome          String
+	descricao     String?
+	categoria     String?
+	tamanho       String?
+	cor           String?
+	precoVenda    Decimal       @db.Decimal(10,2)
+	custo         Decimal?      @db.Decimal(10,2)
+	estoqueAtual  Int
+	estoqueMinimo Int           @default(0)
+	status        ProdutoStatus @default(ATIVO)
+	createdAt     DateTime      @default(now())
+	updatedAt     DateTime      @updatedAt
+	conta         Conta         @relation(fields: [contaId], references: [id])
+	movimentos    MovEstoque[]
+	itensVenda    VendaItem[]
+
+	@@index([contaId])
+	@@index([status])
+	@@index([estoqueAtual])
+}
+
+model MovEstoque {
+	id          String        @id @default(cuid())
+	produtoId   String
+	tipo        MovEstoqueTipo
+	quantidade  Int
+	data        DateTime      @default(now())
+	observacao  String?
+	produto     Produto       @relation(fields: [produtoId], references: [id])
+
+	@@index([produtoId])
+	@@index([data])
+}
+
+model Venda {
+	id             String        @id @default(cuid())
+	contaId        String
+	usuarioId      String
+	alunoId        String?
+	responsavelId  String?
+	data           DateTime      @default(now())
+	valorTotal     Decimal       @db.Decimal(10,2)
+	formaPagamento FormaPagamento
+	status         VendaStatus   @default(CONFIRMADA)
+	conta          Conta         @relation(fields: [contaId], references: [id])
+	usuario        User          @relation(fields: [usuarioId], references: [id])
+	aluno          Aluno?        @relation(fields: [alunoId], references: [id])
+	responsavel    Responsavel?  @relation(fields: [responsavelId], references: [id])
+	itens          VendaItem[]
+	cobrancas      Cobranca[]
+
+	@@index([contaId])
+	@@index([usuarioId])
+	@@index([alunoId])
+	@@index([responsavelId])
+	@@index([status])
+	@@index([data])
+}
+
+model VendaItem {
+	id            String   @id @default(cuid())
+	vendaId       String
+	produtoId     String
+	quantidade    Int
+	precoUnitario Decimal  @db.Decimal(10,2)
+	subtotal      Decimal  @db.Decimal(10,2)
+	venda         Venda    @relation(fields: [vendaId], references: [id])
+	produto       Produto  @relation(fields: [produtoId], references: [id])
+
+	@@index([vendaId])
+	@@index([produtoId])
+}
+
+// ===== Arquivos Upload =====
+enum ArquivoTipo {
+	FOTO_ALUNO
+	CONTRATO
+	OUTRO
+}
+
+model Arquivo {
+	id        String      @id @default(cuid())
+	usuarioId String?
+	alunoId   String?
+	tipo      ArquivoTipo
+	nome      String
+	url       String
+	tamanho   Int
+	mimeType  String
+	hashSha256 String?
+	criadoEm  DateTime    @default(now())
+	usuario   User?       @relation(fields: [usuarioId], references: [id])
+	aluno     Aluno?      @relation(fields: [alunoId], references: [id])
+
+	@@index([usuarioId])
+	@@index([tipo])
+	@@index([criadoEm])
+	@@index([alunoId])
+		@@index([hashSha256])
+}
