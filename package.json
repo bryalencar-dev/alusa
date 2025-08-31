@@ -1,0 +1,53 @@
+{
+  "name": "alusa-monorepo",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": ["apps/*","packages/*"],
+  "scripts": {
+    "lint": "pnpm -r exec eslint .",
+    "typecheck": "pnpm -r run typecheck",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "test:unit": "pnpm -r --filter ./apps/web run test:unit",
+    "test:e2e": "pnpm -r --filter ./apps/web run test:e2e",
+    "dev": "pnpm --filter @alusa/ui build && pnpm --filter @alusa/lib build && pnpm --filter @alusa/web dev",
+    "format": "prettier --write .",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --name init --schema=prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "2.4.6",
+    "@prisma/client": "5.18.0",
+    "@testing-library/jest-dom": "6.4.2",
+    "@testing-library/react": "16.0.0",
+    "@types/node": "20.14.9",
+    "@types/react": "18.2.74",
+    "@types/react-dom": "18.2.22",
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
+    "@vitest/coverage-v8": "1.6.0",
+    "bcryptjs": "2.4.3",
+    "dotenv-cli": "7.4.1",
+    "eslint": "9.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "jsdom": "^26.1.0",
+    "prettier": "3.3.3",
+    "prisma": "5.18.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tsx": "4.19.1",
+    "turbo": "2.0.6",
+    "typescript": "5.5.4",
+    "typescript-eslint": "8.41.0",
+    "vitest": "1.6.0"
+  },
+  "pnpm": {
+    "overrides": {}
+  }
+}

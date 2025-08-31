@@ -1,0 +1,53 @@
+// Prisma schema inicial
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Models de autenticação
+
+enum Status {
+  ATIVO
+  INATIVO
+}
+
+enum Role {
+  ADMIN
+  FINANCEIRO
+  RECEPCAO
+  PROFESSOR
+  RESPONSAVEL
+}
+
+model Conta {
+  id        String    @id @default(cuid())
+  nome      String
+  cpfCnpj   String
+  status    Status    @default(ATIVO)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  usuarios  Usuario[]
+
+  @@index([cpfCnpj])
+}
+
+model Usuario {
+  id         String    @id @default(cuid())
+  contaId    String
+  conta      Conta     @relation(fields: [contaId], references: [id])
+  nome       String
+  email      String    @unique
+  telefone   String?
+  senhaHash  String
+  role       Role      @default(RESPONSAVEL)
+  status     Status    @default(ATIVO)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([contaId])
+}

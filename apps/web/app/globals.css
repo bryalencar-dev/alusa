@@ -1,0 +1,143 @@
+/* por quê: define fundação Tailwind + tokens CSS custom para fallback */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	--brand-bg: #3C0269; /* updated per request */
+	--brand-primary: #19143A;
+	--brand-accent: #4F2298;
+	--brand-muted: #686868;
+	--brand-muted2: #828282;
+	--brand-stroke: #DDDDDD;
+
+	/* Toast palette (coerente / suave) */
+	--toast-success-bg: #E9F9F1;
+	--toast-success-icon-bg: #D6F3E5;
+	--toast-success-fg: #146B3A;
+	--toast-success-icon-fg: #1B7F47;
+
+	--toast-error-bg: #FCECEF;
+	--toast-error-icon-bg: #F8D9DF;
+	--toast-error-fg: #7F1D2D;
+	--toast-error-icon-fg: #9A2539;
+
+	--toast-warning-bg: #FFF7E8;
+	--toast-warning-icon-bg: #FDEBCF;
+	--toast-warning-fg: #7A4E00;
+	--toast-warning-icon-fg: #945E00;
+
+	--toast-info-bg: #F0F3FF;
+	--toast-info-icon-bg: #E1E8FE;
+	--toast-info-fg: #223868;
+	--toast-info-icon-fg: #2F4A84;
+}
+
+html, body {
+	font-family: var(--font-inter, 'Inter'), system-ui, sans-serif;
+	font-weight: 400;
+	background: var(--brand-bg);
+	color: #0F0F1A;
+}
+
+/* ===================== TOASTS (moderno) ===================== */
+[data-custom-toast].toast-container { /* base shape */
+	border-radius: 20px;
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+	padding: 16px 20px 16px 20px;
+	box-shadow: 0 4px 16px rgba(0,0,0,.08);
+	backdrop-filter: blur(6px);
+	min-width: 340px;
+	max-width: 420px;
+}
+
+.toast-icon-wrap { width: 44px; height: 44px; display:grid; place-items:center; border-radius: 16px; flex-shrink:0; }
+.toast-close-btn { width:32px; height:32px; display:grid; place-items:center; border-radius:12px; cursor:pointer; color:#555; transition:background .18s, color .18s, transform .18s; }
+.toast-close-btn:hover { background: rgba(0,0,0,0.05); color:#222; }
+.toast-close-btn:active { transform: scale(.92); }
+
+/* Variants referencing CSS vars */
+.toast-success { background: var(--toast-success-bg); color: var(--toast-success-fg); }
+.toast-success .toast-icon-wrap { background: var(--toast-success-icon-bg); }
+.toast-success .toast-icon-wrap svg { color: var(--toast-success-icon-fg); }
+
+.toast-error { background: var(--toast-error-bg); color: var(--toast-error-fg); }
+.toast-error .toast-icon-wrap { background: var(--toast-error-icon-bg); }
+.toast-error .toast-icon-wrap svg { color: var(--toast-error-icon-fg); }
+
+.toast-warning { background: var(--toast-warning-bg); color: var(--toast-warning-fg); }
+.toast-warning .toast-icon-wrap { background: var(--toast-warning-icon-bg); }
+.toast-warning .toast-icon-wrap svg { color: var(--toast-warning-icon-fg); }
+
+.toast-info { background: var(--toast-info-bg); color: var(--toast-info-fg); }
+.toast-info .toast-icon-wrap { background: var(--toast-info-icon-bg); }
+.toast-info .toast-icon-wrap svg { color: var(--toast-info-icon-fg); }
+
+.toast-title { font-weight:600; line-height:1.15; letter-spacing:-0.005em; }
+.toast-desc { font-size:12px; line-height:1.2; opacity:.8; margin-top:4px; }
+
+@keyframes toast-in {
+	0% { opacity: 0; transform: translateY(-6px) scale(.96); }
+	100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+	0% { opacity: 1; transform: translateY(0) scale(1); }
+	100% { opacity: 0; transform: translateY(-4px) scale(.96); }
+}
+.animate-toast-in { animation: toast-in .35s cubic-bezier(.32,.72,.33,1); }
+.animate-toast-out { animation: toast-out .28s cubic-bezier(.55,.06,.68,.19) forwards; }
+
+/* Container sonner (top-right) spacing e stacking */
+[data-sonner-toaster][data-position^="top-"] { padding-top:14px; padding-right:14px; gap:12px; }
+[data-sonner-toast] { background: transparent; box-shadow: none; border: 0; padding:0; }
+
+/* Limita largura e remove estilos default quando nosso conteúdo custom existe */
+[data-sonner-toast] > div[data-custom-toast] { width:100%; }
+
+/* ===================== FIM TOASTS ===================== */
+
+/* utilitários tipográficos coerentes (pesos padronizados) */
+.font-display-2xl { font-weight: 700; letter-spacing: -0.02em; }
+.font-display-xl  { font-weight: 700; letter-spacing: -0.01em; }
+.font-display-lg  { font-weight: 600; }
+.font-display-md  { font-weight: 600; }
+.font-text        { font-weight: 400; }
+.font-text-medium { font-weight: 500; }
+.font-text-bold   { font-weight: 600; }
+
+/* Centraliza vertical/horizontal e remove scroll só nas telas de auth */
+.auth-shell {
+	min-height: 100dvh;      /* usa dvh para evitar jump e 1px scroll */
+	width: 100%;
+	display: grid;
+	place-items: center;
+	background-color: #3C0269; /* updated brand background */
+	overflow: hidden;          /* remove qualquer scroll da página */
+}
+
+/* Cards auth reutilizáveis */
+.auth-card {
+	@apply bg-white rounded-[40px] shadow-card w-[420px] max-w-[92vw] p-10 sm:p-12;
+}
+
+/* Inputs auth padronizados */
+.auth-input {
+	@apply w-full border border-brand-stroke rounded-md px-4 py-2 text-sm placeholder:text-brand-muted focus:outline-none focus:ring-2 focus:ring-brand-accent/50 focus:border-brand-accent bg-white;
+}
+
+.auth-button-primary {
+	@apply w-full bg-brand-primary text-white font-medium rounded-md py-2.5 text-sm hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.auth-link {
+	@apply text-brand-accent hover:underline;
+}
+
+/* Suporte dark eventual */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--brand-bg: #110E28;
+	}
+}
