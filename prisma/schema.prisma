@@ -70,17 +70,17 @@ model Aluno {
   nomeSocial   String?
   dataNasc     DateTime
   cpf          String?  @unique
-  email        String?  @unique
+  email        String?
   telefone     String?
   foto         String?
   // Campos de endereço estruturados
-  enderecoCep  String?
+  enderecoCep  String?  @db.Char(8)
   enderecoLogradouro String?
   enderecoNumero String?
   enderecoComplemento String?
   enderecoBairro String?
   enderecoCidade String?
-  enderecoUf String?
+  enderecoUf String? @db.Char(2)
   observacao   String?
   genero       Genero?
   modalidadePrincipal String?
@@ -97,7 +97,7 @@ model Aluno {
   consentimentoComunicacoes Boolean @default(true)
   tamanhoCamiseta String?
   tamanhoCalcado  String?
-  codigoInterno   String?  @unique
+  codigoInterno   String?
   tags            String[] @default([])
   status       Status   @default(ATIVO)
   asaasId      String?  @unique
@@ -114,6 +114,8 @@ model Aluno {
   // presencas    Presenca[]
 
   @@index([contaId])
+  @@unique([contaId, email])
+  @@unique([contaId, codigoInterno])
 }
 
 model Responsavel {
@@ -142,8 +144,8 @@ model AlunoResponsavel {
   responsavelId String
   tipoVinculo   String
 
-  aluno       Aluno       @relation(fields: [alunoId], references: [id])
-  responsavel Responsavel @relation(fields: [responsavelId], references: [id])
+  aluno       Aluno       @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  responsavel Responsavel @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
 
   @@index([alunoId])
   @@index([responsavelId])

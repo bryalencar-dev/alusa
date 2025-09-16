@@ -7,6 +7,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from ".
 import { Avatar, AvatarImage, AvatarFallback } from "../../../components/ui/avatar";
 import { Skeleton } from "../../../components/ui/skeleton";
 import AlunoWizardDialog from "../../../components/aluno/AlunoWizardDialog";
+import AlunoEditDialog, { type EditAluno } from "../../../components/aluno/AlunoEditDialog";
 import toast from "react-hot-toast";
 
 type StatusAluno = "ATIVO" | "INATIVO";
@@ -141,8 +142,74 @@ export default function AlunosPage() {
     }
   }
 
-  function handleEdit() {
-    toast("Edição avançada em breve");
+  // Edição
+  const [editing, setEditing] = useState<EditAluno | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  async function handleEdit(a: Aluno) {
+    try {
+      // Buscar detalhes completos do aluno
+      const res = await fetch(`/api/alunos/${a.id}`);
+      if (!res.ok) throw new Error('Falha ao carregar detalhes');
+      const full = await res.json();
+      // Pegar responsável principal se existir
+      const vincs = Array.isArray(full.responsaveis) ? full.responsaveis : [];
+      const principal = vincs[0]?.responsavel || null;
+      const editingObj: EditAluno = {
+        id: full.id,
+        nome: full.nome,
+        nomeSocial: full.nomeSocial,
+        dataNasc: full.dataNasc,
+        cpf: full.cpf,
+        email: full.email,
+        telefone: full.telefone,
+        foto: full.foto,
+        enderecoCep: full.enderecoCep,
+        enderecoLogradouro: full.enderecoLogradouro,
+        enderecoNumero: full.enderecoNumero,
+        enderecoComplemento: full.enderecoComplemento,
+        enderecoBairro: full.enderecoBairro,
+        enderecoCidade: full.enderecoCidade,
+        enderecoUf: full.enderecoUf,
+        observacao: full.observacao,
+        genero: full.genero,
+        modalidadePrincipal: full.modalidadePrincipal,
+        nivel: full.nivel,
+        alergias: full.alergias,
+        restricoesMedicas: full.restricoesMedicas,
+        contatoEmergenciaNome: full.contatoEmergenciaNome,
+        contatoEmergenciaTelefone: full.contatoEmergenciaTelefone,
+        origemCadastro: full.origemCadastro,
+        bolsaDescontoPercent: full.bolsaDescontoPercent,
+        isentoTaxaMatricula: full.isentoTaxaMatricula,
+        consentimentoImagem: full.consentimentoImagem,
+        dataConsentimentoImagem: full.dataConsentimentoImagem,
+        consentimentoComunicacoes: full.consentimentoComunicacoes,
+        tamanhoCamiseta: full.tamanhoCamiseta,
+        tamanhoCalcado: full.tamanhoCalcado,
+        codigoInterno: full.codigoInterno,
+        tags: full.tags,
+        status: full.status,
+        responsavel: principal ? {
+          nome: principal.nome,
+          cpf: principal.cpf,
+          email: principal.email,
+          telefone: principal.telefone,
+          endereco: {
+            cep: principal.enderecoCep,
+            logradouro: principal.enderecoLogradouro,
+            numero: principal.enderecoNumero,
+            complemento: principal.enderecoComplemento,
+            bairro: principal.enderecoBairro,
+            cidade: principal.enderecoCidade,
+            uf: principal.enderecoUf,
+          }
+        } : undefined,
+      };
+      setEditing(editingObj);
+      setEditOpen(true);
+    } catch {
+      toast.error('Não foi possível abrir edição');
+    }
   }
 
   function onWizardFinish() {
@@ -333,7 +400,7 @@ export default function AlunosPage() {
                       type="button"
                       aria-label="Editar aluno"
                       className="p-2 rounded-md hover:bg-slate-100 transition text-slate-500 hover:text-violet-700"
-                      onClick={() => handleEdit()}
+                      onClick={() => handleEdit(a)}
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -364,7 +431,16 @@ export default function AlunosPage() {
                 placeholder="Motivo da exclusão (opcional)"
               />
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => { setDeleting(null); setDeleteReason(""); }} disabled={deletingLoading}>Cancelar</Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                  onClick={() => { setDeleting(null); setDeleteReason(""); }}
+                  disabled={deletingLoading}
+                >
+                  Cancelar
+                </Button>
                 <Button type="button" size="sm" className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50" onClick={confirmDelete} disabled={deletingLoading}>
                   {deletingLoading ? 'Excluindo...' : 'Excluir'}
                 </Button>
@@ -436,6 +512,13 @@ export default function AlunosPage() {
         onOpenChange={setOpenWizard}
         contaId={contaId}
         onFinish={onWizardFinish}
+      />
+      {/* Modal de edição de aluno */}
+      <AlunoEditDialog
+        open={editOpen}
+        onOpenChange={(o) => { setEditOpen(o); if (!o) setEditing(null); }}
+        aluno={editing}
+        onSaved={fetchAlunos}
       />
     </div>
   );

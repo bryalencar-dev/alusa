@@ -47,6 +47,8 @@ export function AlunoWizard({ onFinish, contaId, onDirtyChange }: AlunoWizardPro
 
   // menor de idade?
   const dataNasc = useWatch({ control: form.control, name: "dataNasc" });
+  // data/hora de consentimento (somente leitura na UI)
+  const dataConsentimentoImagem = useWatch({ control: form.control, name: "dataConsentimentoImagem" });
   const isMinor = useMemo(() => {
     try {
       if (!dataNasc) return false;
@@ -150,7 +152,8 @@ export function AlunoWizard({ onFinish, contaId, onDirtyChange }: AlunoWizardPro
       toast.custom(() => <CustomToast title="Formato inválido" description="Envie JPG ou PNG" variant="error" />);
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    const maxMb = Number(process.env.NEXT_PUBLIC_UPLOAD_MAX_MB || 15);
+    if (file.size > maxMb * 1024 * 1024) {
       // Não abre modal; mostra aviso inline
       setFotoOversize(true);
       return;
@@ -769,7 +772,14 @@ export function AlunoWizard({ onFinish, contaId, onDirtyChange }: AlunoWizardPro
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex items-center gap-4">
                   <Checkbox name="consentimentoImagem" label="Consentimento de imagem" />
-                  <Field name="dataConsentimentoImagem" label="Data do consentimento" type="date" />
+                  {dataConsentimentoImagem ? (
+                    <div className="text-[12px] text-slate-500" data-testid="aluno-dataConsentimentoImagem-info">
+                      Capturado em: {(() => {
+                        const d = dataConsentimentoImagem instanceof Date ? dataConsentimentoImagem : new Date(String(dataConsentimentoImagem));
+                        return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString("pt-BR");
+                      })()}
+                    </div>
+                  ) : null}
                 </div>
                 <Checkbox name="consentimentoComunicacoes" label="Consentimento de comunicações" />
               </div>
@@ -911,6 +921,7 @@ function getError(errors: FieldErrors<AlunoCreateInput>, path: string) {
   }
   return (cur as { message?: string } | undefined)?.message as string | undefined;
 }
+ 
 
 // --------- UFField (apenas letras, 2 caracteres) ---------
 function UFField({ name, label }: { name: Path<AlunoCreateInput>; label: string }) {

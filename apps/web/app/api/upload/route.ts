@@ -4,7 +4,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const DEFAULT_MAX_MB = 15;
+const MAX_SIZE = (Number(process.env.NEXT_UPLOAD_MAX_MB || process.env.NEXT_PUBLIC_UPLOAD_MAX_MB) || DEFAULT_MAX_MB) * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
@@ -24,7 +25,8 @@ function validateFile(file: File): { valid: boolean; error?: string } {
 
   // Validar tamanho
   if (file.size > MAX_SIZE) {
-    return { valid: false, error: 'Arquivo muito grande. Máximo 5MB.' };
+  const mb = Math.floor(MAX_SIZE / (1024 * 1024));
+  return { valid: false, error: `Arquivo muito grande. Máximo ${mb}MB.` };
   }
 
   // Validar extensão

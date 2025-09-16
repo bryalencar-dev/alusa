@@ -14,34 +14,46 @@ const parseJsonIfString = (v: unknown) => {
 };
 
 export const enderecoSchema = z.object({
-  cep: z.preprocess(onlyDigits, z.string().regex(cepRegex, 'CEP inválido')),
-  logradouro: z.string().min(2),
-  numero: z.string().min(1),
+  cep: z.preprocess(onlyDigits, z.string().regex(cepRegex)),
+  logradouro: z
+    .string()
+    .min(2),
+  numero: z
+    .string()
+    .min(1),
   complemento: z.string().optional(),
-  bairro: z.string().min(2),
-  cidade: z.string().min(2),
-  uf: z.string().length(2),
+  bairro: z
+    .string()
+    .min(2),
+  cidade: z
+    .string()
+    .min(2),
+  uf: z
+    .string()
+    .length(2),
 });
 // Versão flexível que aceita string JSON e converte para objeto antes de validar
 export const enderecoSchemaFlexible = z.preprocess(parseJsonIfString, enderecoSchema);
 
 export const responsavelSchema = z.object({
   nome: z.string().min(3),
-  cpf: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(cpfRegex, 'CPF inválido')),
+  cpf: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(cpfRegex)),
   email: z.preprocess(emptyOrNullToUndefined, z.string().email()),
-  telefone: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(telRegex, 'Telefone inválido')),
+  telefone: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(telRegex)),
   endereco: z.preprocess(parseJsonIfString, enderecoSchema.partial()).optional(),
   financeiro: z.boolean().default(true).optional(),
 });
 
 export const alunoBaseSchema = z.object({
   contaId: z.string(),
-  nome: z.string().min(2, 'Nome obrigatório'),
+  nome: z.string().min(2),
   nomeSocial: z.preprocess(emptyOrNullToUndefined, z.string()).optional(),
-  dataNasc: z.coerce.date().refine(d => d <= new Date(), 'Data futura inválida'),
-  cpf: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(cpfRegex, 'CPF inválido')).optional(),
+  dataNasc: z
+    .date()
+    .refine(d => d <= new Date()),
+  cpf: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(cpfRegex)).optional(),
   email: z.preprocess(emptyOrNullToUndefined, z.string().email()).optional(),
-  telefone: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(telRegex, 'Telefone inválido')).optional(),
+  telefone: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(telRegex)).optional(),
   endereco: z.preprocess(parseJsonIfString, enderecoSchema),
   observacao: z.preprocess(emptyOrNullToUndefined, z.string().max(1000)).optional(),
   foto: z.preprocess(emptyOrNullToUndefined, z.string()).optional(),
@@ -51,7 +63,7 @@ export const alunoBaseSchema = z.object({
   alergias: z.preprocess(emptyOrNullToUndefined, z.string()).optional(),
   restricoesMedicas: z.preprocess(emptyOrNullToUndefined, z.string()).optional(),
   contatoEmergenciaNome: z.preprocess(emptyOrNullToUndefined, z.string()).optional(),
-  contatoEmergenciaTelefone: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(telRegex,'Telefone inválido')).optional(),
+  contatoEmergenciaTelefone: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(telRegex)).optional(),
   origemCadastro: z.preprocess(emptyOrNullToUndefined, z.string()).optional(),
   bolsaDescontoPercent: z.preprocess(emptyOrNullToUndefined, z.coerce.number().min(0).max(100)).optional(),
   isentoTaxaMatricula: z.boolean().optional(),
@@ -70,20 +82,20 @@ export const alunoBaseSchema = z.object({
 const alunoRefined = alunoBaseSchema.superRefine((data, ctx) => {
   const idade = calcIdade(data.dataNasc);
   if (data.cpf && !cpfRegex.test(data.cpf)) {
-    ctx.addIssue({ code: 'custom', message: 'CPF inválido' });
+    ctx.addIssue({ code: 'custom', path: ['cpf'] });
   }
   if (data.bolsaDescontoPercent && (data.bolsaDescontoPercent < 0 || data.bolsaDescontoPercent > 100)) {
-    ctx.addIssue({ code: 'custom', message: 'Desconto deve estar entre 0 e 100%' });
+    ctx.addIssue({ code: 'custom', path: ['bolsaDescontoPercent'] });
   }
   if (idade < 18) {
     if (!data.responsavel) {
-      ctx.addIssue({ code: 'custom', message: 'Responsável obrigatório para menores.' });
+      ctx.addIssue({ code: 'custom', path: ['responsavel'] });
       return;
     }
     const required: (keyof typeof data.responsavel)[] = ['nome','cpf','email','telefone'];
     required.forEach(field => {
       if (!data.responsavel || !data.responsavel[field]) {
-        ctx.addIssue({ code: 'custom', message: `Campo responsável ${String(field)} é obrigatório.` });
+        ctx.addIssue({ code: 'custom', path: ['responsavel', field as string] });
       }
     });
   }
@@ -91,8 +103,13 @@ const alunoRefined = alunoBaseSchema.superRefine((data, ctx) => {
 
 export const alunoCreateSchema = alunoRefined;
 
+const enderecoFlexiblePartial = z.preprocess(parseJsonIfString, enderecoSchema.partial());
 export const alunoUpdateSchema = alunoBaseSchema.partial().extend({
   id: z.string(),
+  // Permitir editar dataNasc via string ISO
+  dataNasc: z.coerce.date().optional(),
+  // Permitir endereço parcial/flexível no update
+  endereco: enderecoFlexiblePartial.optional(),
   motivoInativacao: z.string().optional(),
   dataInativacao: z.coerce.date().optional(),
 });

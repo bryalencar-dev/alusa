@@ -1,6 +1,6 @@
 "use client";
 // Login como client component (sem guard SSR) para evitar corridas token + redirect.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
@@ -19,7 +19,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-export default function LoginPage() {
+function LoginInner() {
   const sp = useSearchParams();
   const callbackUrl = nextParamToRedirect(sp.get('next')) || '/admin/dashboard';
   const [showPassword, setShowPassword] = useState(false);
@@ -189,5 +189,13 @@ export default function LoginPage() {
         </p>
       </form>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginInner />
+    </Suspense>
   );
 }

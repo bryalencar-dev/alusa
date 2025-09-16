@@ -266,7 +266,16 @@ export function AlunoTable({ data, loading, onEdit, onDeleted }: { data: Aluno[]
 						<p className="text-xs text-gray-600">Esta ação é permanente e removerá o aluno do sistema. Opcionalmente, informe um motivo para registro.</p>
 						<textarea value={motivo} onChange={e=> setMotivo(e.target.value)} rows={3} className="w-full border rounded px-2 py-1 text-xs" placeholder="Motivo da exclusão (opcional)" />
 						<div className="flex justify-end gap-2">
-							<Button type="button" variant="outline" size="sm" onClick={()=> { setInativando(null); setMotivo(''); }} disabled={loadingAction}>Cancelar</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								className="border-slate-300 text-slate-700 hover:bg-slate-50"
+								onClick={()=> { setInativando(null); setMotivo(''); }}
+								disabled={loadingAction}
+							>
+								Cancelar
+							</Button>
 							<Button type="button" size="sm" className="bg-red-600 text-white hover:bg-red-700" onClick={confirmarInativar} disabled={loadingAction}>Excluir</Button>
 						</div>
 					</div>

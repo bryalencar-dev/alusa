@@ -1,5 +1,6 @@
 "use client";
 import './globals.css';
+import '@/lib/zod-error-map';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'sonner';
 

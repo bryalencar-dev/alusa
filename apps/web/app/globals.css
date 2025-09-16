@@ -11,6 +11,11 @@
 	--brand-muted2: #828282;
 	--brand-stroke: #DDDDDD;
 
+	/* Scrollbar tokens (usam brand-accent como base) */
+	--scrollbar-thumb: var(--brand-accent);
+	/* hover ligeiramente mais escuro; mantém coerência com "brand-600" */
+	--scrollbar-thumb-hover: color-mix(in oklab, var(--brand-accent) 78%, #000);
+
 	/* Toast palette (coerente / suave) */
 	--toast-success-bg: #E9F9F1;
 	--toast-success-icon-bg: #D6F3E5;
@@ -38,6 +43,36 @@ html, body {
 	font-weight: 400;
 	background: var(--brand-bg);
 	color: #0F0F1A;
+}
+
+/* Scrollbars globais (Firefox) */
+html {
+	scrollbar-width: thin; /* fino */
+	scrollbar-color: var(--scrollbar-thumb) transparent; /* thumb e trilho transparente */
+}
+
+/* Scrollbars globais (WebKit: Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track {
+	background: transparent; /* preserva transparência para modais/dialogs */
+}
+::-webkit-scrollbar-thumb {
+	background-color: var(--scrollbar-thumb);
+	border-radius: 9999px; /* totalmente arredondado */
+	border: 2px solid transparent; /* cria "respiro" interno (fina) */
+	background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+	background-color: var(--scrollbar-thumb-hover);
+}
+/* Remove setas quadradas padrão */
+::-webkit-scrollbar-button {
+	width: 0;
+	height: 0;
+	display: none;
 }
 
 /* Remove outline/focus ring de todos os elementos */

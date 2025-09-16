@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import type { AlunoCreateInput, AlunoUpdateInput } from './aluno.schema';
 import { calcIdade } from './aluno.schema';
+import { digits, nullifyEmpty, flattenAlunoEndereco, flattenResponsavelEndereco } from './map-flatten';
 
 const prisma = new PrismaClient();
 
@@ -67,20 +68,20 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
 
   const normalizedData = {
     ...data,
-    cpf: data.cpf ? String(data.cpf).replace(/\D/g, '') : undefined,
-    telefone: data.telefone ? String(data.telefone).replace(/\D/g, '') : undefined,
-    contatoEmergenciaTelefone: data.contatoEmergenciaTelefone ? String(data.contatoEmergenciaTelefone).replace(/\D/g, '') : undefined,
+    cpf: digits(data.cpf),
+    telefone: digits(data.telefone),
+    contatoEmergenciaTelefone: digits(data.contatoEmergenciaTelefone),
     endereco: enderecoObj ? {
       ...enderecoObj,
-      cep: enderecoObj.cep ? String(enderecoObj.cep).replace(/\D/g, '') : undefined,
+      cep: digits(enderecoObj.cep),
     } : undefined,
     responsavel: data.responsavel ? {
       ...data.responsavel,
-      cpf: data.responsavel.cpf ? String(data.responsavel.cpf).replace(/\D/g, '') : undefined,
-      telefone: data.responsavel.telefone ? String(data.responsavel.telefone).replace(/\D/g, '') : undefined,
+      cpf: digits(data.responsavel.cpf),
+      telefone: digits(data.responsavel.telefone),
       endereco: responsavelEnderecoObj ? {
         ...responsavelEnderecoObj,
-        cep: responsavelEnderecoObj.cep ? String(responsavelEnderecoObj.cep).replace(/\D/g, '') : undefined,
+        cep: digits(responsavelEnderecoObj.cep),
       } : undefined,
     } : undefined,
   };
@@ -107,11 +108,13 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
       }
     }
 
-    // 3. Verificar duplicatas de email se fornecido
+    // 3. Verificar duplicatas de email por conta se fornecido
     if (normalizedData.email) {
-      const existingEmail = await tx.aluno.findUnique({ where: { email: normalizedData.email } });
+      const existingEmail = await tx.aluno.findUnique({
+        where: { contaId_email: { contaId: normalizedData.contaId, email: normalizedData.email } }
+      });
       if (existingEmail) {
-        throw new Error(`Email ${normalizedData.email} já está em uso`);
+        throw new Error(`Email ${normalizedData.email} já está em uso nesta conta`);
       }
     }
 
@@ -183,9 +186,11 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
       codigoInterno = String(nextNumber).padStart(5,'0');
     }
 
-    // 6. Verificar se código interno já existe
+    // 6. Verificar se código interno já existe por conta
     if (codigoInterno) {
-      const existingCodigo = await tx.aluno.findUnique({ where: { codigoInterno } });
+      const existingCodigo = await tx.aluno.findUnique({
+        where: { contaId_codigoInterno: { contaId: normalizedData.contaId, codigoInterno } }
+      });
       if (existingCodigo) {
         // Gerar novo código automaticamente
         const last = await tx.aluno.findFirst({
@@ -202,27 +207,21 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
     const alunoData = {
       contaId: normalizedData.contaId,
       nome: normalizedData.nome.trim(),
-      nomeSocial: normalizedData.nomeSocial?.trim() || undefined,
+      nomeSocial: nullifyEmpty(normalizedData.nomeSocial ?? undefined),
       dataNasc: normalizedData.dataNasc,
       cpf: normalizedData.cpf || undefined,
       email: normalizedData.email?.trim().toLowerCase() || undefined,
       telefone: normalizedData.telefone || undefined,
-      foto: normalizedData.foto || undefined,
-      // Campos de endereço estruturados
-      enderecoCep: normalizedData.endereco?.cep || undefined,
-      enderecoLogradouro: normalizedData.endereco?.logradouro || undefined,
-      enderecoNumero: normalizedData.endereco?.numero || undefined,
-      enderecoComplemento: normalizedData.endereco?.complemento || undefined,
-      enderecoBairro: normalizedData.endereco?.bairro || undefined,
-      enderecoCidade: normalizedData.endereco?.cidade || undefined,
-      enderecoUf: normalizedData.endereco?.uf || undefined,
-      observacao: normalizedData.observacao?.trim() || undefined,
+      foto: nullifyEmpty(normalizedData.foto ?? undefined),
+      // Endereço (flatten)
+      ...flattenAlunoEndereco({ endereco: normalizedData.endereco ?? null }),
+      observacao: nullifyEmpty(normalizedData.observacao ?? undefined),
       genero: normalizedData.genero || undefined,
-      modalidadePrincipal: normalizedData.modalidadePrincipal?.trim() || undefined,
-      nivel: normalizedData.nivel?.trim() || undefined,
-      alergias: normalizedData.alergias?.trim() || undefined,
-      restricoesMedicas: normalizedData.restricoesMedicas?.trim() || undefined,
-      contatoEmergenciaNome: normalizedData.contatoEmergenciaNome?.trim() || undefined,
+      modalidadePrincipal: nullifyEmpty(normalizedData.modalidadePrincipal ?? undefined),
+      nivel: nullifyEmpty(normalizedData.nivel ?? undefined),
+      alergias: nullifyEmpty(normalizedData.alergias ?? undefined),
+      restricoesMedicas: nullifyEmpty(normalizedData.restricoesMedicas ?? undefined),
+      contatoEmergenciaNome: nullifyEmpty(normalizedData.contatoEmergenciaNome ?? undefined),
       contatoEmergenciaTelefone: normalizedData.contatoEmergenciaTelefone || undefined,
       origemCadastro: normalizedData.origemCadastro?.trim() || 'MANUAL',
       bolsaDescontoPercent: normalizedData.bolsaDescontoPercent || undefined,
@@ -230,15 +229,15 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
       consentimentoImagem: normalizedData.consentimentoImagem ?? false,
       dataConsentimentoImagem: normalizedData.consentimentoImagem ? (normalizedData.dataConsentimentoImagem || new Date()) : undefined,
       consentimentoComunicacoes: normalizedData.consentimentoComunicacoes ?? true,
-      tamanhoCamiseta: normalizedData.tamanhoCamiseta?.trim() || undefined,
-      tamanhoCalcado: normalizedData.tamanhoCalcado?.trim() || undefined,
+      tamanhoCamiseta: nullifyEmpty(normalizedData.tamanhoCamiseta ?? undefined),
+      tamanhoCalcado: nullifyEmpty(normalizedData.tamanhoCalcado ?? undefined),
       codigoInterno,
       tags: normalizedData.tags || [],
       status: (normalizedData.status as 'ATIVO' | 'INATIVO') ?? 'ATIVO',
     };
 
     // 8. Criar o aluno
-    const aluno = await tx.aluno.create({ data: alunoData });
+  const aluno = await tx.aluno.create({ data: alunoData });
 
     // 9. Vincular responsável se necessário
     if (responsavelId) {
@@ -258,26 +257,90 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
   });
 }
 
-type MaybeEndereco = { endereco?: AlunoCreateInput['endereco'] };
-export async function updateAluno(data: AlunoUpdateInput & MaybeEndereco) {
-  const { id, endereco, ...rest } = data;
-  
-  // Preparar campos de endereço se fornecidos
-  const enderecoFields = endereco ? {
-    enderecoCep: endereco.cep || undefined,
-    enderecoLogradouro: endereco.logradouro || undefined,
-    enderecoNumero: endereco.numero || undefined,
-    enderecoComplemento: endereco.complemento || undefined,
-    enderecoBairro: endereco.bairro || undefined,
-    enderecoCidade: endereco.cidade || undefined,
-    enderecoUf: endereco.uf || undefined,
-  } : {};
+type MaybeEndereco = { endereco?: Partial<AlunoCreateInput['endereco']> };
+type UpdateAlunoWithResponsavel = AlunoUpdateInput & MaybeEndereco & { responsavel?: Partial<{
+  nome: string; cpf: string; email: string; telefone: string; endereco?: Partial<{
+    cep: string; logradouro: string; numero: string; complemento?: string; bairro: string; cidade: string; uf: string;
+  }>
+}> };
+export async function updateAluno(data: UpdateAlunoWithResponsavel) {
+  const { id, endereco, responsavel, ...rest } = data;
 
-  return prisma.aluno.update({
+  // Normalizações leves
+  const normEmail = (v?: string | null) => (typeof v === 'string' ? v.trim().toLowerCase() : v ?? undefined);
+  const digits = (v?: string | null) => (typeof v === 'string' ? v.replace(/\D/g, '') : v ?? undefined);
+
+  // Preparar campos de endereço do aluno se fornecidos (flatten)
+  const enderecoFields = endereco ? flattenAlunoEndereco({ endereco }) : {};
+
+  return prisma.$transaction(async (tx) => {
+    // Atualiza aluno em si
+    const aluno = await tx.aluno.update({
+      where: { id },
+      data: {
+        ...rest,
+        email: normEmail(rest.email),
+        telefone: digits(rest.telefone),
+        cpf: digits(rest.cpf),
+        contatoEmergenciaTelefone: digits(rest.contatoEmergenciaTelefone),
+        ...enderecoFields,
+      }
+    });
+
+    // Atualiza/cria responsável se enviado
+    if (responsavel && Object.keys(responsavel).length > 0) {
+      // Existe vínculo atual?
+      const vinc = await tx.alunoResponsavel.findFirst({ where: { alunoId: id } });
+      if (vinc) {
+        const respUpdateData: Record<string, unknown> = {};
+        if (typeof responsavel.nome === 'string') respUpdateData.nome = responsavel.nome;
+        {
+          const v = digits(responsavel.cpf);
+          if (v) respUpdateData.cpf = v;
+        }
+        {
+          const v = normEmail(responsavel.email);
+          if (v) respUpdateData.email = v;
+        }
+        {
+          const v = digits(responsavel.telefone);
+          if (v) respUpdateData.telefone = v;
+        }
+        if (responsavel.endereco) Object.assign(respUpdateData, flattenResponsavelEndereco({ endereco: responsavel.endereco }));
+        if (Object.keys(respUpdateData).length > 0) {
+          await tx.responsavel.update({ where: { id: vinc.responsavelId }, data: respUpdateData });
+        }
+      } else {
+        // cria novo responsável e vincula
+        const nome = responsavel.nome?.trim();
+        const cpf = digits(responsavel.cpf);
+        const email = normEmail(responsavel.email);
+        const telefone = digits(responsavel.telefone);
+        if (nome && cpf && email && telefone) {
+          const resp = await tx.responsavel.create({
+            data: {
+              nome,
+              cpf,
+              email,
+              telefone,
+              ...flattenResponsavelEndereco({ endereco: responsavel.endereco ?? null }),
+              financeiro: true,
+            }
+          });
+          await tx.alunoResponsavel.create({ data: { alunoId: id, responsavelId: resp.id, tipoVinculo: 'PRINCIPAL' } });
+        }
+      }
+    }
+
+    return aluno;
+  });
+}
+
+export async function getAluno(id: string) {
+  return prisma.aluno.findUnique({
     where: { id },
-    data: {
-      ...rest,
-      ...enderecoFields,
+    include: {
+      responsaveis: { include: { responsavel: true } }
     }
   });
 }
