@@ -17,7 +17,7 @@ export default function Header() {
   const displayName = nameParts.slice(0,2).join(' ') || 'Usuário';
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
+    <header className="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 shrink-0">
   <h1 className="text-lg font-semibold text-gray-900 tracking-tight truncate">Olá, {displayName}</h1>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">

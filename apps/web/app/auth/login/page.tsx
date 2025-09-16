@@ -71,9 +71,10 @@ export default function LoginPage() {
         />
       ), { duration: 1400 });
       setTimeout(() => {
-  const target = (res?.url && res.url !== '/auth/login') ? res.url : callbackUrl;
+        const target = (res?.url && res.url !== '/auth/login') ? res.url : callbackUrl;
         if (isAuthDebug) debugLog('login', 'redirect(full)', { target });
-        window.location.href = target; // navegação completa
+        // SPA style: usar location.assign para manter histórico correto
+        window.location.assign(target);
       }, 80);
     })();
   };

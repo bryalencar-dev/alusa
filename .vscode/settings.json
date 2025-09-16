@@ -1,0 +1,48 @@
+{
+  // Excluir do explorador
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.next": true,
+    "**/.turbo": true,
+    "**/.cache": true,
+    "**/.vscode": true,
+    "**/.idea": true,
+    "**/coverage": true,
+    "**/storybook-static": true,
+    "**/prisma/migrations": true
+  },
+
+  // Evitar que o watcher fique consumindo CPU
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/.next/**": true,
+    "**/.turbo/**": true,
+    "**/.cache/**": true,
+    "**/coverage/**": true,
+    "**/storybook-static/**": true,
+    "**/prisma/migrations/**": true
+  },
+
+  // Ignorar em buscas
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.next": true,
+    "**/.turbo": true,
+    "**/.cache": true,
+    "**/coverage": true,
+    "**/storybook-static": true,
+    "**/prisma/migrations": true
+  }
+}

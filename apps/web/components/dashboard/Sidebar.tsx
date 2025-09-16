@@ -1,185 +1,256 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, GraduationCap, DollarSign, BookOpen, BarChart2, ShoppingBag, Calendar, Settings, ChevronDown } from 'lucide-react';
-import * as ScrollArea from '@radix-ui/react-scroll-area';
-import * as Tooltip from '@radix-ui/react-tooltip';
-import { AnimatePresence, motion } from 'framer-motion';
-import clsx from 'clsx';
 
-interface NavItemBase { label: string; icon: React.ReactNode; href?: string; children?: { label: string; href: string }[] }
-const NAV: NavItemBase[] = [
-  { label: 'Dashboard', href: '/admin/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
-  {
-    label: 'Acadêmicos',
-    icon: <GraduationCap className="h-5 w-5" />,
-    href: '/admin/academicos',
-    children: [
-      { label: 'Cadastros', href: '/admin/academicos/cadastros' },
-      { label: 'Matrículas', href: '/admin/academicos/matriculas' },
-      { label: 'Avaliações', href: '/admin/academicos/avaliacoes' }
-    ]
-  },
-  { label: 'Finanças', href: '/admin/financas', icon: <DollarSign className="h-5 w-5" /> },
-  { label: 'Aulas', href: '/admin/aulas', icon: <BookOpen className="h-5 w-5" /> },
-  { label: 'Relatórios', href: '/admin/relatorios', icon: <BarChart2 className="h-5 w-5" /> },
-  { label: 'Loja', href: '/admin/loja', icon: <ShoppingBag className="h-5 w-5" /> },
-  { label: 'Eventos', href: '/admin/eventos', icon: <Calendar className="h-5 w-5" /> }
-];
-
-import Image from 'next/image';
-function LogoMark() {
-  return (
-    <Image src="/alusa-logo.svg" alt="Alusa" width={140} height={43} priority draggable={false} className="select-none" />
-  );
-}
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutGrid,
+  GraduationCap,
+  DollarSign,
+  BookOpen,
+  BarChart3,
+  ShoppingBag,
+  Calendar,
+  Settings,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
-  // auto-open group if child active
-  useEffect(() => {
-    NAV.forEach(item => {
-      if (item.children) {
-        const hasActiveChild = item.children.some(c => pathname.startsWith(c.href));
-        if (hasActiveChild && !openGroups[item.label]) {
-          setOpenGroups(g => ({ ...g, [item.label]: true }));
-        }
-      }
-    });
-  }, [pathname, openGroups]);
-
-  const toggleGroup = (label: string) => {
-    setOpenGroups(g => ({ ...g, [label]: !g[label] }));
-  };
+  const isActive = (href: string) => pathname.startsWith(href);
+  const toggleGroup = (group: string) =>
+    setOpenGroup((g) => (g === group ? null : group));
 
   return (
-  <aside className="h-screen w-[248px] bg-[#2A004A] text-white flex flex-col border-r border-black/20 relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.35] mix-blend-screen" style={{ background: 'radial-gradient(circle at 30% 15%, rgba(169,77,255,0.35), transparent 65%), radial-gradient(circle at 85% 70%, rgba(84,0,140,0.45), transparent 70%)' }} />
+    <aside className="w-56 h-screen bg-[#2A004A] text-white flex flex-col py-10 px-4">
       {/* Logo */}
-      <div className="h-[108px] px-6 pt-6 pb-4 flex items-center justify-center relative z-10">
-        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, ease: 'easeOut' }} className="w-full flex justify-center">
-          <LogoMark />
-        </motion.div>
+      <div className="flex flex-col items-center mb-10">
+        <h1 className="text-3xl font-bold text-[#A94DFF]">alusa</h1>
       </div>
-      {/* Menu */}
-      <ScrollArea.Root className="flex-1 w-full relative z-10">
-        <ScrollArea.Viewport className="w-full h-full">
-          <nav className="pt-2 pb-8 px-6" aria-label="Menu principal">
-            <ul className="flex flex-col gap-2">
-              {NAV.map(item => {
-                const isGroup = !!item.children?.length;
-                const groupOpen = openGroups[item.label];
-                const active = isGroup
-                  ? (item.children?.some(c => pathname.startsWith(c.href)) || pathname.startsWith(item.href || ''))
-                  : (!!item.href && pathname.startsWith(item.href));
 
-                if (!isGroup) {
-                  return (
-                    <li key={item.label}>
-                      <Tooltip.Provider delayDuration={250}>
-                        <Tooltip.Root>
-                          <Tooltip.Trigger asChild>
-                            {item.href && <Link
-                              href={item.href}
-                              aria-current={active ? 'page' : undefined}
-                              className={clsx(
-                                'relative group inline-flex items-center w-full h-12 rounded-[10px] font-medium text-[15px] transition-all duration-200 outline-none ring-offset-1 ring-offset-[#2A004A] gap-3 px-5 pr-4',
-                                active
-                                  ? 'bg-[#A94DFF] text-white font-semibold'
-                                  : 'text-white/90 hover:bg-[#3a0d61] hover:text-white focus-visible:ring-2 focus-visible:ring-[#A94DFF]/60'
-                              )}
-                            >
-                              {active && (
-                                <motion.span layoutId="sb-active-glow" className="absolute inset-0 rounded-[10px] bg-[#A94DFF]" />
-                              )}
-                              <span className="relative z-10 flex items-center justify-center w-5">{item.icon}</span>
-                              <span className="relative z-10 truncate">{item.label}</span>
-                            </Link>}
-                          </Tooltip.Trigger>
-                          {/* tooltip não necessário em modo expandido */}
-                        </Tooltip.Root>
-                      </Tooltip.Provider>
-                    </li>
-                  );
-                }
-
-                // Group with submenu
-                return (
-                  <li key={item.label} className="group/sub">
-                    <button
-                      type="button"
-                      onClick={() => { toggleGroup(item.label); }}
-                      aria-expanded={groupOpen}
-                      className={clsx(
-                        'relative inline-flex items-center w-full h-12 rounded-[10px] font-medium text-[15px] transition-all duration-200 outline-none gap-3 px-5 pr-4',
-                        active ? 'bg-[#A94DFF] text-white font-semibold' : 'text-white/90 hover:bg-[#3a0d61] hover:text-white focus-visible:ring-2 focus-visible:ring-[#A94DFF]/60'
-                      )}
-                    >
-                      {active && (
-                        <motion.span layoutId="sb-active-glow" className="absolute inset-0 rounded-[10px] bg-[#A94DFF]" />
-                      )}
-                      <span className="relative z-10 flex items-center justify-center w-5">{item.icon}</span>
-                      <span className="relative z-10 flex-1 text-left truncate">{item.label}</span>
-                      <ChevronDown className={clsx('h-4 w-4 relative z-10 transition-transform', groupOpen ? 'rotate-180' : '')} />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {groupOpen && (
-                        <motion.ul
-                          key="submenu"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: .25, ease: 'easeInOut' }}
-                          className="mt-1 mb-2 ml-2 flex flex-col gap-1 overflow-hidden"
-                        >
-                          {(item.children ?? []).map(sub => {
-                            const subActive = pathname.startsWith(sub.href);
-                            return (
-                              <li key={sub.href}>
-                                <Link
-                                  href={sub.href}
-                                  aria-current={subActive ? 'page' : undefined}
-                                  className={clsx(
-                                    'block rounded-md text-[14px] leading-none px-3 py-2 pl-9 relative font-medium transition-all duration-200',
-                                    subActive ? 'bg-[#A94DFF] text-white' : 'text-white/75 hover:bg-[#3a0d61] hover:text-white'
-                                  )}
-                                >
-                                  {sub.label}
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-        </ScrollArea.Viewport>
-        <ScrollArea.Scrollbar orientation="vertical" className="flex select-none touch-none p-0.5 w-2 bg-white/5 hover:bg-white/10 transition-colors">
-          <ScrollArea.Thumb className="flex-1 bg-white/30 rounded-full relative before:content-[''] before:absolute before:inset-0 before:min-w-[40px]" />
-        </ScrollArea.Scrollbar>
-      </ScrollArea.Root>
-      {/* Footer / Configurações */}
-  <div className="w-full pb-8 relative z-10 flex px-6">      
-        <Link
-          href="/admin/configuracoes"
-          className={clsx(
-            'inline-flex items-center w-full h-12 rounded-[10px] font-medium text-[15px] transition-all duration-200 outline-none gap-3 px-4',
-            pathname.startsWith('/admin/configuracoes')
-              ? 'bg-[#A94DFF] text-white font-semibold'
-              : 'text-white/85 hover:bg-[#3a0d61] hover:text-white focus-visible:ring-2 focus-visible:ring-[#A94DFF]/60'
-          )}
+      {/* Menus principais */}
+      <nav className="flex flex-col gap-2">
+        {/* Dashboard */}
+        <SidebarItem
+          href="/admin/dashboard"
+          icon={<LayoutGrid size={20} />}
+          active={isActive("/admin/dashboard")}
         >
-          <Settings className="h-5 w-5" />
-          <span className="truncate">Configurações</span>
-        </Link>
+          Dashboard
+        </SidebarItem>
+
+        {/* Acadêmico (grupo expansível) */}
+        <Group
+          id="academico"
+          label="Acadêmicos"
+          icon={<GraduationCap size={20} />}
+          openGroup={openGroup}
+          toggleGroup={toggleGroup}
+          pathname={pathname}
+          items={[
+            { label: "Alunos", href: "/admin/alunos" },
+            { label: "Professores", href: "/admin/professores" },
+            { label: "Turmas", href: "/admin/turmas" },
+            { label: "Matrículas", href: "/admin/matriculas" },
+            { label: "Presenças", href: "/admin/presencas" },
+            { label: "Avaliações", href: "/admin/avaliacoes" },
+          ]}
+        />
+
+        {/* Financeiro */}
+        <Group
+          id="financeiro"
+          label="Financeiro"
+          icon={<DollarSign size={20} />}
+          openGroup={openGroup}
+          toggleGroup={toggleGroup}
+          pathname={pathname}
+          items={[
+            { label: "Mensalidades", href: "/admin/cobrancas" },
+            {
+              label: "Relatórios Financeiros",
+              href: "/admin/relatorios-financeiros",
+            },
+          ]}
+        />
+
+        {/* Aulas */}
+        <Group
+          id="aulas"
+          label="Aulas"
+          icon={<BookOpen size={20} />}
+          openGroup={openGroup}
+          toggleGroup={toggleGroup}
+          pathname={pathname}
+          items={[{ label: "Agenda", href: "/admin/aulas" }]}
+        />
+
+        {/* Relatórios */}
+        <Group
+          id="relatorios"
+          label="Relatórios"
+          icon={<BarChart3 size={20} />}
+          openGroup={openGroup}
+          toggleGroup={toggleGroup}
+          pathname={pathname}
+          items={[
+            { label: "Acadêmicos", href: "/admin/relatorios-academicos" },
+            { label: "Financeiros", href: "/admin/relatorios-financeiros" },
+            { label: "Gerais", href: "/admin/relatorios-gerais" },
+          ]}
+        />
+
+        {/* Loja */}
+        <Group
+          id="loja"
+          label="Loja"
+          icon={<ShoppingBag size={20} />}
+          openGroup={openGroup}
+          toggleGroup={toggleGroup}
+          pathname={pathname}
+          items={[
+            { label: "Produtos", href: "/admin/produtos" },
+            { label: "Vendas", href: "/admin/vendas" },
+          ]}
+        />
+
+        {/* Eventos */}
+        <Group
+          id="eventos"
+          label="Eventos"
+          icon={<Calendar size={20} />}
+          openGroup={openGroup}
+          toggleGroup={toggleGroup}
+          pathname={pathname}
+          items={[
+            { label: "Eventos", href: "/admin/eventos" },
+            { label: "Ingressos", href: "/admin/ingressos" },
+          ]}
+        />
+      </nav>
+
+      {/* Configurações no rodapé */}
+      <div className="mt-auto pt-6">
+        <Group
+          id="config"
+          label="Configurações"
+          icon={<Settings size={20} />}
+          openGroup={openGroup}
+          toggleGroup={toggleGroup}
+          pathname={pathname}
+          items={[
+            { label: "Usuários", href: "/admin/users" },
+            { label: "Integrações", href: "/admin/integracoes" },
+            { label: "Configurações Gerais", href: "/admin/settings" },
+          ]}
+        />
       </div>
     </aside>
+  );
+}
+
+/* ======================= Sidebar Item ======================= */
+function SidebarItem({
+  href,
+  icon,
+  children,
+  active,
+  isSub,
+}: {
+  href: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  active?: boolean;
+  isSub?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-label={String(children)}
+      className={cn(
+        "flex items-center rounded-lg h-10 px-3 transition-colors duration-200 truncate",
+        isSub ? "pl-9 text-sm" : "text-base",
+        active
+          ? isSub
+            ? "bg-[#E14DFF] text-white font-semibold"
+            : "bg-[#A94DFF] text-white font-semibold"
+          : "hover:bg-white/10 text-white font-normal"
+      )}
+    >
+      {icon && <span className="flex-shrink-0 mr-2">{icon}</span>}
+      <span className="leading-5">{children}</span>
+    </Link>
+  );
+}
+
+/* ======================= Grupo Expandível ======================= */
+interface SidebarSubItem {
+  href: string;
+  label: string;
+}
+interface GroupProps {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  openGroup: string | null;
+  toggleGroup: (_id: string) => void;
+  pathname: string;
+  items: SidebarSubItem[];
+}
+
+function Group({
+  id,
+  label,
+  icon,
+  openGroup,
+  toggleGroup,
+  pathname,
+  items,
+}: GroupProps) {
+  const isActive = (href: string) => pathname.startsWith(href);
+  const isOpen = openGroup === id;
+
+  return (
+    <div className="flex flex-col gap-1">
+      {/* Botão principal */}
+      <motion.button
+        onClick={() => toggleGroup(id)}
+        aria-label={`Abrir grupo ${label}`}
+        className={cn(
+          "flex items-center gap-2 h-10 px-3 rounded-lg text-base transition-colors duration-200",
+          isOpen ? "bg-[#A94DFF] font-semibold" : "hover:bg-white/10 font-normal"
+        )}
+      >
+        {icon}
+        {label}
+      </motion.button>
+
+      {/* Submenus */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col gap-1"
+          >
+            {items.map((item) => (
+              <SidebarItem
+                key={item.href}
+                href={item.href}
+                active={isActive(item.href)}
+                isSub
+              >
+                {item.label}
+              </SidebarItem>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

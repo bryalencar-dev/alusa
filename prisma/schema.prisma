@@ -24,6 +24,14 @@ enum Role {
   RESPONSAVEL
 }
 
+enum Genero {
+  MASCULINO
+  FEMININO
+  NAO_BINARIO
+  OUTRO
+  PREFERE_NAO_INFORMAR
+}
+
 model Conta {
   id        String    @id @default(cuid())
   nome      String
@@ -32,6 +40,7 @@ model Conta {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   usuarios  Usuario[]
+  alunos    Aluno[]
 
   @@index([cpfCnpj])
 }
@@ -50,4 +59,92 @@ model Usuario {
   updatedAt  DateTime  @updatedAt
 
   @@index([contaId])
+}
+
+// --- Modelos de domínio Escola ---
+
+model Aluno {
+  id           String   @id @default(cuid())
+  contaId      String
+  nome         String
+  nomeSocial   String?
+  dataNasc     DateTime
+  cpf          String?  @unique
+  email        String?  @unique
+  telefone     String?
+  foto         String?
+  // Campos de endereço estruturados
+  enderecoCep  String?
+  enderecoLogradouro String?
+  enderecoNumero String?
+  enderecoComplemento String?
+  enderecoBairro String?
+  enderecoCidade String?
+  enderecoUf String?
+  observacao   String?
+  genero       Genero?
+  modalidadePrincipal String?
+  nivel        String?
+  alergias     String?
+  restricoesMedicas String?
+  contatoEmergenciaNome String?
+  contatoEmergenciaTelefone String?
+  origemCadastro String?
+  bolsaDescontoPercent Decimal? @db.Decimal(5,2)
+  isentoTaxaMatricula  Boolean  @default(false)
+  consentimentoImagem Boolean @default(false)
+  dataConsentimentoImagem DateTime?
+  consentimentoComunicacoes Boolean @default(true)
+  tamanhoCamiseta String?
+  tamanhoCalcado  String?
+  codigoInterno   String?  @unique
+  tags            String[] @default([])
+  status       Status   @default(ATIVO)
+  asaasId      String?  @unique
+  asaasCustomerId String? @unique
+  dataInativacao DateTime?
+  motivoInativacao String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  conta        Conta       @relation(fields: [contaId], references: [id])
+  responsaveis AlunoResponsavel[]
+  // matrículas e presenças futuras
+  // matriculas   Matricula[]
+  // presencas    Presenca[]
+
+  @@index([contaId])
+}
+
+model Responsavel {
+  id         String  @id @default(cuid())
+  nome       String
+  cpf        String  @unique
+  email      String  @unique
+  telefone   String
+  // Campos de endereço estruturados
+  enderecoCep  String?
+  enderecoLogradouro String?
+  enderecoNumero String?
+  enderecoComplemento String?
+  enderecoBairro String?
+  enderecoCidade String?
+  enderecoUf String?
+  financeiro Boolean @default(false)
+  asaasId    String? @unique
+
+  alunos     AlunoResponsavel[]
+}
+
+model AlunoResponsavel {
+  id            String @id @default(cuid())
+  alunoId       String
+  responsavelId String
+  tipoVinculo   String
+
+  aluno       Aluno       @relation(fields: [alunoId], references: [id])
+  responsavel Responsavel @relation(fields: [responsavelId], references: [id])
+
+  @@index([alunoId])
+  @@index([responsavelId])
 }

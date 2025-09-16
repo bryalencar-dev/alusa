@@ -27,6 +27,10 @@ module.exports = {
           accent: '#4F2298',
           stroke: '#E2E2E8',
           muted: '#828282'
+        },
+        violet: {
+          600: '#7c3aed',
+          700: '#6d28d9'
         }
       },
       boxShadow: {

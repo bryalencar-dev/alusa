@@ -28,17 +28,23 @@ export const authOptions: NextAuthOptions = {
   }) as any],
   callbacks: {
     jwt({ token, user }) {
+      // Quando há user (login), garanta que os campos essenciais sejam copiados para o token
       if (user) {
         token.id = (user as any).id;
-        token.email = (user as any).email;
-        token.name = (user as any).name;
-        (token as any).role = (user as any).role;
+        (token as any).role = (user as any).role ?? 'USER';
+        // Propagar também email e name com defaults não-undefined
+        (token as any).email = (user as any).email ?? '';
+        (token as any).name = (user as any).name ?? '';
       }
       return token;
     },
     session({ session, token }) {
-      (session.user as any).id = (token as any).id;
-      (session.user as any).role = (token as any).role;
+      // Propagar SEMPRE id, email, name e role para session.user conforme contrato
+      if (!session.user) (session as any).user = {};
+      (session.user as any).id = (token as any).id ?? '';
+      (session.user as any).email = (token as any).email ?? '';
+      (session.user as any).name = (token as any).name ?? '';
+      (session.user as any).role = (token as any).role ?? 'USER';
       return session;
     }
   }

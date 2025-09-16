@@ -5,14 +5,23 @@ import Header from '@/components/dashboard/Header';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-white text-gray-900">
-      <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0 bg-white">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-6 bg-white">
-          {children}
-        </main>
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-white text-gray-900">
+      {/* Sidebar fixa à esquerda, ocupando 100vh */}
+      <div className="fixed inset-y-0 left-0 w-56 z-30">
+        <Sidebar />
       </div>
+
+      {/* Header fixo apenas sobre a área de conteúdo (ao lado da sidebar) */}
+      <div className="fixed top-0 left-56 right-0 z-40">
+        <Header />
+      </div>
+
+      {/* Conteúdo: deslocado pela sidebar (pl-56) e pelo header (pt-16) */}
+      <main className="pl-56 pt-16">
+        <div className="h-[calc(100vh-4rem)] overflow-y-auto min-w-0 bg-white p-6">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

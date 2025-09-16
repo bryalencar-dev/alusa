@@ -2,11 +2,12 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: ['first-user.spec.ts', 'smoke.spec.ts'],
+  // Permite rodar qualquer *.spec.ts; usaremos -g para filtrar quando necessário
+  testMatch: ['**/*.spec.ts'],
   timeout: 30_000,
   retries: 0,
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:3001',
     trace: 'on-first-retry'
   },
   projects: [
@@ -14,11 +15,12 @@ export default defineConfig({
   ],
   webServer: {
     command: 'pnpm dev',
-    url: 'http://localhost:3000',
+    url: 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
     env: {
+      PORT: '3001',
       TEST_ROUTES_ENABLED: 'true',
-      NEXTAUTH_URL: 'http://localhost:3000',
+      NEXTAUTH_URL: 'http://localhost:3001',
       NEXTAUTH_SECRET: 'testsecret'
     }
   }

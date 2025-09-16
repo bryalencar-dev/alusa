@@ -11,9 +11,17 @@ describe('verifyCredentials', () => {
   const senha = 'SenhaFort3!';
     beforeAll(async () => {
       await resetDb(prisma);
-      const conta = await prisma.conta.create({ data: { nome: 'Conta Teste', cpfCnpj: '00000000000' } });
       const senhaHash: string = await bcrypt.hash(senha, 10);
-      await prisma.usuario.create({ data: { contaId: conta.id, nome: 'Teste', email, senhaHash, role: 'ADMIN' } });
+      // Cria usuario com conta aninhada para evitar problemas de FK em ambientes recém-resetados
+      await prisma.usuario.create({
+        data: {
+          nome: 'Teste',
+          email,
+          senhaHash,
+          role: 'ADMIN',
+          conta: { create: { nome: 'Conta Teste', cpfCnpj: '00000000000' } }
+        }
+      });
     });
     afterAll(async () => { await prisma.$disconnect(); });
   it('retorna usuário válido com credenciais corretas', async () => {
