@@ -87,7 +87,7 @@ export default function UserMenu({ name, email, initials }: Props) {
           className="absolute right-0 top-[56px] w-[320px] rounded-[20px] bg-white ring-1 ring-black/5 z-overlay"
           style={{
             boxShadow:
-              "0 16px 40px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04)",
+              "rgba(14, 63, 126, 0.06) 0px 0px 0px 1px, rgba(42, 51, 70, 0.03) 0px 1px 1px -0.5px, rgba(42, 51, 70, 0.04) 0px 2px 2px -1px, rgba(42, 51, 70, 0.04) 0px 3px 3px -1.5px, rgba(42, 51, 70, 0.03) 0px 5px 5px -2.5px, rgba(42, 51, 70, 0.03) 0px 10px 10px -5px, rgba(42, 51, 70, 0.03) 0px 24px 24px -8px",
           }}
         >
           <nav className="p-2">

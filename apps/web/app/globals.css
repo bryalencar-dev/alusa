@@ -18,6 +18,9 @@
 	--brand-muted2: #828282;
 	--brand-stroke: #DDDDDD;
 
+	/* Largura padrão do sidebar (usada para deslocar o conteúdo) */
+	--sidebar-w: 262px;
+
 	/* Theming tokens */
 	--app-bg: #F7F5F8; /* default light background (fora do card) */
 	--sidebar-bg: #F7F5F8; /* light sidebar */
@@ -53,6 +56,21 @@
 	--toast-info-icon-bg: #E1E8FE;
 	--toast-info-fg: #223868;
 	--toast-info-icon-fg: #2F4A84;
+
+	/* Theme transition tokens */
+	--theme-ease: cubic-bezier(0.22,1,0.36,1);
+	--theme-duration: 400ms;
+	/* inclui background (shorthand) + cores comuns para um fade coerente */
+	--theme-transition-all: background var(--theme-duration) var(--theme-ease),
+		background-color var(--theme-duration) var(--theme-ease),
+		color var(--theme-duration) var(--theme-ease),
+		border-color var(--theme-duration) var(--theme-ease),
+		outline-color var(--theme-duration) var(--theme-ease),
+		text-decoration-color var(--theme-duration) var(--theme-ease),
+		caret-color var(--theme-duration) var(--theme-ease),
+		fill var(--theme-duration) var(--theme-ease),
+		stroke var(--theme-duration) var(--theme-ease),
+		box-shadow var(--theme-duration) var(--theme-ease);
 }
 
 html, body {
@@ -60,6 +78,7 @@ html, body {
 	font-weight: 400;
 	background: var(--brand-bg);
 	color: #0F0F1A;
+	transition: var(--theme-transition-all);
 }
 
 /* Scrollbars globais (Firefox) */
@@ -228,12 +247,42 @@ select:focus,
 	--sidebar-active-bg-light: rgba(255,255,255,0.09);
 }
 
+/* Transições suaves de tema aplicadas nas principais superfícies e globalmente */
+aside, nav, .app-surface-bg, .sidebar-surface-bg, .sidebar-text, .sidebar-active {
+	transition: var(--theme-transition-all);
+}
+/* aplica às crianças quando data-theme alterna (fade simultâneo) */
+[data-theme] *, [data-theme] *::before, [data-theme] *::after {
+	transition: var(--theme-transition-all);
+}
+
+/* Evitar transição durante a pintura inicial (antes de habilitar no body) */
+html:not(.theme-ready), body:not(.theme-ready),
+html:not(.theme-ready) [data-theme] *, html:not(.theme-ready) [data-theme] *::before, html:not(.theme-ready) [data-theme] *::after {
+	transition: none !important;
+}
+
+/* Respeita usuários com redução de movimento */
+@media (prefers-reduced-motion: reduce) {
+	html, body, aside, nav, .app-surface-bg, .sidebar-surface-bg, .sidebar-text, .sidebar-active,
+	[data-theme] *, [data-theme] *::before, [data-theme] *::after {
+		transition: none !important;
+	}
+}
+
 /* Utilitário global para usar bg do app conforme tema */
 .app-surface-bg { background: var(--app-bg); }
 .sidebar-surface-bg { background: var(--sidebar-bg); }
 .sidebar-text { color: var(--sidebar-text); }
 .sidebar-hover:hover { background: var(--sidebar-hover); }
 .sidebar-active { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); }
+
+/* Container principal quando há sidebar fixo à esquerda */
+.with-sidebar {
+	/* permite um espaçamento adicional opcional via --sidebar-gap */
+	padding-left: calc(var(--sidebar-w) + var(--sidebar-gap, 0px));
+	transition: padding-left var(--theme-duration) var(--theme-ease);
+}
 
 /* Garantir dropdowns acima do card */
 .z-overlay { z-index: 60; }

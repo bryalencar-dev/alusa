@@ -1,10 +1,13 @@
 "use client";
-import React, { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { Close } from "@/components/icons/icons";
 
 export interface NotificationsPanelProps {
   open: boolean;
   onClose: () => void;
+  /** Elemento âncora para posicionar o painel (ex.: wrapper do botão). */
+  anchorRef?: React.RefObject<HTMLElement>;
   items?: Array<{
     id: string;
     title: string;
@@ -17,10 +20,13 @@ export interface NotificationsPanelProps {
 export default function NotificationsPanel({
   open,
   onClose,
+  anchorRef,
   items = [],
 }: NotificationsPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 380 });
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -42,38 +48,67 @@ export default function NotificationsPanel({
   );
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Calcula posição do painel com base no elemento âncora
+  const updatePosition = useCallback(() => {
+    const anchor = anchorRef?.current;
+    const panelW = Math.min(380, Math.max(280, window.innerWidth - 16));
+    if (!anchor) {
+      // fallback: top-right da viewport, alinhado ao header
+      const top = 56 + 8; // header ~56px + offset
+      const left = Math.max(8, window.innerWidth - panelW - 16);
+      setPos({ top, left, width: panelW });
+      return;
+    }
+    const r = anchor.getBoundingClientRect();
+    const top = Math.max(8, r.bottom + 8);
+    const left = Math.min(window.innerWidth - panelW - 8, Math.max(8, r.right - panelW));
+    setPos({ top, left, width: panelW });
+  }, [anchorRef]);
+
+  useEffect(() => {
     if (open) {
       setVisible(true);
       document.addEventListener("keydown", handleKey, true);
       document.addEventListener("mousedown", handleClickOutside, true);
+      updatePosition();
+      window.addEventListener("resize", updatePosition);
+      window.addEventListener("scroll", updatePosition, true);
       return () => {
         document.removeEventListener("keydown", handleKey, true);
         document.removeEventListener("mousedown", handleClickOutside, true);
+        window.removeEventListener("resize", updatePosition);
+        window.removeEventListener("scroll", updatePosition, true);
       };
     } else {
       // Delay para permitir animação de saída
       const timeout = setTimeout(() => setVisible(false), 150);
       return () => clearTimeout(timeout);
     }
-  }, [open, handleKey, handleClickOutside]);
+  }, [open, handleKey, handleClickOutside, updatePosition]);
 
   if (!visible) return null;
   const hasItems = items.length > 0;
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
-      {/* Overlay preto clicável */}
+      {/* Overlay preto clicável - acima do sidebar */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[60] bg-black/50 transition-opacity duration-200 ${
           open ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
       />
 
-      {/* Painel com transição */}
+      {/* Painel com transição, fixo e ancorado */}
       <div
         ref={panelRef}
-        className={`absolute top-full right-0 z-50 mt-2 w-[380px] max-w-[calc(100vw-1rem)] flex max-h-[70vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 transform transition-all duration-200 ${
+        style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+        className={`z-[61] max-w-[calc(100vw-1rem)] flex max-h-[70vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg ring-1 ring-black/5 transform transition-all duration-200 ${
           open ? "opacity-100 translate-y-0 scale-100" : "opacity-0 -translate-y-2 scale-95"
         }`}
       >
@@ -158,6 +193,7 @@ export default function NotificationsPanel({
           </button>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

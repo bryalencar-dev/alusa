@@ -251,6 +251,9 @@ function Sidebar() {
   const [activeKey, setActiveKey] = useState<string | 'dashboard' | null>('dashboard'); // quem está selecionado
   const { isDark } = useTheme();
   const { navRef, markerRef, setActiveElement, visible } = useFloatingMarker();
+  const anyGroupOpen = !collapsed && openKey !== null;
+  // Gutter lateral quando recolhido (para centralizar e evitar cortar bordas)
+  const collapsedGutter = Math.max(0, (TOKENS.widthCollapsed - TOKENS.itemH) / 2); // 6px
 
   // Largura sincronizada com o layout
   useEffect(() => {
@@ -292,13 +295,22 @@ function Sidebar() {
     setOpenKey((curr) => (curr === key ? null : key)); // accordion (um aberto por vez)
   };
 
-  /** Estilo pílula (sem alterar cor de fonte) */
-  const pill = (activeBg: boolean): React.CSSProperties => ({
-    width: TOKENS.itemW,
-    height: TOKENS.itemH,
-    color: 'var(--sidebar-text)',
-    backgroundColor: activeBg ? 'var(--sidebar-active-bg-light)' : 'transparent',
-  });
+  /** Estilo pílula (sem alterar cor de fonte)
+   *  - expandido: largura padrão (itemW)
+   *  - recolhido: largura igual à altura (quadrado), para centralizar ícone
+   */
+  const pill = (activeBg: boolean): React.CSSProperties => {
+    // No recolhido, centraliza a pílula dentro da largura do sidebar recolhido
+    const collapsedOffset = Math.max(0, (TOKENS.widthCollapsed - TOKENS.itemH) / 2);
+    return {
+      width: collapsed ? TOKENS.itemH : TOKENS.itemW,
+      height: TOKENS.itemH,
+      color: 'var(--sidebar-text)',
+      backgroundColor: activeBg ? 'var(--sidebar-active-bg-light)' : 'transparent',
+      marginLeft: collapsed ? collapsedOffset : 0,
+      transition: 'width 300ms cubic-bezier(0.22,1,0.36,1), margin-left 300ms cubic-bezier(0.22,1,0.36,1), background-color 200ms ease',
+    } as React.CSSProperties;
+  };
 
   return (
     <aside
@@ -310,61 +322,70 @@ function Sidebar() {
       ].join(' ')}
       style={{ backgroundColor: `var(--sidebar-bg)` }}
     >
-      {/* Topo */}
-      <div className="relative px-4 pt-7 pb-8">
+      {/* Topo (como antes): logo centralizada e botão absoluto no topo à direita */}
+  <div className="relative px-4 pt-7 pb-8">
         <button
           type="button"
           onClick={toggleSidebar}
           aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          className="absolute right-4 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-md outline-none sidebar-hover sidebar-text"
+          className={[
+            'flex items-center justify-center rounded-xl outline-none sidebar-text transition-colors z-10 pointer-events-auto',
+            collapsed ? 'mx-auto block h-9 w-9' : 'absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 sidebar-hover',
+          ].join(' ')}
+          style={collapsed ? { backgroundColor: 'var(--sidebar-active-bg-light)' } : undefined}
         >
           <ChevronLeftIcon
             className={`h-5 w-5 transition-transform ${collapsed ? '' : 'rotate-180'}`}
           />
         </button>
-
-        <div className="flex items-center justify-center">
-          <Link href="/dashboard" aria-label="Alusa">
-            {collapsed ? (
-              <span
-                className="grid h-10 w-10 place-items-center rounded-md text-[14px] font-semibold"
-                style={{
-                  backgroundColor: `var(--sidebar-active-bg)`,
-                  color: `var(--sidebar-active-text)`,
-                }}
-              >
-                A
-              </span>
-            ) : (
-              <img
-                src={isDark ? '/brand/logo-dark.svg' : '/brand/logo.svg'}
-                alt="Alusa"
-                width={132}
-                height={40}
-                className="h-10 w-auto select-none"
-                draggable={false}
-              />
-            )}
+        <div
+          className={[
+            'flex items-center justify-center transition-all duration-300',
+            // Quando recolhido: some suavemente sem ocupar espaço
+            collapsed ? 'opacity-0 -translate-y-1 pointer-events-none h-0 overflow-hidden' : 'opacity-100 translate-y-0 h-auto',
+          ].join(' ')}
+          aria-hidden={collapsed ? true : undefined}
+        >
+          <Link href="/dashboard" aria-label="Alusa" tabIndex={collapsed ? -1 : 0}>
+            <img
+              src={isDark ? '/brand/logo-dark.svg' : '/brand/logo.svg'}
+              alt="Alusa"
+              width={132}
+              height={40}
+              className="h-10 w-auto select-none transition-all duration-300"
+              style={{ opacity: collapsed ? 0 : 1, transform: collapsed ? 'scale(0.98)' : 'scale(1)' }}
+              draggable={false}
+            />
           </Link>
         </div>
       </div>
 
       {/* Navegação (sem scrollbar) */}
-  <nav ref={navRef as React.RefObject<HTMLElement>} className="relative flex-1 overflow-hidden px-0 pb-4">
-        {/* Marcador flutuante encostado à esquerda */}
-        <span
-          ref={markerRef}
-          aria-hidden
-          className="absolute left-0 w-2 rounded-r-full z-10"
-          style={{
-            backgroundColor: 'var(--sidebar-active-bg)',
-            top: 0,
-            height: 0,
-            opacity: visible ? 1 : 0,
-            transition: 'top 240ms cubic-bezier(.2,.8,.2,1), height 200ms ease, opacity 140ms ease',
-            transitionDelay: visible ? '60ms' : '0ms',
-          }}
-        />
+  <nav
+        ref={navRef as React.RefObject<HTMLElement>}
+        className="relative flex-1 overflow-hidden px-0 pb-4"
+        style={{
+          paddingLeft: collapsed ? collapsedGutter : 'calc(8px + 12px)',
+          paddingRight: collapsed ? collapsedGutter : 12,
+        }}
+      >
+        {/* Marcador flutuante: visível apenas no estado expandido */}
+        {!collapsed && (
+          <span
+            ref={markerRef}
+            aria-hidden
+            className="absolute left-0 w-2 rounded-r-full z-10"
+            style={{
+              backgroundColor: 'var(--sidebar-active-bg)',
+              top: 0,
+              height: 0,
+              opacity: visible ? 1 : 0,
+              left: '0px',
+              transition: 'top 300ms cubic-bezier(0.22,1,0.36,1), height 300ms cubic-bezier(0.22,1,0.36,1), opacity 300ms cubic-bezier(0.22,1,0.36,1)',
+              transitionDelay: visible ? '60ms' : '0ms',
+            }}
+          />
+        )}
         <ul className="flex flex-col gap-2">
           {/* Dashboard */}
           <li className="relative">
@@ -372,21 +393,37 @@ function Sidebar() {
               href="/dashboard"
               aria-label="Dashboard"
               className={[
-                'group relative mx-auto flex items-center gap-3 rounded-[10px] px-4 pl-[30px] text-[16px] outline-none select-none transition-colors',
-                activeKey === 'dashboard' ? 'font-semibold' : 'font-medium',
+                'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
+                anyGroupOpen ? 'font-light' : (activeKey === 'dashboard' ? 'font-semibold' : 'font-medium'),
+                anyGroupOpen ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : '',
+                anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]',
               ].join(' ')}
               style={pill(activeKey === 'dashboard')}
               onClick={onClickDashboard}
               ref={activeKey === 'dashboard' ? (el) => setActiveElement(el) : undefined}
             >
-              <span className="flex h-5 w-5 items-center justify-center">
+              {/* Hover overlay */}
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
+              />
+              <span className="flex h-5 w-5 items-center justify-center relative z-10">
                 {activeKey === 'dashboard' ? (
                   <Squares2X2Solid className="h-5 w-5" />
                 ) : (
                   <Squares2X2Icon className="h-5 w-5" />
                 )}
               </span>
-              <span className="truncate">Dashboard</span>
+              <span
+                className={[
+                  'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                  collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                ].join(' ')}
+              >
+                Dashboard
+              </span>
             </Link>
           </li>
 
@@ -410,15 +447,33 @@ function Sidebar() {
                   onClick={() => onClickGroup(group.key)}
                   aria-expanded={isOpen}
                   className={[
-                    'group relative mx-auto flex items-center gap-3 rounded-[10px] px-4 pl-[30px] text-[16px] outline-none select-none transition-colors',
-                    (groupSelected || groupHasRoute) ? 'font-semibold' : 'font-medium',
+                    'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
+                    (anyGroupOpen && openKey !== group.key)
+                      ? 'font-light'
+                      : ((groupSelected || groupHasRoute) ? 'font-semibold' : 'font-medium'),
+                    anyGroupOpen && openKey !== group.key ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : '',
+                    isOpen ? 'hover:scale-[1.02]' : (anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]'),
                   ].join(' ')}
                   style={pill(groupSelected)}
                   aria-label={group.label}
                   ref={showGroupMarker ? (el) => setActiveElement(el as HTMLElement) : undefined}
                 >
-                  <span className="flex h-5 w-5 items-center justify-center">{(groupSelected || groupHasRoute) ? group.iconSolid : group.icon}</span>
-                  <span className="truncate">{group.label}</span>
+                  {/* Hover overlay */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                    style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
+                  />
+                  <span className="flex h-5 w-5 items-center justify-center relative z-10">{(groupSelected || groupHasRoute) ? group.iconSolid : group.icon}</span>
+                  <span
+                    className={[
+                      'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                      collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                    ].join(' ')}
+                  >
+                    {group.label}
+                  </span>
                 </button>
 
                 {/* Submenus — alinhados ao grupo (mesmo padding/coluna/tamanho) */}
@@ -432,7 +487,8 @@ function Sidebar() {
                             href={item.href}
                             aria-label={item.label}
                             className={[
-                              'group relative mx-auto flex items-center gap-3 rounded-[10px] px-4 pl-[30px] text-[16px] outline-none select-none transition-colors',
+                              'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.02]',
+                              collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
                               subActive ? 'font-semibold' : 'font-medium',
                             ].join(' ')}
                             style={pill(subActive)}
@@ -440,10 +496,23 @@ function Sidebar() {
                             aria-current={subActive ? 'page' : undefined}
                             ref={subActive && isOpen ? (el) => setActiveElement(el) : undefined}
                           >
-                            <span className="flex h-5 w-5 items-center justify-center">
+                            {/* Hover overlay */}
+                            <span
+                              aria-hidden
+                              className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                              style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
+                            />
+                            <span className="flex h-5 w-5 items-center justify-center relative z-10">
                               {subActive ? item.iconSolid : item.icon}
                             </span>
-                            <span className="truncate">{item.label}</span>
+                            <span
+                              className={[
+                                'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                                collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                              ].join(' ')}
+                            >
+                              {item.label}
+                            </span>
                           </Link>
                         </li>
                       );
@@ -457,27 +526,49 @@ function Sidebar() {
       </nav>
 
       {/* Configurações */}
-      <div className="mt-auto px-0 pb-6">
+      <div
+        className="mt-auto pb-6"
+        style={{
+          paddingLeft: collapsed ? collapsedGutter : 'calc(8px + 12px)',
+          paddingRight: collapsed ? collapsedGutter : 12,
+        }}
+      >
         <ul>
           <li className="relative">
             <Link
               href="/admin/configuracoes"
               aria-label="Configurações"
               className={[
-                'group relative mx-auto flex items-center gap-3 rounded-[10px] px-4 pl-[30px] text-[16px] outline-none select-none transition-colors',
-                pathname.startsWith('/admin/configuracoes') ? 'font-semibold' : 'font-medium',
+                'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
+                anyGroupOpen ? 'font-light' : (pathname.startsWith('/admin/configuracoes') ? 'font-semibold' : 'font-medium'),
+                anyGroupOpen ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : '',
+                anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]',
               ].join(' ')}
               style={pill(pathname.startsWith('/admin/configuracoes'))}
               ref={pathname.startsWith('/admin/configuracoes') ? (el) => setActiveElement(el) : undefined}
             >
-              <span className="flex h-5 w-5 items-center justify-center">
+              {/* Hover overlay */}
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
+              />
+              <span className="flex h-5 w-5 items-center justify-center relative z-10">
                 {pathname.startsWith('/admin/configuracoes') ? (
                   <Cog6ToothSolid className="h-5 w-5" />
                 ) : (
                   <Cog6ToothIcon className="h-5 w-5" />
                 )}
               </span>
-              <span className="truncate">Configurações</span>
+              <span
+                className={[
+                  'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                  collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                ].join(' ')}
+              >
+                Configurações
+              </span>
             </Link>
           </li>
         </ul>

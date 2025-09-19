@@ -31,13 +31,18 @@ DropdownMenuSubTrigger.displayName = DropdownMenuPrimitive.SubTrigger.displayNam
 const DropdownMenuSubContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
->(({ className, ...props }, ref) => (
+>(({ className, style, ...props }, ref) => (
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-  "z-50 min-w-[8rem] overflow-hidden rounded-xl border border-gray-200 bg-white p-1 text-gray-900 animate-in slide-in-from-left-1",
+      "z-50 min-w-[8rem] overflow-hidden rounded-xl border border-gray-200 bg-white p-1 text-gray-900 animate-in slide-in-from-left-1",
       className
     )}
+    style={{
+      boxShadow:
+        "rgba(14, 63, 126, 0.06) 0px 0px 0px 1px, rgba(42, 51, 70, 0.03) 0px 1px 1px -0.5px, rgba(42, 51, 70, 0.04) 0px 2px 2px -1px, rgba(42, 51, 70, 0.04) 0px 3px 3px -1.5px, rgba(42, 51, 70, 0.03) 0px 5px 5px -2.5px, rgba(42, 51, 70, 0.03) 0px 10px 10px -5px, rgba(42, 51, 70, 0.03) 0px 24px 24px -8px",
+      ...(style || {}),
+    }}
     {...props}
   />
 ));
@@ -46,7 +51,7 @@ DropdownMenuSubContent.displayName = DropdownMenuPrimitive.SubContent.displayNam
 const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 8, ...props }, ref) => (
+>(({ className, sideOffset = 8, style, ...props }, ref) => (
   <DropdownMenuPortal>
   <DropdownMenuPrimitive.Content
       ref={ref}
@@ -55,6 +60,11 @@ const DropdownMenuContent = React.forwardRef<
     "z-50 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-1 text-gray-900 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 transition-transform duration-150",
         className
       )}
+      style={{
+        boxShadow:
+          "rgba(14, 63, 126, 0.06) 0px 0px 0px 1px, rgba(42, 51, 70, 0.03) 0px 1px 1px -0.5px, rgba(42, 51, 70, 0.04) 0px 2px 2px -1px, rgba(42, 51, 70, 0.04) 0px 3px 3px -1.5px, rgba(42, 51, 70, 0.03) 0px 5px 5px -2.5px, rgba(42, 51, 70, 0.03) 0px 10px 10px -5px, rgba(42, 51, 70, 0.03) 0px 24px 24px -8px",
+        ...(style || {}),
+      }}
       {...props}
     />
   </DropdownMenuPortal>

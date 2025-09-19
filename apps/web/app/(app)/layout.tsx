@@ -18,13 +18,13 @@ const PROTECTED = [
 ];
 
 /** Espaçamentos já validados por você */
-const CONTENT_GAP_PX = 28;
+const CONTENT_GAP_PX = 12;
 const OUTER_PADDING_TOP_PX = 20;
-const OUTER_PADDING_RIGHT_PX = 20;
+const OUTER_PADDING_RIGHT_PX = 24; // igual ao padding inferior
 const OUTER_PADDING_BOTTOM_PX = 24;
 const CARD_PADDING_PX = 32;
 const CARD_RADIUS_PX = 40;
-const CARD_SHADOW = "rgba(149, 157, 165, 0.2) 0px 8px 24px";
+const CARD_SHADOW = "rgba(14, 63, 126, 0.06) 0px 0px 0px 1px, rgba(42, 51, 70, 0.03) 0px 1px 1px -0.5px, rgba(42, 51, 70, 0.04) 0px 2px 2px -1px, rgba(42, 51, 70, 0.04) 0px 3px 3px -1.5px, rgba(42, 51, 70, 0.03) 0px 5px 5px -2.5px, rgba(42, 51, 70, 0.03) 0px 10px 10px -5px, rgba(42, 51, 70, 0.03) 0px 24px 24px -8px";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -59,15 +59,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-x-hidden app-surface-bg"
+      className="relative min-h-screen w-full app-surface-bg"
     >
       <Sidebar />
 
       <main
-        className="transition-all duration-300 ease-in-out"
-        style={{
-          paddingLeft: `calc(var(--sidebar-w,262px) + ${CONTENT_GAP_PX}px)`,
-        }}
+        className="with-sidebar transition-[padding-left] duration-300 ease-in-out overflow-visible"
+        style={{ ['--sidebar-gap' as string]: `${CONTENT_GAP_PX}px` } as Record<string, string>}
       >
         <div
           style={{
@@ -75,15 +73,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             paddingRight: OUTER_PADDING_RIGHT_PX,
             paddingBottom: OUTER_PADDING_BOTTOM_PX,
           }}
+          className="overflow-visible"
         >
           <div
-            className="w-full"
+            className="w-full transition-[width] duration-300 ease-in-out overflow-visible"
             style={{
               minHeight: `calc(100vh - ${OUTER_PADDING_TOP_PX + OUTER_PADDING_BOTTOM_PX}px)`,
               background: "#FFFFFF",
               borderRadius: CARD_RADIUS_PX,
               padding: CARD_PADDING_PX,
               boxShadow: CARD_SHADOW,
+              position: 'relative',
+              zIndex: 1,
             }}
           >
             <CardHeader />
