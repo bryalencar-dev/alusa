@@ -1,6 +1,6 @@
 "use client";
 import React from 'react';
-import { X, CheckCircle2, AlertTriangle, Info, XCircle } from "lucide-react";
+import { Close, CheckCircle, Warning, InfoCircle, ErrorCircle } from '@/components/icons/icons';
 import { cn } from "@/lib/utils";
 
 type Variant = "success" | "error" | "warning" | "info";
@@ -20,10 +20,10 @@ const variantStyles: Record<Variant, { container: string; tilt?: string }> = {
 };
 
 const variantIcons: Record<Variant, React.ReactElement> = {
-  success: <CheckCircle2 className="h-5 w-5" />,
-  error: <XCircle className="h-5 w-5" />,
-  warning: <AlertTriangle className="h-5 w-5" />,
-  info: <Info className="h-5 w-5" />
+  success: <CheckCircle className="h-5 w-5" />,
+  error: <ErrorCircle className="h-5 w-5" />,
+  warning: <Warning className="h-5 w-5" />,
+  info: <InfoCircle className="h-5 w-5" />
 };
 
 export function CustomToast({ title, description, variant = "info", onClose }: CustomToastProps) {
@@ -52,7 +52,7 @@ export function CustomToast({ title, description, variant = "info", onClose }: C
         aria-label="Fechar"
         className="toast-close-btn ml-1 mt-0.5"
       >
-        <X className="h-4 w-4" />
+  <Close className="h-4 w-4" />
       </button>
     </div>
   );

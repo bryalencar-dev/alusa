@@ -17,7 +17,7 @@ test.describe('First Register', () => {
   });
 
   test('Primeiro registro cria Admin', async ({ page }) => {
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola First');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Primeiro Admin');
@@ -33,7 +33,7 @@ test.describe('First Register', () => {
 
   test('Login subsequente com mesmo Admin', async ({ page }) => {
     // seed via registro
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola First');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Primeiro Admin');
@@ -43,7 +43,7 @@ test.describe('First Register', () => {
     await page.waitForURL('**/dashboard');
     // signOut limpando cookies
     await page.context().clearCookies();
-    await page.goto('/auth/login');
+  await page.goto('/login');
     await page.fill('[data-testid="login-email"]', 'primeiro@example.com');
     await page.fill('[data-testid="login-password"]', 'SenhaFort3!');
     await page.click('[data-testid="login-submit"]');
@@ -54,7 +54,7 @@ test.describe('First Register', () => {
 
   test('Tentativa de segundo registro bloqueada', async ({ page }) => {
     // criar primeiro admin
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola First');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Primeiro Admin');
@@ -65,7 +65,7 @@ test.describe('First Register', () => {
     await waitSession(page);
     // tentar segundo
     await page.context().clearCookies();
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Outra Escola');
     await page.fill('[data-testid="register-cpfCnpj"]', '98765432100');
     await page.fill('[data-testid="register-nome"]', 'Segundo');
@@ -73,6 +73,6 @@ test.describe('First Register', () => {
     await page.fill('[data-testid="register-senha"]', 'SenhaFort3!');
     await page.click('[data-testid="register-submit"]');
     // Como backend redireciona para login (409) tratamos exibindo erro - precisamos de mensagem; fallback: redireciono
-    await page.waitForURL('**/auth/login');
+  await page.waitForURL('**/login');
   });
 });

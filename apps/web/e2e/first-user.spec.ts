@@ -8,7 +8,7 @@ test.describe('First User', () => {
   test.beforeEach(async () => { await resetDb(prisma); });
 
   test('Registro inicial cria ADMIN e loga', async ({ page }) => {
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola Primeira');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Admin Root');
@@ -21,7 +21,7 @@ test.describe('First User', () => {
 
   test('Erro de email duplicado', async ({ page }) => {
     // cria primeiro
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola Primeira');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Admin Root');
@@ -31,7 +31,7 @@ test.describe('First User', () => {
   await page.waitForURL('**/dashboard');
     // tenta de novo com mesmo email diferente conta
     await page.context().clearCookies();
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Outra Escola');
     await page.fill('[data-testid="register-cpfCnpj"]', '98765432100');
     await page.fill('[data-testid="register-nome"]', 'Outro Admin');
@@ -42,7 +42,7 @@ test.describe('First User', () => {
   });
 
   test('Erro de CPF/CNPJ duplicado', async ({ page }) => {
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola Primeira');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Admin Root');
@@ -52,7 +52,7 @@ test.describe('First User', () => {
   await page.waitForURL('**/dashboard');
     await page.context().clearCookies();
     // tenta mesmo cpfCnpj com outro email
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Outra Escola');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Outro Admin');

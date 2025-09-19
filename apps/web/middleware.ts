@@ -16,4 +16,12 @@ const middleware = isTest ? bypassMiddleware : authMiddleware;
 
 export default middleware;
 
-export const config = { matcher: ['/admin/:path*'] };
+export const config = { 
+  matcher: [
+    '/admin/:path*',
+    '/alunos/:path*',
+    '/professores/:path*', 
+    '/matriculas/:path*',
+    '/dashboard/:path*'
+  ] 
+};

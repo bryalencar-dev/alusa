@@ -17,7 +17,7 @@ test.describe('First Register', () => {
   test.beforeEach(async () => { await resetDb(prisma); });
 
   test('Primeiro registro cria Admin', async ({ page }) => {
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola First');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Primeiro Admin');
@@ -32,7 +32,7 @@ test.describe('First Register', () => {
 
   test('Login subsequente com mesmo Admin', async ({ page }) => {
     // seed via registro
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola First');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Primeiro Admin');
@@ -42,7 +42,7 @@ test.describe('First Register', () => {
     await page.waitForURL('**/dashboard');
     await waitSession(page);
     await page.context().clearCookies();
-    await page.goto('/auth/login');
+  await page.goto('/login');
     await page.fill('[data-testid="login-email"]', 'primeiro@example.com');
     await page.fill('[data-testid="login-password"]', 'SenhaFort3!');
     await page.click('[data-testid="login-submit"]');
@@ -53,7 +53,7 @@ test.describe('First Register', () => {
 
   test('Tentativa de segundo registro bloqueada', async ({ page }) => {
     // criar primeiro
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola First');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Primeiro Admin');
@@ -64,7 +64,7 @@ test.describe('First Register', () => {
     await waitSession(page);
     await page.context().clearCookies();
     // segundo
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Outra Escola');
     await page.fill('[data-testid="register-cpfCnpj"]', '98765432100');
     await page.fill('[data-testid="register-nome"]', 'Segundo');
@@ -75,7 +75,7 @@ test.describe('First Register', () => {
   });
 
   test('Senha inválida mostra erro de política', async ({ page }) => {
-    await page.goto('/auth/register');
+  await page.goto('/register');
     await page.fill('[data-testid="register-escolaNome"]', 'Escola Weak');
     await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
     await page.fill('[data-testid="register-nome"]', 'Primeiro Admin');

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('registro inicial e login admin', async ({ page }) => {
-  await page.goto('/auth/register');
+  await page.goto('/register');
   await page.fill('[data-testid="register-escolaNome"]', 'Escola X');
   await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
   await page.fill('[data-testid="register-nome"]', 'Admin');

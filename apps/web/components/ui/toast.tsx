@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { X } from '@/components/icons/icons';
 import { createPortal } from 'react-dom';
 
 export type ToastVariant = 'neutral' | 'info' | 'success' | 'warning' | 'error';
@@ -21,7 +21,7 @@ const variantStyles: Record<ToastVariant, string> = {
   error: 'bg-[#fdecec] text-[#0f0f1a]'
 };
 
-let pushToastExternal: ((t: Omit<ToastMessage,'id'>) => void) | null = null;
+let pushToastExternal: ((_: Omit<ToastMessage,'id'>) => void) | null = null;
 
 export function pushToast(t: Omit<ToastMessage,'id'>) {
   if (pushToastExternal) pushToastExternal(t);

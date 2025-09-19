@@ -3,6 +3,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Estabilização do layout SPA - evita flash durante carregamento */
+.spa-layout-stable {
+  min-height: 100vh;
+  background-color: white;
+  overflow-x: hidden;
+}
+
 :root {
 	--brand-bg: #3C0269; /* updated per request */
 	--brand-primary: #19143A;
@@ -10,6 +17,16 @@
 	--brand-muted: #686868;
 	--brand-muted2: #828282;
 	--brand-stroke: #DDDDDD;
+
+	/* Theming tokens */
+	--app-bg: #F7F5F8; /* default light background (fora do card) */
+	--sidebar-bg: #F7F5F8; /* light sidebar */
+	--sidebar-text: #2A004A;
+	--sidebar-hover: #EEE6F4;
+	--sidebar-active-bg: #2A004A;
+	--sidebar-active-text: #FFFFFF;
+	/* Fundo leve para estado ativo/selecionado (pílula) no sidebar - LIGHT */
+	--sidebar-active-bg-light: #EEE6F4;
 
 	/* Scrollbar tokens (usam brand-accent como base) */
 	--scrollbar-thumb: var(--brand-accent);
@@ -198,9 +215,25 @@ select:focus,
 	@apply text-brand-accent hover:underline;
 }
 
-/* Suporte dark eventual */
-@media (prefers-color-scheme: dark) {
-	:root {
-		--brand-bg: #110E28;
-	}
+/* Tema escuro controlado por data-theme="dark" */
+[data-theme="dark"] {
+	--brand-bg: #1b0b2a; /* faixa da imagem 2 (aprox) para body fora do container */
+	--sidebar-bg: #2A004A; /* sidebar mais escura, como no print 2 (ativo) */
+	--app-bg: var(--sidebar-bg); /* fundo atrás do card igual ao sidebar */
+	--sidebar-text: #FFFFFF;
+	--sidebar-hover: rgba(255,255,255,0.06);
+	--sidebar-active-bg: #53217F; /* tom roxo mais claro que o fundo p/ seleção */
+	--sidebar-active-text: #FFFFFF;
+	/* Fundo leve para estado ativo/selecionado (pílula) no sidebar - DARK */
+	--sidebar-active-bg-light: rgba(255,255,255,0.09);
 }
+
+/* Utilitário global para usar bg do app conforme tema */
+.app-surface-bg { background: var(--app-bg); }
+.sidebar-surface-bg { background: var(--sidebar-bg); }
+.sidebar-text { color: var(--sidebar-text); }
+.sidebar-hover:hover { background: var(--sidebar-hover); }
+.sidebar-active { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); }
+
+/* Garantir dropdowns acima do card */
+.z-overlay { z-index: 60; }

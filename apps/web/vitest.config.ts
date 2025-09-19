@@ -6,6 +6,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     coverage: { provider: 'v8' },
+    deps: {
+      inline: [/^@alusa\/lib/]
+    },
     include: [
       'src/**/*.{test,spec}.?(c|m)[jt]s?(x)',
       'tests/unit/**/*.{test,spec}.?(c|m)[jt]s?(x)',
@@ -14,16 +17,21 @@ export default defineConfig({
     exclude: [
       'tests/e2e/**',
       'node_modules/**',
-      'dist/**',
-      '../../packages/**'
+      'dist/**'
     ],
     setupFiles: [path.resolve(__dirname, 'test', 'setup.ts')]
   },
   css: { postcss: { plugins: [] } },
   resolve: {
-    alias: {
-      './app/globals.css': path.resolve(__dirname, 'vitest-empty.css'),
-      '@': path.resolve(__dirname)
+    alias: [
+      { find: './app/globals.css', replacement: path.resolve(__dirname, 'vitest-empty.css') },
+      { find: '@/prisma/client', replacement: path.resolve(__dirname, 'prisma', 'client.ts') },
+      { find: '@', replacement: path.resolve(__dirname) }
+    ]
+  },
+  server: {
+    fs: {
+      allow: [path.resolve(__dirname, '..', '..'), __dirname]
     }
   }
 });

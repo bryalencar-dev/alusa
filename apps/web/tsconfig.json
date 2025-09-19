@@ -23,8 +23,8 @@
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-  ".next/types/**/*.ts",
-  "node_modules/lucide-react/dist/**/*.d.ts"
+    ".next/types/**/*.ts",
+    "app/api/users/count/users-count"
   ],
   "exclude": [
     "node_modules",

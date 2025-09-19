@@ -9,7 +9,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Models de autenticação
+// Models de autentica��o
 
 enum Status {
   ATIVO
@@ -33,109 +33,172 @@ enum Genero {
 }
 
 model Conta {
-  id        String    @id @default(cuid())
-  nome      String
-  cpfCnpj   String
-  status    Status    @default(ATIVO)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  usuarios  Usuario[]
-  alunos    Aluno[]
+  id          String         @id @default(cuid())
+  nome        String
+  cpfCnpj     String
+  status      Status         @default(ATIVO)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  usuarios    Usuario[]
+  alunos      Aluno[]
+  turmas      Turma[]
+  planos      Plano[]
+  combos      Combo[]
+  descontos   Desconto[]
+  webhooks    WebhookAsaas[]
+  professores Professor[]
 
   @@index([cpfCnpj])
 }
 
+/// Modelo de Professor com foco em multi-tenant via contaId.
+/// Decisões:
+/// - status como String com default "ATIVO" (evita acoplamento a enum para flexibilidade futura).
+/// - email opcional porém único globalmente (Postgres permite vários NULLs em índice único).
+/// - nome terá validação de tamanho mínimo (>= 2) aplicada na camada de aplicação (Zod), não no schema.
+/// - Relação futura com TurmaProfessor (campo `turmas`) ficará comentada até o modelo existir.
+enum StatusContratual {
+  EFETIVO
+  TEMPORARIO
+  PRESTADOR
+  VOLUNTARIO
+}
+
+model Professor {
+  id        String   @id @default(cuid())
+  contaId   String
+
+  // Dados pessoais
+  nome        String
+  cpf         String   @unique
+  rg          String?
+  dataNasc    DateTime
+  sexo        String?
+  estadoCivil String?
+  nacionalidade String?
+
+  // Contato
+  email       String   @unique
+  telefoneCel String
+  telefoneFixo String?
+
+  // Endereço
+  cep         String?
+  logradouro  String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  uf          String?  @db.Char(2)
+
+  // Profissional
+  formacao        String?
+  especialidades  String[] @default([])
+  dataAdmissao    DateTime?
+  statusContratual StatusContratual?
+  cargaHoraria     Int?
+  miniBio          String?
+  foto             String?
+
+  status    Status   @default(ATIVO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conta Conta @relation(fields: [contaId], references: [id])
+  turmas TurmaProfessor[]
+
+  @@index([contaId], name: "idx_professor_conta")
+}
+
 model Usuario {
-  id         String    @id @default(cuid())
-  contaId    String
-  conta      Conta     @relation(fields: [contaId], references: [id])
-  nome       String
-  email      String    @unique
-  telefone   String?
-  senhaHash  String
-  role       Role      @default(RESPONSAVEL)
-  status     Status    @default(ATIVO)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  contaId   String
+  conta     Conta    @relation(fields: [contaId], references: [id])
+  nome      String
+  email     String   @unique
+  telefone  String?
+  senhaHash String
+  role      Role     @default(RESPONSAVEL)
+  status    Status   @default(ATIVO)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([contaId])
 }
 
-// --- Modelos de domínio Escola ---
+// --- Modelos de dom�nio Escola ---
 
 model Aluno {
-  id           String   @id @default(cuid())
-  contaId      String
-  nome         String
-  nomeSocial   String?
-  dataNasc     DateTime
-  cpf          String?  @unique
-  email        String?
-  telefone     String?
-  foto         String?
-  // Campos de endereço estruturados
-  enderecoCep  String?  @db.Char(8)
-  enderecoLogradouro String?
-  enderecoNumero String?
-  enderecoComplemento String?
-  enderecoBairro String?
-  enderecoCidade String?
-  enderecoUf String? @db.Char(2)
-  observacao   String?
-  genero       Genero?
-  modalidadePrincipal String?
-  nivel        String?
-  alergias     String?
-  restricoesMedicas String?
-  contatoEmergenciaNome String?
+  id                        String    @id @default(cuid())
+  contaId                   String
+  nome                      String
+  nomeSocial                String?
+  dataNasc                  DateTime
+  cpf                       String?   @unique
+  email                     String?
+  telefone                  String?
+  foto                      String?
+  // Campos de endere�o estruturados
+  enderecoCep               String?   @db.Char(8)
+  enderecoLogradouro        String?
+  enderecoNumero            String?
+  enderecoComplemento       String?
+  enderecoBairro            String?
+  enderecoCidade            String?
+  enderecoUf                String?   @db.Char(2)
+  observacao                String?
+  genero                    Genero?
+  modalidadePrincipal       String?
+  nivel                     String?
+  alergias                  String?
+  restricoesMedicas         String?
+  contatoEmergenciaNome     String?
   contatoEmergenciaTelefone String?
-  origemCadastro String?
-  bolsaDescontoPercent Decimal? @db.Decimal(5,2)
-  isentoTaxaMatricula  Boolean  @default(false)
-  consentimentoImagem Boolean @default(false)
-  dataConsentimentoImagem DateTime?
-  consentimentoComunicacoes Boolean @default(true)
-  tamanhoCamiseta String?
-  tamanhoCalcado  String?
-  codigoInterno   String?
-  tags            String[] @default([])
-  status       Status   @default(ATIVO)
-  asaasId      String?  @unique
-  asaasCustomerId String? @unique
-  dataInativacao DateTime?
-  motivoInativacao String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  origemCadastro            String?
+  bolsaDescontoPercent      Decimal?  @db.Decimal(5, 2)
+  isentoTaxaMatricula       Boolean   @default(false)
+  consentimentoImagem       Boolean   @default(false)
+  dataConsentimentoImagem   DateTime?
+  consentimentoComunicacoes Boolean   @default(true)
+  tamanhoCamiseta           String?
+  tamanhoCalcado            String?
+  codigoInterno             String?
+  tags                      String[]  @default([])
+  status                    Status    @default(ATIVO)
+  asaasId                   String?   @unique
+  asaasCustomerId           String?   @unique
+  dataInativacao            DateTime?
+  motivoInativacao          String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
-  conta        Conta       @relation(fields: [contaId], references: [id])
+  conta        Conta              @relation(fields: [contaId], references: [id])
   responsaveis AlunoResponsavel[]
-  // matrículas e presenças futuras
-  // matriculas   Matricula[]
-  // presencas    Presenca[]
+  matriculas   Matricula[]
 
-  @@index([contaId])
   @@unique([contaId, email])
   @@unique([contaId, codigoInterno])
+  @@index([contaId])
 }
 
 model Responsavel {
-  id         String  @id @default(cuid())
-  nome       String
-  cpf        String  @unique
-  email      String  @unique
-  telefone   String
-  // Campos de endereço estruturados
-  enderecoCep  String?
-  enderecoLogradouro String?
-  enderecoNumero String?
+  id                  String  @id @default(cuid())
+  nome                String
+  cpf                 String  @unique
+  email               String  @unique
+  telefone            String
+  // Campos de endere�o estruturados
+  enderecoCep         String?
+  enderecoLogradouro  String?
+  enderecoNumero      String?
   enderecoComplemento String?
-  enderecoBairro String?
-  enderecoCidade String?
-  enderecoUf String?
-  financeiro Boolean @default(false)
-  asaasId    String? @unique
+  enderecoBairro      String?
+  enderecoCidade      String?
+  enderecoUf          String?
+  financeiro          Boolean @default(false)
+  asaasId             String? @unique
 
-  alunos     AlunoResponsavel[]
+  alunos AlunoResponsavel[]
 }
 
 model AlunoResponsavel {
@@ -149,4 +212,200 @@ model AlunoResponsavel {
 
   @@index([alunoId])
   @@index([responsavelId])
+}
+
+model Turma {
+  id            String   @id @default(cuid())
+  contaId       String
+  nome          String
+  modalidade    String
+  sala          String?
+  diasSemana    String[]
+  horarioInicio String
+  horarioFim    String
+  status        String   @default("ATIVA")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  conta      Conta        @relation(fields: [contaId], references: [id])
+  matriculas Matricula[]
+  combos     ComboTurma[]
+  professores TurmaProfessor[]
+
+  @@unique([contaId, nome], name: "uq_turma_conta_nome")
+  @@index([contaId], name: "idx_turma_conta")
+}
+
+model TurmaProfessor {
+  id          String   @id @default(cuid())
+  turmaId     String
+  professorId String
+  createdAt   DateTime @default(now())
+
+  turma     Turma     @relation(fields: [turmaId], references: [id], onDelete: Cascade)
+  professor Professor @relation(fields: [professorId], references: [id])
+
+  @@unique([turmaId, professorId], name: "uq_turmaprofessor_unique")
+  @@index([turmaId], name: "idx_turmaprofessor_turma")
+  @@index([professorId], name: "idx_turmaprofessor_professor")
+}
+
+model Plano {
+  id                String   @id @default(cuid())
+  contaId           String
+  nome              String
+  descricao         String?
+  valor             Decimal  @db.Decimal(12, 2)
+  vencimentoDia     Int
+  frequenciaSemanal Int?
+  status            String   @default("ATIVO")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  conta      Conta       @relation(fields: [contaId], references: [id])
+  matriculas Matricula[]
+
+  @@unique([contaId, nome], name: "uq_plano_conta_nome")
+  @@index([contaId], name: "idx_plano_conta")
+}
+
+model Matricula {
+  id            String    @id @default(cuid())
+  alunoId       String
+  turmaId       String
+  planoId       String?
+  dataInicio    DateTime
+  dataFim       DateTime?
+  status        String    @default("ATIVA")
+  taxaMatricula Decimal?  @db.Decimal(12, 2)
+  asaasId       String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  aluno     Aluno               @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  turma     Turma               @relation(fields: [turmaId], references: [id])
+  plano     Plano?              @relation(fields: [planoId], references: [id])
+  descontos DescontoMatricula[]
+  cobrancas Cobranca[]
+
+  @@index([alunoId], name: "idx_matricula_aluno")
+  @@index([turmaId], name: "idx_matricula_turma")
+  @@index([planoId], name: "idx_matricula_plano")
+}
+
+model Desconto {
+  id        String   @id @default(cuid())
+  contaId   String
+  nome      String
+  tipo      String
+  valor     Decimal  @db.Decimal(12, 2)
+  escopo    String
+  status    String   @default("ATIVO")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conta      Conta               @relation(fields: [contaId], references: [id])
+  matriculas DescontoMatricula[]
+
+  @@unique([contaId, nome], name: "uq_desconto_conta_nome")
+  @@index([contaId], name: "idx_desconto_conta")
+}
+
+model DescontoMatricula {
+  id          String   @id @default(cuid())
+  matriculaId String
+  descontoId  String
+  valorFinal  Decimal  @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  desconto  Desconto  @relation(fields: [descontoId], references: [id])
+
+  @@unique([matriculaId, descontoId], name: "uq_descontomatricula_unique")
+  @@index([matriculaId], name: "idx_descontomatricula_matricula")
+  @@index([descontoId], name: "idx_descontomatricula_desconto")
+}
+
+model Combo {
+  id        String   @id @default(cuid())
+  contaId   String
+  nome      String
+  descricao String?
+  status    String   @default("ATIVO")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conta  Conta        @relation(fields: [contaId], references: [id])
+  turmas ComboTurma[]
+
+  @@unique([contaId, nome], name: "uq_combo_conta_nome")
+  @@index([contaId], name: "idx_combo_conta")
+}
+
+model ComboTurma {
+  id        String   @id @default(cuid())
+  comboId   String
+  turmaId   String
+  createdAt DateTime @default(now())
+
+  combo Combo @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  turma Turma @relation(fields: [turmaId], references: [id])
+
+  @@unique([comboId, turmaId], name: "uq_comboturma_unique")
+  @@index([comboId], name: "idx_comboturma_combo")
+  @@index([turmaId], name: "idx_comboturma_turma")
+}
+
+model Cobranca {
+  id                String    @id @default(cuid())
+  matriculaId       String
+  competenciaInicio DateTime
+  competenciaFim    DateTime?
+  valor             Decimal   @db.Decimal(12, 2)
+  vencimento        DateTime
+  status            String    @default("PENDENTE")
+  multa             Decimal?  @db.Decimal(12, 2)
+  juros             Decimal?  @db.Decimal(12, 2)
+  tipo              String
+  asaasId           String?   @unique
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  matricula  Matricula   @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  pagamentos Pagamento[]
+
+  @@index([matriculaId], name: "idx_cobranca_matricula")
+  @@index([status], name: "idx_cobranca_status")
+}
+
+model Pagamento {
+  id             String    @id @default(cuid())
+  cobrancaId     String
+  dataPagamento  DateTime?
+  formaPagamento String
+  valorPago      Decimal   @db.Decimal(12, 2)
+  status         String    @default("CONFIRMADO")
+  comprovante    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  cobranca Cobranca @relation(fields: [cobrancaId], references: [id], onDelete: Cascade)
+
+  @@index([cobrancaId], name: "idx_pagamento_cobranca")
+}
+
+model WebhookAsaas {
+  id           String    @id @default(cuid())
+  contaId      String
+  evento       String
+  eventId      String?   @unique
+  payload      Json
+  recebidoEm   DateTime  @default(now())
+  processadoEm DateTime?
+  status       String    @default("PENDENTE")
+
+  conta Conta @relation(fields: [contaId], references: [id])
+
+  @@index([contaId], name: "idx_webhookasaas_conta")
+  @@index([status], name: "idx_webhookasaas_status")
 }

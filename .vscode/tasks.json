@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "vitest:unit:web",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"-w",
+				"--filter",
+				"@alusa/web",
+				"test:unit"
+			]
+		}
+	]
+}

@@ -95,9 +95,18 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
 
   return prisma.$transaction(async tx => {
     // 1. Verificar se a conta existe
-    const conta = await tx.conta.findUnique({ where: { id: normalizedData.contaId } });
+    let conta = await tx.conta.findUnique({ where: { id: normalizedData.contaId } });
     if (!conta) {
-      throw new Error(`Conta com ID ${normalizedData.contaId} não encontrada`);
+      // Para ambiente de desenvolvimento, garanta a conta 'conta-default'
+      if (normalizedData.contaId === 'conta-default') {
+        conta = await tx.conta.upsert({
+          where: { id: 'conta-default' },
+          update: {},
+          create: { id: 'conta-default', nome: 'Alusa Demo', cpfCnpj: '00000000000191' }
+        });
+      } else {
+        throw new Error(`Conta com ID ${normalizedData.contaId} não encontrada`);
+      }
     }
 
     // 2. Verificar duplicatas de CPF se fornecido

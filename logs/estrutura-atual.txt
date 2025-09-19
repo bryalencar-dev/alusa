@@ -1,0 +1,127 @@
+PANORAMA ATUAL DO PROJETO (apps/web)
+
+1) Estrutura de pastas sob apps/web/app/
+- (dashboard)/
+  - layout.tsx (route group; passa children)
+  - admin/
+    - page.tsx (existe; conteúdo não detalhado aqui)
+    - professores/
+      - page.tsx  => Rota: /admin/professores (usa layout do admin)
+    - academicos/
+      - page.tsx  => Rota: /admin/academicos
+      - alunos/
+        - page.tsx => Rota: /admin/academicos/alunos
+- (recepcao)/
+  - professores/
+    - page.tsx => Redirect para /admin/professores (mantido para compatibilidade)
+    - ProfessorForm.tsx (componente usado na página de professores)
+- admin/
+  - layout.tsx (aplica Sidebar + Header para todas as rotas /admin/*)
+  - dashboard/
+    - page.tsx => Rota: /admin/dashboard
+  - alunos/
+    - page.tsx => Rota: /admin/alunos
+  - configuracoes/
+    - page.tsx => Rota: /admin/configuracoes
+- api/
+  - alunos/
+    - route.ts (GET/POST)
+    - [id]/route.ts (GET/PATCH/DELETE)
+  - professores/
+    - route.ts (GET/POST)
+    - [id]/route.ts (GET/PATCH/DELETE)
+  - auth/
+    - [...nextauth]/route.ts (NextAuth)
+    - forgot/route.ts
+  - health/route.ts
+  - first-register/route.ts
+  - upload/route.ts
+  - test/users-count/route.ts
+- auth/
+  - layout.tsx
+  - login/page.tsx => /auth/login
+  - register/page.tsx => /auth/register
+  - forgot-password/page.tsx => /auth/forgot-password
+- configuracoes/
+  - layout.tsx
+  - page.tsx => /configuracoes
+- dashboard/
+  - page.tsx => /dashboard
+- page.tsx => /
+- layout.tsx => Root layout (+ SessionProvider, Toaster, health-check em dev)
+- providers.tsx
+- recepcao/
+  - alunos/page.tsx => /recepcao/alunos
+
+Observações:
+- Pastas duplicadas sob o app/ aparecem listadas por algumas ferramentas (ex.: resultados repetidos), mas os arquivos efetivamente ativos são os listados acima. As duplicatas problemáticas (/admin/professores fora do grupo e route.ts em (recepcao)/professores) foram removidas.
+
+2) Rotas disponíveis (públicas e protegidas)
+Públicas (sem middleware de auth):
+- / (apps/web/app/page.tsx)
+- /auth/login
+- /auth/register
+- /auth/forgot-password
+- /health (API)
+- /api/auth/[...nextauth] (fluxo do NextAuth)
+- /api/first-register (setup inicial)
+- /api/upload (depende de auth no handler; não há middleware global)
+- /api/test/users-count (apenas em teste)
+
+Protegidas via middleware (matcher '/admin/:path*'):
+- /admin/dashboard
+- /admin/alunos
+- /admin/configuracoes
+- /admin/professores
+- /admin/academicos
+- /admin/academicos/alunos
+
+Outras rotas de app não cobertas pelo middleware (mas podem checar sessão no server/client manualmente):
+- /dashboard
+- /configuracoes
+- /recepcao/alunos
+- /(recepcao)/professores -> faz redirect para /admin/professores
+
+APIs protegidas (checagem de sessão/role no handler):
+- /api/alunos (GET, POST)
+- /api/alunos/[id] (GET, PATCH, DELETE)
+- /api/professores (GET, POST)
+- /api/professores/[id] (GET, PATCH, DELETE)
+
+3) middleware.ts (autenticação e bypass de testes)
+- Usa withAuth do NextAuth com pages.signIn = '/auth/login'
+- Se TEST_ROUTES_ENABLED === 'true', o middleware é bypassado (útil para E2E)
+- Export config: { matcher: ['/admin/:path*'] }
+  => Apenas rotas /admin/* passam pelo middleware automaticamente.
+
+4) Sidebar/Menu (components/dashboard/Sidebar.tsx)
+- Sidebar estática (lista fixa de grupos e itens)
+- Itens apontam para rotas /admin/*, incluindo:
+  - Dashboard (/admin/dashboard)
+  - Acadêmicos: Alunos, Professores, Turmas, Matrículas, Presenças, Avaliações
+  - Financeiro, Aulas, Relatórios, Loja, Eventos, Configurações
+- O destaque “ativo” é calculado por pathname.startsWith(href)
+- Não há filtro dinâmico por role aqui; o RBAC é aplicado no backend (APIs) e via middleware (acesso às páginas /admin/*)
+
+5) Páginas duplicadas ou em mais de uma pasta
+- /admin/professores: agora centralizada em (dashboard)/admin/professores/page.tsx
+- Existia admin/professores/page.tsx (removida) e (recepcao)/professores/route.ts (removida)
+- (recepcao)/professores/page.tsx permanece apenas como redirect para /admin/professores para compatibilidade de links antigos.
+- Existem, por design, pares como /admin/alunos e /recepcao/alunos (rotas diferentes). Isso não é duplicação de arquivo; são seções distintas do produto.
+
+6) Páginas de autenticação
+- /auth/login (apps/web/app/auth/login/page.tsx)
+- /auth/register (apps/web/app/auth/register/page.tsx)
+- /auth/forgot-password (apps/web/app/auth/forgot-password/page.tsx)
+- Layout de auth em /auth/layout.tsx
+
+7) RBAC (alto nível)
+- Middleware protege /admin/* (exige sessão; redireciona para /auth/login se não logado)
+- Handlers das APIs de alunos e professores fazem checagem de role:
+  - Permitido: 'ADMIN' e 'RECEPCAO'
+- getSessionUser em apps/web/lib/auth/session.ts resolve user.id, role e contaId.
+
+8) Notas finais
+- O grupo (dashboard) é um route group para organizar arquitetura; ele não altera a URL final (por isso /admin/professores aparece sem o segmento).
+- Professores: página final em (dashboard)/admin/professores; formulário é importado de (recepcao)/professores/ProfessorForm.tsx.
+- Em caso de erro de rotas duplicadas, reiniciar o dev server geralmente limpa o cache do watcher.

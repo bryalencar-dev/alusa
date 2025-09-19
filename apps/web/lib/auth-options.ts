@@ -46,6 +46,34 @@ export const authOptions: NextAuthOptions = {
       (session.user as any).name = (token as any).name ?? '';
       (session.user as any).role = (token as any).role ?? 'USER';
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      try {
+        // Permitir apenas mesma origem
+        const parsed = new URL(url, baseUrl);
+        if (parsed.origin !== baseUrl) return baseUrl + '/dashboard';
+
+        const path = parsed.pathname;
+        // Normalizar barra final opcional
+        const norm = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
+
+        // Casos que devem cair no dashboard
+        if (!norm || norm === '/' || norm === '/auth' || norm.startsWith('/auth/')) {
+          return baseUrl + '/dashboard';
+        }
+
+        // Permitir caminhos relativos existentes (heurística simples: começam com '/')
+        if (norm.startsWith('/')) {
+          // Bloquear destinos suspeitos (ex.: /admin/dashboard que não existe) => fallback
+          // Poderíamos checar lista branca; por simplicidade, bloquear se contém 'admin/dashboard'
+          if (norm === '/admin/dashboard') return baseUrl + '/dashboard';
+          return norm; // relativo: NextAuth resolverá para mesma origem
+        }
+        // Qualquer outro formato (query estranha, protocolo externo) => fallback
+        return baseUrl + '/dashboard';
+      } catch {
+        return baseUrl + '/dashboard';
+      }
     }
   }
 };
