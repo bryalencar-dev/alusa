@@ -1,20 +1,21 @@
 'use client';
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Plus, Search, Edit3, Trash2, ChevronDown, ChevronUp } from '@/components/icons/icons';
+import { useSession } from 'next-auth/react';
+import { Plus, Edit3, Trash2 } from '@/components/icons/icons';
+import { toast } from 'sonner';
+import { CustomToast } from '@/components/CustomToast';
+import ConfirmDeleteDialog from '@/components/dialogs/ConfirmDeleteDialog';
+import EditEntityDialog from '@/components/dialogs/EditEntityDialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import TableLayout from '@/components/layout/TableLayout';
-import { useSession } from 'next-auth/react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import Pagination from '@/components/layout/Pagination';
+import EntityFiltersBar, {
+  type StatusValue,
+  type SortOrder,
+} from '@/components/layout/EntityFiltersBar';
 
 interface Sala {
   id: string;
@@ -22,34 +23,34 @@ interface Sala {
   descricao?: string | null;
   capacidade: number;
   status: 'ATIVO' | 'INATIVO' | string;
-  createdAt: string;
 }
-
 const SalaWizardDrawer = dynamic(() => import('@/components/salas/SalaWizardDrawer'), {
   ssr: false,
 });
 
 export default function SalasPage() {
+  const { data: session } = useSession();
+  const contaId = (session?.user as { contaId?: string } | undefined)?.contaId || 'conta-default';
   const [data, setData] = useState<Sala[]>([]);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'TODOS' | 'ATIVO' | 'INATIVO'>('TODOS');
-  const [open, setOpen] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
-  const { data: session } = useSession();
+  const [statusFilter, setStatusFilter] = useState<StatusValue>('TODOS');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('ASC');
   const [page, setPage] = useState(1);
   const pageSize = 10;
-  const contaId = (session?.user as { contaId?: string } | undefined)?.contaId;
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Sala | null>(null);
+  const [deleting, setDeleting] = useState<Sala | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (q) params.set('q', q);
-      if (contaId) params.set('contaId', contaId);
+      params.set('contaId', contaId);
+      if (q.trim()) params.set('q', q.trim());
       const res = await fetch(`/api/salas?${params.toString()}`);
       const json = await res.json();
-      setData(json.data || []);
+      setData(Array.isArray(json.data) ? json.data : []);
     } catch {
       setData([]);
     } finally {
@@ -60,65 +61,55 @@ export default function SalasPage() {
   useEffect(() => {
     load();
   }, [load]);
-
   useEffect(() => {
     const h = () => load();
     window.addEventListener('salas:changed', h);
     return () => window.removeEventListener('salas:changed', h);
   }, [load]);
 
-  const ordered = useMemo(() => {
-    return [...data]
-      .filter((s) => (statusFilter === 'TODOS' ? true : s.status === statusFilter))
-      .sort((a, b) => {
-        const comp = a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
-        return sortOrder === 'ASC' ? comp : -comp;
-      });
-  }, [data, statusFilter, sortOrder]);
+  const ordered = useMemo(
+    () =>
+      [...data]
+        .filter((s) => (statusFilter === 'TODOS' ? true : s.status === statusFilter))
+        .sort((a, b) => {
+          const c = a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
+          return sortOrder === 'ASC' ? c : -c;
+        }),
+    [data, statusFilter, sortOrder],
+  );
 
-  // Reset page on filters
-  useEffect(() => { setPage(1); }, [q, statusFilter, sortOrder]);
-  const paginated = useMemo(() => ordered.slice((page - 1) * pageSize, page * pageSize), [ordered, page, pageSize]);
+  useEffect(() => {
+    setPage(1);
+  }, [q, statusFilter, sortOrder]);
+  const paginated = ordered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <TableLayout
       title="Salas"
-      subtitle="Gerencie as salas físicas de aula."
-      actions={<>
+      subtitle="Gerencie as salas cadastradas."
+      actions={
         <Button
           onClick={() => setOpen(true)}
           className="h-10 px-4 bg-brand-accent hover:bg-brand-accent/90 text-white shadow-none"
         >
-          <Plus className="h-4 w-4 mr-2 transition-none" /> Nova sala
+          <Plus className="h-4 w-4 mr-2" /> Nova sala
         </Button>
-        <Button
-          variant="outline"
-          onClick={() => setSortOrder((o) => (o === 'ASC' ? 'DESC' : 'ASC'))}
-          className="h-10 px-3 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-none flex items-center gap-2"
-          aria-label="Alternar ordenação"
-        >
-          {sortOrder === 'ASC' ? (<><ChevronDown className="h-4 w-4" /> A–Z</>) : (<><ChevronUp className="h-4 w-4" /> Z–A</>)}
-        </Button>
-        <Select value={statusFilter} onValueChange={(v: 'TODOS' | 'ATIVO' | 'INATIVO') => setStatusFilter(v)}>
-          <SelectTrigger className="h-10 w-[150px] bg-white border-gray-300 text-[13px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent align="start" className="text-[13px]">
-            <SelectItem value="TODOS">Todos status</SelectItem>
-            <SelectItem value="ATIVO">Ativas</SelectItem>
-            <SelectItem value="INATIVO">Inativas</SelectItem>
-          </SelectContent>
-        </Select>
-      </>}
-      filtersBar={<div className="relative w-full md:w-[380px] lg:w-[420px]">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-none" />
-        <Input
-          placeholder="Buscar por nome..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
-          className="h-10 pl-10 border border-gray-300 shadow-none placeholder:text-gray-400"
+      }
+      filtersBar={
+        <EntityFiltersBar
+          searchValue={q}
+          onSearchChange={setQ}
+          onSearchEnter={load}
+          statusValue={statusFilter}
+          onStatusChange={setStatusFilter}
+          sortOrder={sortOrder}
+          onSortChange={setSortOrder}
+          searchPlaceholder="Buscar por nome..."
         />
-      </div>}
-      footer={<Pagination total={ordered.length} page={page} pageSize={pageSize} onChange={setPage} />}
+      }
+      footer={
+        <Pagination total={ordered.length} page={page} pageSize={pageSize} onChange={setPage} />
+      }
     >
       <div className="bg-white rounded-xl border overflow-hidden">
         {loading ? (
@@ -126,9 +117,9 @@ export default function SalasPage() {
             <div className="bg-gray-50 px-6 py-3 border-b">
               <div className="grid grid-cols-12 gap-4">
                 <Skeleton className="col-span-3 h-4" />
-                <Skeleton className="col-span-5 h-4" />
+                <Skeleton className="col-span-4 h-4" />
                 <Skeleton className="col-span-2 h-4" />
-                <Skeleton className="col-span-1 h-4" />
+                <Skeleton className="col-span-2 h-4" />
                 <Skeleton className="col-span-1 h-4" />
               </div>
             </div>
@@ -136,10 +127,10 @@ export default function SalasPage() {
               <div key={i} className="px-6 py-3">
                 <div className="grid grid-cols-12 gap-4 items-center">
                   <Skeleton className="col-span-3 h-4" />
-                  <Skeleton className="col-span-5 h-4" />
+                  <Skeleton className="col-span-4 h-4" />
+                  <Skeleton className="col-span-2 h-6 w-16 rounded-full" />
                   <Skeleton className="col-span-2 h-4" />
-                  <Skeleton className="col-span-1 h-6 w-16" />
-                  <Skeleton className="col-span-1 h-8 w-8 rounded-md" />
+                  <Skeleton className="col-span-1 h-8 w-8" />
                 </div>
               </div>
             ))}
@@ -149,9 +140,9 @@ export default function SalasPage() {
             <div className="bg-gray-50 px-6 py-3 border-b">
               <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
                 <div className="col-span-3">Sala</div>
-                <div className="col-span-5">Descrição</div>
+                <div className="col-span-4">Descrição</div>
                 <div className="col-span-2 text-center">Capacidade</div>
-                <div className="col-span-1 text-center">Status</div>
+                <div className="col-span-2 text-center">Status</div>
                 <div className="col-span-1 text-center">Ações</div>
               </div>
             </div>
@@ -165,17 +156,15 @@ export default function SalasPage() {
                       <div className="col-span-3 text-[13px] text-gray-900 font-normal truncate">
                         {s.nome}
                       </div>
-                      <div className="col-span-5 text-[13px] text-gray-700 leading-[20px]">
-                        <span className="line-clamp-2 block max-w-full whitespace-pre-wrap">
+                      <div className="col-span-4 text-[13px] text-gray-700 leading-[20px]">
+                        <span className="line-clamp-2 block whitespace-pre-wrap">
                           {s.descricao?.trim() || '-'}
                         </span>
                       </div>
-                      <div className="col-span-2 flex justify-center text-[13px] text-gray-800">
-                        <Badge className="bg-violet-50 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 text-[11px] font-medium">
-                          {s.capacidade}
-                        </Badge>
+                      <div className="col-span-2 text-center text-[13px] text-gray-700">
+                        {s.capacidade}
                       </div>
-                      <div className="col-span-1 flex justify-center">
+                      <div className="col-span-2 flex justify-center">
                         {s.status === 'ATIVO' ? (
                           <Badge className="bg-green-100 text-green-700 border-green-200">
                             Ativa
@@ -190,7 +179,7 @@ export default function SalasPage() {
                           size="icon"
                           className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
                           aria-label="Editar sala"
-                          onClick={() => setOpen(true)}
+                          onClick={() => setEditing(s)}
                         >
                           <Edit3 className="h-4 w-4" />
                         </Button>
@@ -198,10 +187,8 @@ export default function SalasPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          aria-label="Inativar sala"
-                          onClick={() => {
-                            /* TODO: implementar diálogo de inativação */
-                          }}
+                          aria-label="Excluir sala"
+                          onClick={() => setDeleting(s)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -214,40 +201,127 @@ export default function SalasPage() {
           </>
         )}
       </div>
-
-      <SalaWizardDrawer
-        open={open}
-        onOpenChange={setOpen}
-        contaId={contaId || 'conta-default'}
-        onSaved={() => load()}
-      />
+      <SalaWizardDrawer open={open} onOpenChange={setOpen} contaId={contaId} onSaved={load} />
+      {editing && (
+        <EditEntityDialog
+          open={!!editing}
+          title="Editar sala"
+          description="Atualize os dados da sala."
+          fields={[
+            {
+              name: 'nome',
+              label: 'Nome',
+              initialValue: editing.nome,
+              validate: (v) => (!v.trim() ? 'Informe o nome' : null),
+            },
+            {
+              name: 'descricao',
+              label: 'Descrição',
+              type: 'textarea',
+              initialValue: editing.descricao || '',
+            },
+            {
+              name: 'capacidade',
+              label: 'Capacidade',
+              type: 'number',
+              initialValue: editing.capacidade,
+              validate: (v) => (Number(v) <= 0 ? 'Informe um número válido' : null),
+            },
+            {
+              name: 'status',
+              label: 'Status',
+              type: 'select',
+              initialValue: editing.status === 'ATIVO' ? 'ATIVO' : 'INATIVO',
+              options: [
+                { value: 'ATIVO', label: 'Ativa' },
+                { value: 'INATIVO', label: 'Inativa' },
+              ],
+            },
+          ]}
+          onBuildPayload={(raw) => ({
+            contaId,
+            nome: String(raw.nome).trim(),
+            descricao: String(raw.descricao || '').trim(),
+            capacidade: Number(raw.capacidade),
+            status: raw.status,
+          })}
+          onSubmit={async (payload) => {
+            try {
+              const res = await fetch(`/api/salas/${editing.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+              const j = await res.json();
+              if (!res.ok) throw new Error(j?.error?.message || 'Falha ao salvar');
+              toast.custom((t) => (
+                <CustomToast
+                  variant="success"
+                  title="Sala atualizada"
+                  description="As alterações foram salvas."
+                  onClose={() => toast.dismiss(t)}
+                />
+              ));
+              setEditing(null);
+              load();
+              window.dispatchEvent(new CustomEvent('salas:changed'));
+            } catch (e) {
+              toast.custom((t) => (
+                <CustomToast
+                  variant="error"
+                  title="Erro ao salvar"
+                  description={(e as Error).message}
+                  onClose={() => toast.dismiss(t)}
+                />
+              ));
+            }
+          }}
+          onOpenChange={(o) => {
+            if (!o) setEditing(null);
+          }}
+        />
+      )}
+      {deleting && (
+        <ConfirmDeleteDialog
+          open={!!deleting}
+          title="Excluir sala"
+          description={`Tem certeza que deseja excluir a sala "${deleting.nome}"? Esta ação não pode ser desfeita.`}
+          onConfirm={async () => {
+            try {
+              const res = await fetch(`/api/salas/${deleting.id}?contaId=${contaId}`, {
+                method: 'DELETE',
+              });
+              if (!res.ok) {
+                const j = await res.json().catch(() => null);
+                throw new Error(j?.error?.message || 'Falha ao excluir');
+              }
+              toast.custom((t) => (
+                <CustomToast
+                  variant="success"
+                  title="Sala excluída"
+                  description="A sala foi removida."
+                  onClose={() => toast.dismiss(t)}
+                />
+              ));
+              setDeleting(null);
+              load();
+              window.dispatchEvent(new CustomEvent('salas:changed'));
+            } catch (e) {
+              toast.custom((t) => (
+                <CustomToast
+                  variant="error"
+                  title="Erro ao excluir"
+                  description={(e as Error).message}
+                  onClose={() => toast.dismiss(t)}
+                />
+              ));
+            }
+          }}
+          onOpenChange={(o) => {
+            if (!o) setDeleting(null);
+          }}
+        />
+      )}
     </TableLayout>
-  );
-}
-
-interface PaginationProps { total: number; pageSize: number; page: number; onChange: (_p: number) => void; }
-function Pagination({ total, pageSize, page, onChange }: PaginationProps) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if (page > totalPages) setTimeout(() => onChange(totalPages), 0);
-  if (total === 0) return null;
-  const pages: (number | '…')[] = [];
-  const siblings = 1;
-  const left = Math.max(2, page - siblings);
-  const right = Math.min(totalPages - 1, page + siblings);
-  pages.push(1);
-  if (left > 2) pages.push('…');
-  for (let i = left; i <= right; i++) pages.push(i);
-  if (right < totalPages - 1) pages.push('…');
-  if (totalPages > 1) pages.push(totalPages);
-  return (
-    <div className="flex justify-center pt-4">
-      <div className="flex items-center gap-2 text-sm">
-        <button aria-label="Primeira" disabled={page === 1} onClick={() => onChange(1)} className="h-8 w-8 rounded-md border grid place-items-center border-brand-accent/30 bg-white text-brand-accent disabled:opacity-40 hover:bg-brand-accent hover:text-white">«</button>
-        <button aria-label="Anterior" disabled={page === 1} onClick={() => onChange(Math.max(1, page - 1))} className="h-8 w-8 rounded-md border grid place-items-center border-brand-accent/30 bg-white text-brand-accent disabled:opacity-40 hover:bg-brand-accent hover:text-white">‹</button>
-        {pages.map((p, i) => p === '…' ? <span key={i} className="px-2 text-brand-accent/40">…</span> : <button key={p} aria-current={p === page ? 'page' : undefined} onClick={() => onChange(p)} className={'h-8 w-8 rounded-md border grid place-items-center transition text-[13px] ' + (p === page ? 'bg-brand-accent text-white border-brand-accent' : 'border-brand-accent/30 text-brand-accent bg-white hover:bg-brand-accent hover:text-white')}>{p}</button>)}
-        <button aria-label="Próxima" disabled={page === totalPages} onClick={() => onChange(Math.min(totalPages, page + 1))} className="h-8 w-8 rounded-md border grid place-items-center border-brand-accent/30 bg-white text-brand-accent disabled:opacity-40 hover:bg-brand-accent hover:text-white">›</button>
-        <button aria-label="Última" disabled={page === totalPages} onClick={() => onChange(totalPages)} className="h-8 w-8 rounded-md border grid place-items-center border-brand-accent/30 bg-white text-brand-accent disabled:opacity-40 hover:bg-brand-accent hover:text-white">»</button>
-      </div>
-    </div>
   );
 }
