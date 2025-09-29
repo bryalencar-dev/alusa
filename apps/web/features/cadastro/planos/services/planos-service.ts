@@ -1,12 +1,5 @@
 export type PlanoStatus = 'ATIVO' | 'INATIVO';
-export type PlanoPeriodicidade = 'MENSAL' | 'QUINZENAL' | 'SEMANAL' | 'TRIMESTRAL' | 'ANUAL';
-
-const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+export type PlanoPeriodicidade = 'MENSAL' | 'TRIMESTRAL' | 'ANUAL';
 
 export interface PlanoListItem {
   id: string;
@@ -15,96 +8,79 @@ export interface PlanoListItem {
   descricao: string | null;
   periodicidade: PlanoPeriodicidade;
   valor: number;
-  valorCentavos: number;
-  valorDecimal: string;
-  valorFormatado: string;
   status: PlanoStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ListPlanosParams {
   contaId: string;
+  status?: PlanoStatus;
   search?: string;
-  status?: PlanoStatus | 'TODOS';
   signal?: AbortSignal;
 }
 
-function assertNonEmptyId(id: unknown): asserts id is string {
-  const s = typeof id === 'string' ? id.trim() : String(id ?? '').trim();
-  if (!s) {
-    // Falha rápida e explícita: evita que a UI congele por key duplicada
-    throw new Error(
-      'Plano sem "id" na resposta da API. Ajuste o endpoint/lib para incluir o campo "id".',
-    );
+function coerceNumber(value: unknown): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
   }
+  throw new Error('Plano inválido: valor numérico ausente.');
 }
 
-function normalizePlano(raw: Record<string, unknown>): PlanoListItem {
-  // --- GARANTE ID ---
-  assertNonEmptyId(raw.id);
-  const id = String(raw.id).trim();
-
-  const valorNumberRaw = typeof raw.valor === 'number' ? raw.valor : Number(raw.valor ?? 0);
-  const valorNumber = Number.isFinite(valorNumberRaw) ? valorNumberRaw : 0;
-
-  const valorCentavosRaw =
-    typeof raw.valorCentavos === 'number' && Number.isFinite(raw.valorCentavos)
-      ? Math.round(raw.valorCentavos)
-      : Math.round(valorNumber * 100);
-
-  const valorDecimalRaw =
-    typeof raw.valorDecimal === 'string' && raw.valorDecimal.trim().length > 0
-      ? raw.valorDecimal.trim()
-      : (valorCentavosRaw / 100).toFixed(2);
-
-  const valorFormatadoRaw =
-    typeof raw.valorFormatado === 'string' && raw.valorFormatado.trim().length > 0
-      ? raw.valorFormatado
-      : currencyFormatter.format(valorCentavosRaw / 100);
+export function normalizePlano(input: Partial<PlanoListItem> & { id?: unknown }): PlanoListItem {
+  const rawId = typeof input.id === 'string' ? input.id.trim() : '';
+  if (!rawId) {
+    throw new Error('Plano inválido recebido: id ausente na resposta.');
+  }
+  const contaId = typeof input.contaId === 'string' ? input.contaId : '';
+  if (!contaId) {
+    throw new Error('Plano inválido recebido: contaId ausente.');
+  }
+  const nome = typeof input.nome === 'string' ? input.nome : '';
+  const descricao =
+    input.descricao === null || input.descricao === undefined ? null : String(input.descricao);
+  const periodicidade: PlanoPeriodicidade =
+    input.periodicidade === 'TRIMESTRAL' || input.periodicidade === 'ANUAL'
+      ? input.periodicidade
+      : 'MENSAL';
+  const valor = coerceNumber(input.valor);
+  const status: PlanoStatus = input.status === 'INATIVO' ? 'INATIVO' : 'ATIVO';
 
   return {
-    id,
-    contaId: String(raw.contaId ?? ''),
-    nome: String(raw.nome ?? ''),
-    descricao: raw.descricao == null ? null : String(raw.descricao),
-    periodicidade: (['MENSAL', 'QUINZENAL', 'SEMANAL', 'TRIMESTRAL', 'ANUAL'] as const).includes(
-      raw.periodicidade as PlanoPeriodicidade,
-    )
-      ? (raw.periodicidade as PlanoPeriodicidade)
-      : 'MENSAL',
-    valor: valorNumber,
-    valorCentavos: valorCentavosRaw,
-    valorDecimal: valorDecimalRaw,
-    valorFormatado: valorFormatadoRaw,
-    status: raw.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
-    createdAt: String(raw.createdAt ?? new Date().toISOString()),
-    updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
-  } satisfies PlanoListItem;
+    id: rawId,
+    contaId,
+    nome,
+    descricao,
+    periodicidade,
+    valor,
+    status,
+    createdAt: typeof input.createdAt === 'string' ? input.createdAt : undefined,
+    updatedAt: typeof input.updatedAt === 'string' ? input.updatedAt : undefined,
+  };
 }
 
-export async function listPlanos({
-  contaId,
-  search,
-  status,
-  signal,
-}: ListPlanosParams): Promise<PlanoListItem[]> {
-  const params = new URLSearchParams();
-  params.set('contaId', contaId);
+export function formatPlanoValorBRL(valor: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+}
+
+export async function listPlanos({ contaId, status, search, signal }: ListPlanosParams) {
+  const params = new URLSearchParams({ contaId });
+  if (status) params.set('status', status);
   if (search && search.trim()) params.set('q', search.trim());
-  if (status && status !== 'TODOS') params.set('status', status);
 
   const response = await fetch(`/api/planos?${params.toString()}`, {
     method: 'GET',
-    signal,
     headers: { Accept: 'application/json' },
+    signal,
   });
 
   const json = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
       (json as { error?: { message?: string } } | null)?.error?.message ??
-      'Não foi possível listar os planos.';
+      'Não foi possível carregar os planos.';
     throw new Error(message);
   }
 
@@ -112,25 +88,30 @@ export async function listPlanos({
     ? ((json as { data?: unknown[] }).data as unknown[])
     : [];
 
-  // mapeia e, caso ocorra ausência de id em algum item, lança erro claro
   return data.map((item) => normalizePlano(item as Record<string, unknown>));
 }
 
-export interface CreatePlanoPayload {
+export interface CreatePlanoRequestInput {
   contaId: string;
   nome: string;
   descricao?: string | null;
   periodicidade: PlanoPeriodicidade;
-  valor: string | number;
-  status?: PlanoStatus;
+  valor: number;
 }
 
-export async function createPlanoRequest(payload: CreatePlanoPayload): Promise<PlanoListItem> {
+export async function createPlanoRequest(input: CreatePlanoRequestInput): Promise<PlanoListItem> {
   const response = await fetch('/api/planos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      contaId: input.contaId,
+      nome: input.nome,
+      descricao: input.descricao,
+      periodicidade: input.periodicidade,
+      valor: input.valor,
+    }),
   });
+
   const json = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
@@ -141,31 +122,26 @@ export async function createPlanoRequest(payload: CreatePlanoPayload): Promise<P
 
   const data = (json as { data?: Record<string, unknown> } | null)?.data;
   if (!data) throw new Error('Resposta inválida ao criar plano.');
-
   return normalizePlano(data);
 }
 
-export interface UpdatePlanoPayload {
+export interface UpdatePlanoRequestInput {
+  id: string;
   contaId: string;
   nome?: string;
   descricao?: string | null;
   periodicidade?: PlanoPeriodicidade;
-  valor?: string | number;
+  valor?: number;
   status?: PlanoStatus;
 }
 
-export async function updatePlanoRequest({
-  id,
-  payload,
-}: {
-  id: string;
-  payload: UpdatePlanoPayload;
-}): Promise<PlanoListItem> {
+export async function updatePlanoRequest(input: UpdatePlanoRequestInput): Promise<PlanoListItem> {
   const response = await fetch('/api/planos', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ id, ...payload }),
+    body: JSON.stringify(input),
   });
+
   const json = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
@@ -176,32 +152,26 @@ export async function updatePlanoRequest({
 
   const data = (json as { data?: Record<string, unknown> } | null)?.data;
   if (!data) throw new Error('Resposta inválida ao atualizar plano.');
-
   return normalizePlano(data);
 }
 
-export async function deletePlanoRequest({
-  id,
-  contaId,
-}: {
+export interface DeletePlanoRequestInput {
   id: string;
   contaId: string;
-}): Promise<PlanoListItem> {
+}
+
+export async function deletePlanoRequest(input: DeletePlanoRequestInput): Promise<void> {
   const response = await fetch('/api/planos', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ id, contaId }),
+    body: JSON.stringify(input),
   });
-  const json = await response.json().catch(() => null);
+
   if (!response.ok) {
+    const json = await response.json().catch(() => null);
     const message =
       (json as { error?: { message?: string } } | null)?.error?.message ??
-      'Não foi possível excluir o plano.';
+  'Não foi possível excluir o plano.';
     throw new Error(message);
   }
-
-  const data = (json as { data?: Record<string, unknown> } | null)?.data;
-  if (!data) throw new Error('Resposta inválida ao excluir plano.');
-
-  return normalizePlano(data);
 }

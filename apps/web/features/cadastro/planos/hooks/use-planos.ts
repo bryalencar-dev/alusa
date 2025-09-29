@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  listPlanos,
   deletePlanoRequest,
+  listPlanos,
+  type ListPlanosParams,
   type PlanoListItem,
-  type PlanoStatus,
 } from '../services/planos-service';
 
 export interface UsePlanosOptions {
@@ -12,7 +12,7 @@ export interface UsePlanosOptions {
 
 export interface UsePlanosFilters {
   search?: string;
-  status?: PlanoStatus | 'TODOS';
+  status?: ListPlanosParams['status'];
 }
 
 export function usePlanos({ contaId }: UsePlanosOptions) {
@@ -20,6 +20,7 @@ export function usePlanos({ contaId }: UsePlanosOptions) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const filtersRef = useRef<UsePlanosFilters>({});
 
   const load = useCallback(
     async (filters?: UsePlanosFilters) => {
@@ -27,16 +28,22 @@ export function usePlanos({ contaId }: UsePlanosOptions) {
         setItems([]);
         return;
       }
+
+      const nextFilters = filters ?? filtersRef.current ?? {};
+      filtersRef.current = nextFilters;
+
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
+
       setLoading(true);
       setError(null);
+
       try {
         const data = await listPlanos({
           contaId,
-          search: filters?.search,
-          status: filters?.status,
+          search: nextFilters.search,
+          status: nextFilters.status,
           signal: controller.signal,
         });
         setItems(data);
@@ -54,27 +61,37 @@ export function usePlanos({ contaId }: UsePlanosOptions) {
 
   useEffect(() => {
     void load();
-    return () => abortRef.current?.abort();
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [load]);
 
-  const remove = useCallback(
-    async ({ id, contaId: contaIdOverride }: { id: string; contaId: string }) => {
-      const targetContaId = contaIdOverride ?? (typeof contaId === 'string' ? contaId : undefined);
-      if (!targetContaId) throw new Error('Conta não informada para exclusão.');
-      const updated = await deletePlanoRequest({ id, contaId: targetContaId });
-      setItems((prev) => prev.filter((plano) => plano.id !== updated.id));
-      return updated;
+  const reload = useCallback(
+    async (filters?: UsePlanosFilters) => {
+      const merged = filters ?? filtersRef.current ?? {};
+      await load(merged);
     },
-    [contaId],
+    [load],
+  );
+
+  const remove = useCallback(
+    async ({ id, contaId: contaIdOverride }: { id: string; contaId?: string }) => {
+      const targetContaId = contaIdOverride ?? (typeof contaId === 'string' ? contaId : undefined);
+      if (!targetContaId) {
+  throw new Error('Conta não informada para excluir plano.');
+      }
+      await deletePlanoRequest({ id, contaId: targetContaId });
+      await reload();
+    },
+    [contaId, reload],
   );
 
   return {
     items,
     loading,
     error,
-    reload: load,
+    reload,
     remove,
-    setItems,
   };
 }
 

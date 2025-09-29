@@ -41,7 +41,7 @@ export function PlanosFeature() {
   const deleteDialog = useDeleteDialog<PlanoListItem>({
     onDelete: async (plano) => {
       const targetContaId = contaId ?? plano.contaId;
-      if (!targetContaId) throw new Error('Conta não informada para inativar plano.');
+      if (!targetContaId) throw new Error('Conta não informada para excluir plano.');
       await remove({ id: plano.id, contaId: targetContaId });
     },
   });
@@ -174,19 +174,19 @@ export function PlanosFeature() {
 
       <ConfirmDeleteDialog
         open={deleteDialog.open}
-        title="Inativar plano"
+  title="Excluir plano"
         description={(() => {
           const planoNome = deleteDialog.entity?.nome ?? 'este plano';
           return (
             <span>
-              Tem certeza que deseja inativar o plano <strong>{planoNome}</strong>? Esta ação pode
-              ser revertida posteriormente.
+              Tem certeza que deseja excluir o plano <strong>{planoNome}</strong>? Esta ação é
+              permanente e removerá o registro do sistema.
             </span>
           );
         })()}
-        confirmLabel={deleteDialog.loading ? 'Inativando...' : 'Inativar'}
+        confirmLabel={deleteDialog.loading ? 'Excluindo...' : 'Excluir'}
         cancelLabel="Cancelar"
-        loadingLabel="Inativando..."
+        loadingLabel="Excluindo..."
         onOpenChange={deleteDialog.onOpenChange}
         onConfirm={async () => {
           try {
@@ -194,8 +194,8 @@ export function PlanosFeature() {
             toast.custom((t) => (
               <CustomToast
                 variant="success"
-                title="Plano inativado"
-                description="O plano foi marcado como inativo."
+                title="Plano excluído"
+                description="O plano foi removido com sucesso."
                 onClose={() => toast.dismiss(t)}
               />
             ));
@@ -203,7 +203,7 @@ export function PlanosFeature() {
             toast.custom((t) => (
               <CustomToast
                 variant="error"
-                title="Erro ao inativar"
+                title="Erro ao excluir"
                 description={(err as Error).message}
                 onClose={() => toast.dismiss(t)}
               />
