@@ -37,7 +37,9 @@ function RoundAvatarTemplate(args: ImageCropperProps) {
   );
 }
 
-export const RoundAvatar: Story = { render: (args: ImageCropperProps) => <RoundAvatarTemplate {...args} /> };
+export const RoundAvatar: Story = {
+  render: (args: ImageCropperProps) => <RoundAvatarTemplate {...args} />,
+};
 
 function RectTemplate(args: ImageCropperProps) {
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });

@@ -2,7 +2,7 @@
 // Convenção: usar nomes sem sufixo Icon para facilitar refactors e leitura sem ruído.
 // Se precisar da versão solid, importe localmente e documente o motivo.
 
-export { 
+export {
   // Navegação / Estrutura
   Squares2X2Icon as Dashboard,
   AcademicCapIcon as Academic,
@@ -54,11 +54,11 @@ export {
   ArrowUpTrayIcon as Upload,
   // Ações de compartilhamento/cópia
   DocumentDuplicateIcon as Copy,
-  ShareIcon as Share2
+  ShareIcon as Share2,
 } from '@heroicons/react/24/outline';
 
 // Ícones adicionais / aliases semânticos centralizados
-export { 
+export {
   PencilSquareIcon as Edit3, // usado como Edit3
   TrashIcon as Trash2, // Trash já exportado; alias para Trash2
   ArrowPathIcon as RotateCcw, // alias para ação de reset
@@ -67,7 +67,7 @@ export {
   UserIcon as User, // para campos de login
   XMarkIcon as X, // close genérico
   ChevronLeftIcon as ChevronsLeft, // fallback para duplo (não existe direto em heroicons)
-  ChevronRightIcon as ChevronsRight // fallback para duplo (não existe direto)
+  ChevronRightIcon as ChevronsRight, // fallback para duplo (não existe direto)
 } from '@heroicons/react/24/outline';
 
 // Reexportações com nomes originais (outline), para facilitar migração gradual
@@ -92,7 +92,7 @@ export {
   ArrowRightStartOnRectangleIcon,
   UserCircleIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
 } from '@heroicons/react/24/outline';
 
 // Variantes SOLID necessárias, exportadas com sufixo "Solid"
@@ -110,5 +110,5 @@ export {
   ChartBarIcon as ChartBarSolid,
   ShoppingBagIcon as ShoppingBagSolid,
   TicketIcon as TicketSolid,
-  Cog6ToothIcon as Cog6ToothSolid
+  Cog6ToothIcon as Cog6ToothSolid,
 } from '@heroicons/react/24/solid';

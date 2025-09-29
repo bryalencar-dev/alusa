@@ -524,7 +524,10 @@ export default function AlunoWizardDialog({
         <ImageCropDialog
           src={cropSource}
           open={cropOpen && Boolean(cropSource)}
-          onOpenChange={(o) => { if (!o) handleCropClose(); else setCropOpen(true); }}
+          onOpenChange={(o) => {
+            if (!o) handleCropClose();
+            else setCropOpen(true);
+          }}
           onApply={handleCropApply}
           aspect={1}
           title="Ajustar corte"

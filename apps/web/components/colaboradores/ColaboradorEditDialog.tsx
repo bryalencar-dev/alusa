@@ -981,7 +981,10 @@ export default function ColaboradorEditDialog({
         <ImageCropDialog
           src={cropSource}
           open={cropOpen && Boolean(cropSource)}
-          onOpenChange={(o) => { if (!o) handleCropClose(); else setCropOpen(true); }}
+          onOpenChange={(o) => {
+            if (!o) handleCropClose();
+            else setCropOpen(true);
+          }}
           onApply={handleCropApply}
           aspect={1}
           className="backdrop-blur-sm"
