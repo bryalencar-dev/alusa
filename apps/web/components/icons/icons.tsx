@@ -51,6 +51,7 @@ export {
   ArrowPathIcon as Refresh,
   SunIcon as Sun,
   MoonIcon as Moon,
+  ArrowUpTrayIcon as Upload,
   // Ações de compartilhamento/cópia
   DocumentDuplicateIcon as Copy,
   ShareIcon as Share2
