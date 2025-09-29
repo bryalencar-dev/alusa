@@ -23,7 +23,13 @@ import useCurrentUser from '@/hooks/use-current-user';
 import { formatFirstLast } from '@alusa/lib';
 import SalaDialog from '@/components/salas/SalaDialog';
 import { useSalas } from './hooks/use-salas';
-import { updateSala, createSala, type SalaListItem, type UpdateSalaPayload, type SalaStatus } from './services/salas-service';
+import {
+  updateSala,
+  createSala,
+  type SalaListItem,
+  type UpdateSalaPayload,
+  type SalaStatus,
+} from './services/salas-service';
 
 const PAGE_SIZE = 10;
 
@@ -164,7 +170,12 @@ export function SalasFeature() {
             setDialogOpen(true);
           }
         }}
-        onSubmit={async (formValues: { nome: string; status: string; capacidade: string; descricao: string }) => {
+        onSubmit={async (formValues: {
+          nome: string;
+          status: string;
+          capacidade: string;
+          descricao: string;
+        }) => {
           if (!contaId) {
             toast.custom((t) => (
               <CustomToast
@@ -215,39 +226,39 @@ export function SalasFeature() {
           }
 
           // Update
-            try {
-              const current = editDialog.entity;
-              if (!current) return;
-              const updatePayload: UpdateSalaPayload = {
-                contaId,
-                nome: basePayload.nome,
-                descricao: basePayload.descricao,
-                capacidade: basePayload.capacidade,
-                status: basePayload.status,
-              };
-              const updated = await updateSala({ id: current.id, payload: updatePayload });
-              setItems((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
-              toast.custom((t) => (
-                <CustomToast
-                  variant="success"
-                  title="Sala atualizada"
-                  description="As alterações foram salvas."
-                  onClose={() => toast.dismiss(t)}
-                />
-              ));
-              editDialog.closeDialog();
-              window.dispatchEvent(new CustomEvent('salas:changed'));
-            } catch (error) {
-              toast.custom((t) => (
-                <CustomToast
-                  variant="error"
-                  title="Erro ao salvar"
-                  description={(error as Error).message}
-                  onClose={() => toast.dismiss(t)}
-                />
-              ));
-              throw error;
-            }
+          try {
+            const current = editDialog.entity;
+            if (!current) return;
+            const updatePayload: UpdateSalaPayload = {
+              contaId,
+              nome: basePayload.nome,
+              descricao: basePayload.descricao,
+              capacidade: basePayload.capacidade,
+              status: basePayload.status,
+            };
+            const updated = await updateSala({ id: current.id, payload: updatePayload });
+            setItems((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
+            toast.custom((t) => (
+              <CustomToast
+                variant="success"
+                title="Sala atualizada"
+                description="As alterações foram salvas."
+                onClose={() => toast.dismiss(t)}
+              />
+            ));
+            editDialog.closeDialog();
+            window.dispatchEvent(new CustomEvent('salas:changed'));
+          } catch (error) {
+            toast.custom((t) => (
+              <CustomToast
+                variant="error"
+                title="Erro ao salvar"
+                description={(error as Error).message}
+                onClose={() => toast.dismiss(t)}
+              />
+            ));
+            throw error;
+          }
         }}
       />
 
