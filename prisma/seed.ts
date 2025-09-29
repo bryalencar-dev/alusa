@@ -168,10 +168,10 @@ async function seedPlanos(contaId: string) {
       valor: '165.00',
     },
     {
-      nome: 'Quinzenal ilimitado - R$ 280',
-      descricao: 'Acesso ilimitado com cobrança quinzenal.',
-      periodicidade: 'QUINZENAL' as PeriodicidadePlano,
-      valor: '280.00',
+      nome: 'Trimestral ilimitado - R$ 780',
+      descricao: 'Acesso ilimitado com cobrança trimestral.',
+      periodicidade: 'TRIMESTRAL' as PeriodicidadePlano,
+      valor: '780.00',
     },
   ];
 

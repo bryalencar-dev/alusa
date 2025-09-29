@@ -78,12 +78,14 @@ export function usePlanos({ contaId }: UsePlanosOptions) {
     async ({ id, contaId: contaIdOverride }: { id: string; contaId?: string }) => {
       const targetContaId = contaIdOverride ?? (typeof contaId === 'string' ? contaId : undefined);
       if (!targetContaId) {
-  throw new Error('Conta não informada para excluir plano.');
+        throw new Error('Conta não informada para excluir plano.');
       }
+      // Exclusão remota
       await deletePlanoRequest({ id, contaId: targetContaId });
-      await reload();
+      // Remoção otimista local (sem recarregar para evitar reaparecer se backend só marcar status)
+      setItems((prev) => prev.filter((p) => p.id !== id));
     },
-    [contaId, reload],
+    [contaId],
   );
 
   return {
@@ -92,6 +94,7 @@ export function usePlanos({ contaId }: UsePlanosOptions) {
     error,
     reload,
     remove,
+    setItems, // expõe caso seja necessário ajuste manual futuramente
   };
 }
 

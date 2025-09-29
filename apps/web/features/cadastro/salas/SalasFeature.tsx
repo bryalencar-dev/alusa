@@ -3,15 +3,17 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import TableLayout from '@/components/layout/TableLayout';
+import { table } from '@/components/layout/TableStyles';
+import DataTable, { type DataTableColumn } from '@/components/layout/DataTable';
 import EntityFiltersBar, {
   type SortOrder as FiltersSortOrder,
   type StatusValue,
 } from '@/components/layout/EntityFiltersBar';
 import Pagination from '@/components/layout/Pagination';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Edit3, Trash2 } from '@/components/icons/icons';
+// Skeleton manual removido; DataTable fornece skeleton por coluna
+import { Plus } from '@/components/icons/icons';
+import { statusColumn, actionsColumn } from '@alusa/ui/datatable/columns';
 import ConfirmDeleteDialog from '@/components/dialogs/ConfirmDeleteDialog';
 import { CustomToast } from '@/components/CustomToast';
 import { toast } from 'sonner';
@@ -38,6 +40,7 @@ interface SalasTableProps {
   accountMissing: boolean;
   onEdit: (_sala: SalaListItem) => void;
   onDelete: (_sala: SalaListItem) => void;
+  loading: boolean;
 }
 
 export function SalasFeature() {
@@ -137,21 +140,18 @@ export function SalasFeature() {
       }
       footer={<Pagination total={total} page={page} pageSize={PAGE_SIZE} onChange={setPage} />}
     >
-      <div className="bg-white rounded-xl border overflow-hidden">
-        {loading || userLoading ? (
-          <SalasSkeleton />
-        ) : (
-          <SalasTable
-            salas={paginated}
-            accountMissing={accountMissing}
-            onEdit={(sala) => {
-              editDialog.openDialog(sala);
-            }}
-            onDelete={(sala) => {
-              deleteDialog.openDialog(sala);
-            }}
-          />
-        )}
+      <div className={table.container}>
+        <SalasTable
+          salas={paginated}
+          accountMissing={accountMissing}
+          onEdit={(sala) => {
+            editDialog.openDialog(sala);
+          }}
+          onDelete={(sala) => {
+            deleteDialog.openDialog(sala);
+          }}
+          loading={loading || userLoading}
+        />
       </div>
 
       {contaId ? (
@@ -269,34 +269,7 @@ export function SalasFeature() {
   );
 }
 
-function SalasSkeleton() {
-  return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4">
-          <Skeleton className="col-span-3 h-4" />
-          <Skeleton className="col-span-4 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-1 h-4" />
-        </div>
-      </div>
-      {[...Array(5)].map((_, index) => (
-        <div key={index} className="px-6 py-3">
-          <div className="grid grid-cols-12 gap-4 items-center">
-            <Skeleton className="col-span-3 h-4" />
-            <Skeleton className="col-span-4 h-4" />
-            <Skeleton className="col-span-2 h-6 w-16 rounded-full" />
-            <Skeleton className="col-span-2 h-4" />
-            <Skeleton className="col-span-1 h-8 w-8" />
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
-
-function SalasTable({ salas, accountMissing, onEdit, onDelete }: SalasTableProps) {
+function SalasTable({ salas, accountMissing, onEdit, onDelete, loading }: SalasTableProps) {
   if (accountMissing) {
     return (
       <div className="px-6 py-12 text-center text-gray-500">
@@ -305,68 +278,66 @@ function SalasTable({ salas, accountMissing, onEdit, onDelete }: SalasTableProps
     );
   }
 
-  if (salas.length === 0) {
-    return <div className="px-6 py-12 text-center text-gray-500">Nenhuma sala encontrada</div>;
-  }
+  const columns: DataTableColumn<SalaListItem>[] = [
+    {
+      id: 'nome',
+      header: 'Sala',
+      width: 'w-1/4',
+      align: 'left',
+      render: (s) => (
+        <div className="text-[13px] text-gray-900 font-normal truncate" title={s.nome}>
+          {s.nome}
+        </div>
+      ),
+      skeleton: <div className="h-4 w-40 bg-gray-200 rounded" />,
+    },
+    {
+      id: 'descricao',
+      header: 'Descrição',
+      width: 'w-1/4',
+      align: 'left',
+      render: (s) => (
+        <div className="w-full min-w-0">
+          <span className="block truncate" title={s.descricao ?? ''}>
+            {s.descricao?.trim() || '-'}
+          </span>
+        </div>
+      ),
+      skeleton: <div className="h-4 w-full bg-gray-200 rounded" />,
+    },
+    {
+      id: 'capacidade',
+      header: 'Capacidade',
+      width: 'w-1/6',
+      align: 'center',
+      render: (s) => <span className="text-gray-700">{s.capacidade}</span>,
+      skeleton: <div className="h-4 w-10 bg-gray-200 rounded mx-auto" />,
+    },
+    statusColumn<SalaListItem>({
+      activeLabel: 'Ativa',
+      inactiveLabel: 'Inativa',
+      getStatus: (sala: SalaListItem) => sala.status,
+    }),
+    actionsColumn<SalaListItem>({
+      onEdit,
+      onDelete,
+      editButtonAriaLabel: (sala: SalaListItem) => `Editar sala ${sala.nome}`,
+      deleteButtonAriaLabel: (sala: SalaListItem) => `Inativar sala ${sala.nome}`,
+    }),
+  ];
 
   return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-          <div className="col-span-3">Sala</div>
-          <div className="col-span-4">Descrição</div>
-          <div className="col-span-2 text-center">Capacidade</div>
-          <div className="col-span-2 text-center">Status</div>
-          <div className="col-span-1 text-center">Ações</div>
-        </div>
-      </div>
-      <div className="divide-y">
-        {salas.map((sala) => (
-          <div key={sala.id} className="px-6 py-3 hover:bg-gray-50 transition-colors bg-white">
-            <div className="grid grid-cols-12 gap-4 items-center">
-              <div className="col-span-3 text-[13px] text-gray-900 font-normal truncate">
-                {sala.nome}
-              </div>
-              <div className="col-span-4 text-[13px] text-gray-700 leading-[20px]">
-                <span className="line-clamp-2 block whitespace-pre-wrap">
-                  {sala.descricao?.trim() || '-'}
-                </span>
-              </div>
-              <div className="col-span-2 text-center text-[13px] text-gray-700">
-                {sala.capacidade}
-              </div>
-              <div className="col-span-2 flex justify-center">
-                {sala.status === 'ATIVO' ? (
-                  <Badge className="bg-green-100 text-green-700 border-green-200">Ativa</Badge>
-                ) : (
-                  <Badge className="bg-red-100 text-red-700 border-red-200">Inativa</Badge>
-                )}
-              </div>
-              <div className="col-span-1 flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                  aria-label="Editar sala"
-                  onClick={() => onEdit(sala)}
-                >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  aria-label="Inativar sala"
-                  onClick={() => onDelete(sala)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
+    <DataTable
+      columns={columns}
+      data={salas}
+      rowKey={(s) => s.id}
+      loading={loading}
+      skeletonRows={5}
+      emptyMessage={
+        <div className="px-6 py-12 text-center text-gray-500">Nenhuma sala encontrada</div>
+      }
+      ariaLabel="Tabela de salas"
+    />
   );
 }
 

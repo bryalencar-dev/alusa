@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 // Input/Select removidos em favor de EntityFiltersBar
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
+// Skeleton manual substituído pelos skeletons do DataTable
 import { Trash2, Plus, Edit3, Eye, EyeOff } from '@/components/icons/icons';
 // Dropdown de ordenação incorporado no EntityFiltersBar
 import ColaboradorWizardDialog from '@/components/colaboradores/ColaboradorWizardDialog';
@@ -25,7 +25,9 @@ import { useEditDialog } from '@/hooks/use-edit-dialog';
 import { useColaboradores } from './hooks/use-colaboradores';
 import { useEntityListFiltering } from '@/hooks/entity/use-entity-list-filtering';
 import type { ColaboradorListItem } from './services/colaboradores-service';
-import { getStatusBadgeProps } from '@/lib/status';
+// getStatusBadgeProps substituído por StatusBadge nesta feature
+import DataTable, { type DataTableColumn } from '@/components/layout/DataTable';
+import StatusBadge from '@/components/shared/StatusBadge';
 import { formatFirstLast, formatInitials, maskCpf } from '@alusa/lib';
 import toast from 'react-hot-toast';
 import useCurrentUser from '@/hooks/use-current-user';
@@ -169,21 +171,18 @@ export function ColaboradoresFeature() {
       }
     >
       <div className="bg-white rounded-xl border overflow-hidden">
-        {loading || userLoading ? (
-          <TableSkeleton />
-        ) : (
-          <ColaboradoresTable
-            colaboradores={paginated}
-            shouldBlur={shouldBlur}
-            blurClass={blurClass}
-            onEdit={(colaborador) => {
-              editDialog.openDialog(mapToColaboradorEdit(colaborador));
-            }}
-            onDelete={(colaborador) => {
-              deleteDialog.openDialog(colaborador);
-            }}
-          />
-        )}
+        <ColaboradoresTable
+          colaboradores={paginated}
+          shouldBlur={shouldBlur}
+          blurClass={blurClass}
+          onEdit={(colaborador) => {
+            editDialog.openDialog(mapToColaboradorEdit(colaborador));
+          }}
+          onDelete={(colaborador) => {
+            deleteDialog.openDialog(colaborador);
+          }}
+          loading={loading || userLoading}
+        />
       </div>
 
       {/* Paginação movida para footer do TableLayout */}
@@ -255,189 +254,193 @@ export function ColaboradoresFeature() {
   );
 }
 
-function TableSkeleton() {
-  return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4">
-          <Skeleton className="col-span-3 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-1 h-4" />
-          <Skeleton className="col-span-1 h-4" />
-          <Skeleton className="col-span-1 h-4" />
-        </div>
-      </div>
-      {[...Array(5)].map((_, index) => (
-        <div key={index} className="px-6 py-3">
-          <div className="grid grid-cols-12 gap-4 items-center">
-            <div className="col-span-3 flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-4 w-12" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </div>
-            </div>
-            <Skeleton className="col-span-2 h-4 w-28" />
-            <Skeleton className="col-span-2 h-4 w-56" />
-            <Skeleton className="col-span-2 h-4 w-32" />
-            <Skeleton className="col-span-1 h-4 w-20" />
-            <Skeleton className="col-span-1 h-6 w-12 rounded-full" />
-            <Skeleton className="col-span-1 h-8 w-8 rounded-md justify-self-end" />
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
-
 function ColaboradoresTable({
   colaboradores,
   shouldBlur,
   blurClass,
   onEdit,
   onDelete,
+  loading,
 }: {
   colaboradores: ColaboradorListItem[];
   shouldBlur: (_value: string | null | undefined) => boolean;
   blurClass: string;
   onEdit: (_colaborador: ColaboradorListItem) => void;
   onDelete: (_colaborador: ColaboradorListItem) => void;
+  loading: boolean;
 }) {
-  if (colaboradores.length === 0) {
-    return (
-      <div className="px-6 py-12 text-center text-gray-500">Nenhum colaborador encontrado</div>
-    );
-  }
-
-  return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-          <div className="col-span-3">Colaborador</div>
-          <div className="col-span-2 text-center">CPF</div>
-          <div className="col-span-2 text-center">E-mail</div>
-          <div className="col-span-2 text-center">Telefone</div>
-          <div className="col-span-1 text-center">Função</div>
-          <div className="col-span-1 text-center">Status</div>
-          <div className="col-span-1 text-center">Ações</div>
+  const columns: DataTableColumn<ColaboradorListItem>[] = [
+    {
+      id: 'colaborador',
+      header: 'Colaborador',
+      width: 'w-[22%]',
+      noWrap: false,
+      align: 'left',
+      skeleton: (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-gray-200" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-40 bg-gray-200 rounded" />
+            <div className="flex gap-2">
+              <div className="h-4 w-12 bg-gray-200 rounded" />
+              <div className="h-4 w-16 bg-gray-200 rounded" />
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="divide-y">
-        {colaboradores.map((colaborador) => {
-          const initials = formatInitials(colaborador.nome ?? '');
-          const status = getStatusBadgeProps(colaborador.status);
-          const cpfMasked = maskCpf(colaborador.cpf ?? '');
-
-          return (
-            <div
-              key={colaborador.id}
-              className="px-6 py-3 hover:bg-gray-50 transition-colors bg-white"
-            >
-              <div className="grid grid-cols-12 gap-4 items-center">
-                <div className="col-span-3 flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    {colaborador.foto ? (
-                      <AvatarImage
-                        src={colaborador.foto}
-                        alt={colaborador.nome ?? ''}
-                        draggable={false}
-                        onError={(event) => {
-                          const el = event.currentTarget as HTMLImageElement;
-                          el.style.display = 'none';
-                        }}
-                      />
-                    ) : null}
-                    <AvatarFallback className="bg-purple-100 text-purple-700 font-medium">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div
-                      className="font-normal text-gray-900 text-[13px] truncate"
-                      data-testid={`colaborador-nome-${colaborador.id}`}
-                    >
-                      {colaborador.nome}
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {colaborador.especialidade && (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-purple-50 text-purple-700 border-purple-200"
-                        >
-                          {colaborador.especialidade}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="col-span-2 text-[13px] text-gray-700 text-center">
-                  <span className={shouldBlur(colaborador.cpf) ? blurClass : 'leading-[20px]'}>
-                    {colaborador.cpf ? cpfMasked : '-'}
-                  </span>
-                </div>
-                <div
-                  className="col-span-2 text-[13px] text-gray-700 text-center"
-                  title={colaborador.email ?? ''}
-                >
-                  {shouldBlur(colaborador.email) ? (
-                    <span className={blurClass}>{colaborador.email ?? '-'}</span>
-                  ) : (
-                    <span className="inline-block max-w-full truncate leading-[20px]">
-                      {colaborador.email ?? '-'}
-                    </span>
-                  )}
-                </div>
-                <div className="col-span-2 text-[13px] text-gray-700 text-center">
-                  <span
-                    className={shouldBlur(colaborador.telefone1) ? blurClass : 'leading-[20px]'}
-                  >
-                    {colaborador.telefone1 || '-'}
-                  </span>
-                </div>
-                <div className="col-span-1 text-center">
+      ),
+      render: (colaborador) => {
+        const initials = formatInitials(colaborador.nome ?? '');
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="h-10 w-10">
+              {colaborador.foto ? (
+                <AvatarImage
+                  src={colaborador.foto}
+                  alt={colaborador.nome ?? ''}
+                  draggable={false}
+                  onError={(event) => {
+                    const el = event.currentTarget as HTMLImageElement;
+                    el.style.display = 'none';
+                  }}
+                />
+              ) : null}
+              <AvatarFallback className="bg-purple-100 text-purple-700 font-medium">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div
+                className="font-normal text-gray-900 text-[13px] truncate"
+                data-testid={`colaborador-nome-${colaborador.id}`}
+              >
+                {colaborador.nome}
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {colaborador.especialidade && (
                   <Badge
                     variant="outline"
-                    className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                    className="text-xs bg-purple-50 text-purple-700 border-purple-200"
                   >
-                    {formatCargo(colaborador.cargo)}
+                    {colaborador.especialidade}
                   </Badge>
-                </div>
-                <div className="col-span-1 flex justify-center">
-                  <Badge variant="outline" className={`text-xs ${status.className}`}>
-                    {status.label}
-                  </Badge>
-                </div>
-                <div className="col-span-1 flex justify-end gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                    aria-label="Editar colaborador"
-                    onClick={() => onEdit(colaborador)}
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    aria-label="Excluir colaborador"
-                    onClick={() => onDelete(colaborador)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                )}
               </div>
             </div>
-          );
-        })}
-      </div>
-    </>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'cpf',
+      header: 'CPF',
+      width: 'w-[11%]',
+      align: 'center',
+      render: (c) => {
+        const cpfMasked = maskCpf(c.cpf ?? '');
+        return (
+          <span className={shouldBlur(c.cpf) ? blurClass : 'leading-[20px]'}>
+            {c.cpf ? cpfMasked : '-'}
+          </span>
+        );
+      },
+      skeleton: <div className="h-4 w-24 bg-gray-200 rounded mx-auto" />,
+    },
+    {
+      id: 'email',
+      header: 'E-mail',
+      width: 'w-[22%]',
+      align: 'center',
+      noWrap: false,
+      render: (c) =>
+        shouldBlur(c.email) ? (
+          <span className={blurClass}>{c.email ?? '-'}</span>
+        ) : (
+          <span className="inline-block max-w-full truncate leading-[20px]" title={c.email ?? ''}>
+            {c.email ?? '-'}
+          </span>
+        ),
+      skeleton: <div className="h-4 w-40 bg-gray-200 rounded mx-auto" />,
+    },
+    {
+      id: 'telefone',
+      header: 'Telefone',
+      width: 'w-[13%]',
+      align: 'center',
+      render: (c) => (
+        <span className={shouldBlur(c.telefone1) ? blurClass : 'leading-[20px]'}>
+          {c.telefone1 || '-'}
+        </span>
+      ),
+      skeleton: <div className="h-4 w-24 bg-gray-200 rounded mx-auto" />,
+    },
+    {
+      id: 'funcao',
+      header: 'Função',
+      width: 'w-[10%]',
+      align: 'center',
+      render: (c) => (
+        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+          {formatCargo(c.cargo)}
+        </Badge>
+      ),
+      skeleton: <div className="h-4 w-16 bg-gray-200 rounded mx-auto" />,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      width: 'w-[12%]',
+      align: 'center',
+      render: (c) => <StatusBadge status={c.status} />,
+      skeleton: <div className="h-6 w-14 bg-gray-200 rounded-full mx-auto" />,
+    },
+    {
+      id: 'acoes',
+      header: 'Ações',
+      width: 'w-[10%]',
+      align: 'center',
+      render: (c) => (
+        <div className="flex justify-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            aria-label="Editar colaborador"
+            onClick={() => onEdit(c)}
+          >
+            <Edit3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+            aria-label="Excluir colaborador"
+            onClick={() => onDelete(c)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+      skeleton: (
+        <div className="flex justify-center gap-2">
+          <div className="h-8 w-8 bg-gray-200 rounded" />
+          <div className="h-8 w-8 bg-gray-200 rounded" />
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <DataTable
+      columns={columns}
+      data={colaboradores}
+      rowKey={(c) => c.id}
+      loading={loading}
+      skeletonRows={5}
+      emptyMessage={
+        <div className="px-6 py-12 text-center text-gray-500">Nenhum colaborador encontrado</div>
+      }
+      ariaLabel="Tabela de colaboradores"
+    />
   );
 }
 

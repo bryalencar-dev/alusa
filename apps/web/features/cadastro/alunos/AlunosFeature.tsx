@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 // Removido select custom inline (usaremos EntityFiltersBar)
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2, Plus, Edit3, Eye, EyeOff } from '@/components/icons/icons';
+// Skeleton manual substituído pelos skeletons do DataTable
+import { Plus, Eye, EyeOff } from '@/components/icons/icons';
 // Dropdown de ordenação substituído pelo EntityFiltersBar
 import AlunoWizardDialog from '@/components/alunos/AlunoWizardDialog';
 import { AlunoEditDialog, type EditAluno } from '@/components/alunos/AlunoEditDialog';
@@ -19,7 +19,9 @@ import EntityFiltersBar, {
   type StatusValue,
   type SortOrder as SortOrderEF,
 } from '@/components/layout/EntityFiltersBar';
-import { getStatusBadgeProps } from '@/lib/status';
+// getStatusBadgeProps substituído pelo componente StatusBadge
+import DataTable, { type DataTableColumn } from '@/components/layout/DataTable';
+import StatusBadge from '@/components/shared/StatusBadge';
 import { formatFirstLast, formatInitials, maskCpf } from '@alusa/lib';
 import { useDeleteDialog } from '@/hooks/use-delete-dialog';
 import { useEditDialog } from '@/hooks/use-edit-dialog';
@@ -28,6 +30,7 @@ import { useAlunos } from './hooks/use-alunos';
 import { useEntityListFiltering } from '@/hooks/entity/use-entity-list-filtering';
 import type { AlunoListItem } from './services/alunos-service';
 import toast from 'react-hot-toast';
+import { statusColumn, actionsColumn } from '@alusa/ui/datatable/columns';
 
 const PAGE_SIZE = 10;
 
@@ -42,6 +45,7 @@ interface AlunosTableProps {
   blurClass: string;
   onEdit: (_aluno: AlunoListItem) => void;
   onDelete: (_aluno: AlunoListItem) => void;
+  loading: boolean;
 }
 
 // Paginação unificada via componente compartilhado
@@ -174,21 +178,18 @@ export function AlunosFeature() {
       }
     >
       <div className="bg-white rounded-xl border overflow-hidden">
-        {loading || userLoading ? (
-          <TableSkeleton />
-        ) : (
-          <AlunosTable
-            alunos={paginated}
-            shouldBlur={shouldBlur}
-            blurClass={blurClass}
-            onEdit={(aluno) => {
-              editDialog.openDialog(mapToEditAluno(aluno));
-            }}
-            onDelete={(aluno) => {
-              deleteDialog.openDialog(aluno);
-            }}
-          />
-        )}
+        <AlunosTable
+          alunos={paginated}
+          shouldBlur={shouldBlur}
+          blurClass={blurClass}
+          onEdit={(aluno) => {
+            editDialog.openDialog(mapToEditAluno(aluno));
+          }}
+          onDelete={(aluno) => {
+            deleteDialog.openDialog(aluno);
+          }}
+          loading={loading || userLoading}
+        />
       </div>
 
       {/* Paginação removida daqui e movida para footer do TableLayout */}
@@ -257,157 +258,144 @@ export function AlunosFeature() {
   );
 }
 
-function TableSkeleton() {
-  return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4">
-          <Skeleton className="col-span-3 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-3 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-1 h-4" />
-          <Skeleton className="col-span-1 h-4" />
-        </div>
-      </div>
-      {[...Array(5)].map((_, index) => (
-        <div key={index} className="px-6 py-3">
-          <div className="grid grid-cols-12 gap-4 items-center">
-            <div className="col-span-3 flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-4 w-12" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </div>
+function AlunosTable({
+  alunos,
+  shouldBlur,
+  blurClass,
+  onEdit,
+  onDelete,
+  loading,
+}: AlunosTableProps) {
+  const columns: DataTableColumn<AlunoListItem>[] = [
+    {
+      id: 'aluno',
+      header: 'Aluno',
+      width: 'w-1/4', // 25%
+      align: 'left',
+      noWrap: false,
+      skeleton: (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-gray-200" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-40 bg-gray-200 rounded" />
+            <div className="flex gap-2">
+              <div className="h-4 w-12 bg-gray-200 rounded" />
+              <div className="h-4 w-16 bg-gray-200 rounded" />
             </div>
-            <Skeleton className="col-span-2 h-4 w-28" />
-            <Skeleton className="col-span-3 h-4 w-56" />
-            <Skeleton className="col-span-2 h-4 w-32" />
-            <Skeleton className="col-span-1 h-6 w-12 rounded-full" />
-            <Skeleton className="col-span-1 h-8 w-8 rounded-md justify-self-end" />
           </div>
         </div>
-      ))}
-    </>
-  );
-}
-
-function AlunosTable({ alunos, shouldBlur, blurClass, onEdit, onDelete }: AlunosTableProps) {
-  if (alunos.length === 0) {
-    return <div className="px-6 py-12 text-center text-gray-500">Nenhum aluno encontrado</div>;
-  }
-
-  return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-          <div className="col-span-3">Aluno</div>
-          <div className="col-span-2 text-center">CPF</div>
-          <div className="col-span-3 text-center">E-mail</div>
-          <div className="col-span-2 text-center">Telefone</div>
-          <div className="col-span-1 text-center">Status</div>
-          <div className="col-span-1 text-center">Ações</div>
-        </div>
-      </div>
-      <div className="divide-y">
-        {alunos.map((aluno) => {
-          const initials = formatInitials(aluno.nome ?? '');
-          const status = getStatusBadgeProps(aluno.status ?? 'ATIVO');
-          const cpfMasked = maskCpf(aluno.cpf ?? '');
-
-          return (
-            <div key={aluno.id} className="px-6 py-3 hover:bg-gray-50 transition-colors bg-white">
-              <div className="grid grid-cols-12 gap-4 items-center">
-                <div className="col-span-3 flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    {aluno.foto ? <AvatarImage src={aluno.foto} alt={aluno.nome ?? ''} /> : null}
-                    <AvatarFallback className="bg-purple-100 text-purple-700 font-medium">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div
-                      className="font-normal text-gray-900 text-[13px] truncate"
-                      data-testid={`aluno-nome-${aluno.id}`}
-                    >
-                      {aluno.nome}
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {aluno.isentoTaxaMatricula && (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-purple-50 text-purple-700 border-purple-200"
-                        >
-                          Isento
-                        </Badge>
-                      )}
-                      {aluno.bolsaDescontoPercent && Number(aluno.bolsaDescontoPercent) > 0 && (
-                        <Badge
-                          variant="outline"
-                          className="text-xs bg-green-50 text-green-700 border-green-200"
-                        >
-                          Bolsa {aluno.bolsaDescontoPercent}%
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="col-span-2 text-[13px] text-gray-700 text-center">
-                  <span className={shouldBlur(aluno.cpf) ? blurClass : 'leading-[20px]'}>
-                    {aluno.cpf ? cpfMasked : '-'}
-                  </span>
-                </div>
-                <div
-                  className="col-span-3 text-[13px] text-gray-700 text-center"
-                  title={aluno.email ?? ''}
-                >
-                  {shouldBlur(aluno.email) ? (
-                    <span className={blurClass}>{aluno.email ?? '-'}</span>
-                  ) : (
-                    <span className="inline-block max-w-full truncate leading-[20px]">
-                      {aluno.email ?? '-'}
-                    </span>
-                  )}
-                </div>
-                <div className="col-span-2 text-[13px] text-gray-700 text-center">
-                  <span className={shouldBlur(aluno.telefone) ? blurClass : 'leading-[20px]'}>
-                    {aluno.telefone || '-'}
-                  </span>
-                </div>
-                <div className="col-span-1 flex justify-center">
-                  <Badge variant="outline" className={`text-xs ${status.className}`}>
-                    {status.label}
+      ),
+      render: (aluno) => {
+        const initials = formatInitials(aluno.nome ?? '');
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="h-10 w-10">
+              {aluno.foto ? <AvatarImage src={aluno.foto} alt={aluno.nome ?? ''} /> : null}
+              <AvatarFallback className="bg-purple-100 text-purple-700 font-medium">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div
+                className="font-normal text-gray-900 text-[13px] truncate"
+                data-testid={`aluno-nome-${aluno.id}`}
+              >
+                {aluno.nome}
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {aluno.isentoTaxaMatricula && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-purple-50 text-purple-700 border-purple-200"
+                  >
+                    Isento
                   </Badge>
-                </div>
-                <div className="col-span-1 flex justify-end gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                    aria-label="Editar aluno"
-                    onClick={() => onEdit(aluno)}
+                )}
+                {aluno.bolsaDescontoPercent && Number(aluno.bolsaDescontoPercent) > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-green-50 text-green-700 border-green-200"
                   >
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    aria-label="Excluir aluno"
-                    onClick={() => onDelete(aluno)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                    Bolsa {aluno.bolsaDescontoPercent}%
+                  </Badge>
+                )}
               </div>
             </div>
-          );
-        })}
-      </div>
-    </>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'cpf',
+      header: 'CPF',
+      width: 'w-1/6', // ~16.66%
+      align: 'center',
+      render: (aluno) => {
+        const cpfMasked = maskCpf(aluno.cpf ?? '');
+        return (
+          <span
+            className={shouldBlur(aluno.cpf) ? blurClass : 'leading-[20px]'}
+            title={aluno.cpf ?? undefined}
+          >
+            {aluno.cpf ? cpfMasked : '-'}
+          </span>
+        );
+      },
+      skeleton: <div className="h-4 w-24 bg-gray-200 rounded" />,
+    },
+    {
+      id: 'email',
+      header: 'E-mail',
+      width: 'w-1/4',
+      align: 'left',
+      render: (aluno) =>
+        shouldBlur(aluno.email) ? (
+          <span className={blurClass}>{aluno.email ?? '-'}</span>
+        ) : (
+          <span
+            className="inline-block max-w-full truncate leading-[20px]"
+            title={aluno.email ?? ''}
+          >
+            {aluno.email ?? '-'}
+          </span>
+        ),
+      skeleton: <div className="h-4 w-40 bg-gray-200 rounded" />,
+    },
+    {
+      id: 'telefone',
+      header: 'Telefone',
+      width: 'w-1/6',
+      align: 'center',
+      render: (aluno) => (
+        <span className={shouldBlur(aluno.telefone) ? blurClass : 'leading-[20px]'}>
+          {aluno.telefone || '-'}
+        </span>
+      ),
+      skeleton: <div className="h-4 w-24 bg-gray-200 rounded mx-auto" />,
+    },
+    statusColumn<AlunoListItem>({
+      render: (aluno: AlunoListItem) => <StatusBadge status={aluno.status ?? 'ATIVO'} />,
+    }),
+    actionsColumn<AlunoListItem>({
+      onEdit,
+      onDelete,
+      editButtonAriaLabel: (aluno: AlunoListItem) => `Editar aluno ${aluno.nome ?? ''}`,
+      deleteButtonAriaLabel: (aluno: AlunoListItem) => `Excluir aluno ${aluno.nome ?? ''}`,
+    }),
+  ];
+
+  return (
+    <DataTable
+      columns={columns}
+      data={alunos}
+      rowKey={(a) => a.id}
+      loading={loading}
+      skeletonRows={5}
+      emptyMessage={
+        <div className="px-6 py-12 text-center text-gray-500">Nenhum aluno encontrado</div>
+      }
+      ariaLabel="Tabela de alunos"
+    />
   );
 }
 

@@ -174,13 +174,14 @@ export function PlanosFeature() {
 
       <ConfirmDeleteDialog
         open={deleteDialog.open}
-  title="Excluir plano"
+        title="Excluir plano"
         description={(() => {
           const planoNome = deleteDialog.entity?.nome ?? 'este plano';
           return (
             <span>
               Tem certeza que deseja excluir o plano <strong>{planoNome}</strong>? Esta ação é
-              permanente e removerá o registro do sistema.
+              permanente e removerá definitivamente o registro do sistema (não é possível recuperar
+              depois).
             </span>
           );
         })()}

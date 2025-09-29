@@ -32,3 +32,23 @@ ALTER TABLE "Matricula"
     REFERENCES "Plano"("id")
     ON DELETE SET NULL
     ON UPDATE CASCADE;
+
+-- Ajusta enum PeriodicidadePlano removendo valores legados não suportados pelo novo módulo de Planos.
+-- Substitui valores antigos por TRIMESTRAL antes de recriar o enum.
+
+DO $$
+BEGIN
+  UPDATE "Plano"
+  SET "periodicidade" = 'TRIMESTRAL'
+  WHERE "periodicidade"::text IN ('QUINZENAL', 'SEMANAL');
+END$$;
+
+ALTER TABLE "Plano" ALTER COLUMN "periodicidade" DROP DEFAULT;
+
+ALTER TYPE "PeriodicidadePlano" RENAME TO "PeriodicidadePlano_old";
+CREATE TYPE "PeriodicidadePlano" AS ENUM ('MENSAL', 'TRIMESTRAL', 'ANUAL');
+ALTER TABLE "Plano"
+  ALTER COLUMN "periodicidade" TYPE "PeriodicidadePlano"
+  USING ("periodicidade"::text::"PeriodicidadePlano");
+ALTER TABLE "Plano" ALTER COLUMN "periodicidade" SET DEFAULT 'MENSAL';
+DROP TYPE "PeriodicidadePlano_old";

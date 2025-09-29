@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
 import TableLayout from '@/components/layout/TableLayout';
+import { table } from '@/components/layout/TableStyles';
+import DataTable, { type DataTableColumn } from '@/components/layout/DataTable';
 import EntityFiltersBar, { type SortOrder } from '@/components/layout/EntityFiltersBar';
 import Pagination from '@/components/layout/Pagination';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Edit3, Trash2 } from '@/components/icons/icons';
+// Removed explicit skeleton table; DataTable skeletons embutidos
+import { Plus } from '@/components/icons/icons';
+import { statusColumn, actionsColumn } from '@alusa/ui/datatable/columns';
 import ConfirmDeleteDialog from '@/components/dialogs/ConfirmDeleteDialog';
 import { CustomToast } from '@/components/CustomToast';
 import { toast } from 'sonner';
@@ -17,20 +18,14 @@ import { useDeleteDialog } from '@/hooks/use-delete-dialog';
 import { useEntityListFiltering } from '@/hooks/entity/use-entity-list-filtering';
 import useCurrentUser from '@/hooks/use-current-user';
 import { formatFirstLast } from '@alusa/lib';
-import ModalidadeEditDialog, {
-  type ModalidadeEditFormValues,
-} from '@/components/modalidades/ModalidadeEditDialog';
+import ModalidadeDialog from '@/components/modalidades/ModalidadeDialog';
 import {
   type ModalidadeListItem,
   type UpdateModalidadePayload,
   updateModalidade,
+  createModalidade,
 } from './services/modalidades-service';
 import { useModalidades, type UseModalidadesFilters } from './hooks/use-modalidades';
-
-const ModalidadeWizardDialog = dynamic(
-  () => import('@/components/modalidades/ModalidadeWizardDialog'),
-  { ssr: false },
-);
 
 const PAGE_SIZE = 10;
 
@@ -39,6 +34,7 @@ interface ModalidadesTableProps {
   accountMissing: boolean;
   onEdit: (_modalidade: ModalidadeListItem) => void;
   onDelete: (_modalidade: ModalidadeListItem) => void;
+  loading: boolean;
 }
 
 export function ModalidadesFeature() {
@@ -54,7 +50,8 @@ export function ModalidadesFeature() {
     },
   });
 
-  const [wizardOpen, setWizardOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  // creating state control handled inside dialog logic via absence/presence of editDialog.entity
   const [sortOrder, setSortOrder] = useState<SortOrder>('ASC');
 
   const {
@@ -115,7 +112,10 @@ export function ModalidadesFeature() {
           <Button
             disabled={!contaId}
             className="h-10 px-4 bg-brand-accent hover:bg-brand-accent/90 text-white shadow-none"
-            onClick={() => setWizardOpen(true)}
+            onClick={() => {
+              editDialog.closeDialog();
+              setDialogOpen(true);
+            }}
           >
             <Plus className="h-4 w-4 mr-2" /> Nova modalidade
           </Button>
@@ -137,81 +137,63 @@ export function ModalidadesFeature() {
         }
         footer={<Pagination total={total} page={page} pageSize={pageSize} onChange={setPage} />}
       >
-        <div className="bg-white rounded-xl border overflow-hidden">
-          {loading || userLoading ? (
-            <ModalidadesSkeleton />
-          ) : (
-            <ModalidadesTable
-              modalidades={paginated}
-              accountMissing={accountMissing}
-              onEdit={(modalidade) => {
-                editDialog.openDialog(modalidade);
-              }}
-              onDelete={(modalidade) => {
-                deleteDialog.openDialog(modalidade);
-              }}
-            />
-          )}
+        <div className={table.container}>
+          <ModalidadesTable
+            modalidades={paginated}
+            accountMissing={accountMissing}
+            onEdit={(modalidade) => editDialog.openDialog(modalidade)}
+            onDelete={(modalidade) => deleteDialog.openDialog(modalidade)}
+            loading={loading || userLoading}
+          />
         </div>
       </TableLayout>
 
-      {contaId ? (
-        <ModalidadeWizardDialog
-          open={wizardOpen}
-          contaId={contaId}
-          onOpenChange={(open) => {
-            setWizardOpen(open);
-          }}
-          onSaved={() => {
-            setWizardOpen(false);
-            window.dispatchEvent(new CustomEvent('modalidades:changed'));
-            void reload({ search: searchTerm, status: statusFilter });
-          }}
-        />
-      ) : null}
+      <ModalidadeDialog
+        open={dialogOpen || !!editDialog.entity}
+        creating={!editDialog.entity}
+        modalidade={editDialog.entity ?? null}
+        onOpenChange={(open: boolean) => {
+          if (!open) {
+            setDialogOpen(false);
+            editDialog.closeDialog();
+          } else {
+            setDialogOpen(true);
+          }
+        }}
+        onSubmit={async (formValues: { nome: string; descricao: string; status: string }) => {
+          if (!contaId) {
+            toast.custom((t) => (
+              <CustomToast
+                variant="error"
+                title="Conta não encontrada"
+                description="Não foi possível identificar a conta para salvar a modalidade."
+                onClose={() => toast.dismiss(t)}
+              />
+            ));
+            return;
+          }
 
-      {editDialog.entity ? (
-        <ModalidadeEditDialog
-          open={editDialog.open}
-          modalidade={editDialog.entity}
-          onOpenChange={(open) => {
-            if (!open) editDialog.closeDialog();
-          }}
-          onSubmit={async (formValues) => {
-            const current = editDialog.entity;
-            if (!current) return;
-            if (!contaId) {
-              toast.custom((t) => (
-                <CustomToast
-                  variant="error"
-                  title="Conta não encontrada"
-                  description="Não foi possível identificar a conta para atualizar a modalidade."
-                  onClose={() => toast.dismiss(t)}
-                />
-              ));
-              return;
-            }
+          // Create flow
+          if (!editDialog.entity) {
             try {
-              const payload = buildUpdatePayload(formValues, contaId);
-              const updated = await updateModalidade({
-                id: current.id,
-                payload,
+              const created = await createModalidade({
+                contaId,
+                nome: formValues.nome.trim(),
+                descricao: formValues.descricao.trim() || null,
+                status: formValues.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
               });
-              setItems((prev) =>
-                prev.map((modalidade) =>
-                  modalidade.id === updated.id ? { ...modalidade, ...updated } : modalidade,
-                ),
-              );
+              setItems((prev) => [created, ...prev]);
               toast.custom((t) => (
                 <CustomToast
                   variant="success"
-                  title="Modalidade atualizada"
-                  description="As alterações foram salvas."
+                  title="Modalidade criada"
+                  description="A modalidade foi cadastrada."
                   onClose={() => toast.dismiss(t)}
                 />
               ));
-              editDialog.closeDialog();
+              setDialogOpen(false);
               window.dispatchEvent(new CustomEvent('modalidades:changed'));
+              return;
             } catch (error) {
               toast.custom((t) => (
                 <CustomToast
@@ -223,9 +205,42 @@ export function ModalidadesFeature() {
               ));
               throw error;
             }
-          }}
-        />
-      ) : null}
+          }
+
+          // Update flow
+          try {
+            const current = editDialog.entity;
+            if (!current) return;
+            const payload = buildUpdatePayload(formValues, contaId);
+            const updated = await updateModalidade({ id: current.id, payload });
+            setItems((prev) =>
+              prev.map((modalidade) =>
+                modalidade.id === updated.id ? { ...modalidade, ...updated } : modalidade,
+              ),
+            );
+            toast.custom((t) => (
+              <CustomToast
+                variant="success"
+                title="Modalidade atualizada"
+                description="As alterações foram salvas."
+                onClose={() => toast.dismiss(t)}
+              />
+            ));
+            editDialog.closeDialog();
+            window.dispatchEvent(new CustomEvent('modalidades:changed'));
+          } catch (error) {
+            toast.custom((t) => (
+              <CustomToast
+                variant="error"
+                title="Erro ao salvar"
+                description={(error as Error).message}
+                onClose={() => toast.dismiss(t)}
+              />
+            ));
+            throw error;
+          }
+        }}
+      />
 
       <ConfirmDeleteDialog
         open={deleteDialog.open}
@@ -276,36 +291,12 @@ export function ModalidadesFeature() {
   );
 }
 
-function ModalidadesSkeleton() {
-  return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4">
-          <Skeleton className="col-span-4 h-4" />
-          <Skeleton className="col-span-5 h-4" />
-          <Skeleton className="col-span-2 h-4" />
-          <Skeleton className="col-span-1 h-4" />
-        </div>
-      </div>
-      {[...Array(5)].map((_, index) => (
-        <div key={index} className="px-6 py-3">
-          <div className="grid grid-cols-12 gap-4 items-center">
-            <Skeleton className="col-span-4 h-4" />
-            <Skeleton className="col-span-5 h-4" />
-            <Skeleton className="col-span-2 h-6 w-16 rounded-full" />
-            <Skeleton className="col-span-1 h-8 w-8" />
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
-
 function ModalidadesTable({
   modalidades,
   accountMissing,
   onEdit,
   onDelete,
+  loading,
 }: ModalidadesTableProps) {
   if (accountMissing) {
     return (
@@ -315,74 +306,76 @@ function ModalidadesTable({
     );
   }
 
-  if (modalidades.length === 0) {
-    return (
-      <div className="px-6 py-12 text-center text-gray-500">Nenhuma modalidade encontrada</div>
-    );
-  }
+  const columns: DataTableColumn<ModalidadeListItem>[] = [
+    {
+      id: 'nome',
+      header: 'Modalidade',
+      width: 'w-1/4',
+      align: 'left',
+      render: (m) => (
+        <div className="min-w-0">
+          <div className={table.primaryText} title={m.nome}>
+            {m.nome}
+          </div>
+        </div>
+      ),
+      skeleton: (
+        <div className="space-y-2">
+          <div className="h-4 w-48 bg-gray-200 rounded" />
+          <div className="h-3 w-28 bg-gray-200 rounded" />
+        </div>
+      ),
+    },
+    {
+      id: 'descricao',
+      header: 'Descrição',
+      width: 'w-1/4',
+      align: 'left',
+      render: (m) => (
+        <div className="w-full min-w-0">
+          {m.descricao?.trim() ? (
+            <span className="block truncate" title={m.descricao}>
+              {m.descricao}
+            </span>
+          ) : (
+            <span className="text-gray-400">-</span>
+          )}
+        </div>
+      ),
+      skeleton: <div className="h-4 w-full bg-gray-200 rounded" />,
+    },
+    statusColumn<ModalidadeListItem>({
+      activeLabel: 'Ativa',
+      inactiveLabel: 'Inativa',
+      getStatus: (modalidade: ModalidadeListItem) => modalidade.status,
+    }),
+    actionsColumn<ModalidadeListItem>({
+      onEdit,
+      onDelete,
+      editButtonAriaLabel: (modalidade: ModalidadeListItem) =>
+        `Editar modalidade ${modalidade.nome}`,
+      deleteButtonAriaLabel: (modalidade: ModalidadeListItem) =>
+        `Excluir modalidade ${modalidade.nome}`,
+    }),
+  ];
 
   return (
-    <>
-      <div className="bg-gray-50 px-6 py-3 border-b">
-        <div className="grid grid-cols-12 gap-4 text-[11px] font-medium text-gray-500 uppercase tracking-wider">
-          <div className="col-span-4">Modalidade</div>
-          <div className="col-span-5">Descrição</div>
-          <div className="col-span-2 text-center">Status</div>
-          <div className="col-span-1 text-center">Ações</div>
-        </div>
-      </div>
-      <div className="divide-y">
-        {modalidades.map((modalidade) => (
-          <div
-            key={modalidade.id}
-            className="px-6 py-3 hover:bg-gray-50 transition-colors bg-white"
-          >
-            <div className="grid grid-cols-12 gap-4 items-center">
-              <div className="col-span-4 text-[13px] text-gray-900 font-normal truncate">
-                {modalidade.nome}
-              </div>
-              <div className="col-span-5 text-[13px] text-gray-700 leading-[20px]">
-                <span className="line-clamp-2 block whitespace-pre-wrap">
-                  {modalidade.descricao?.trim() || '-'}
-                </span>
-              </div>
-              <div className="col-span-2 flex justify-center">
-                {modalidade.status === 'ATIVO' ? (
-                  <Badge className="bg-green-100 text-green-700 border-green-200">Ativa</Badge>
-                ) : (
-                  <Badge className="bg-red-100 text-red-700 border-red-200">Inativa</Badge>
-                )}
-              </div>
-              <div className="col-span-1 flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-gray-600 hover:text-gray-800 hover:bg-gray-50"
-                  aria-label="Editar modalidade"
-                  onClick={() => onEdit(modalidade)}
-                >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  aria-label="Excluir modalidade"
-                  onClick={() => onDelete(modalidade)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
+    <DataTable
+      columns={columns}
+      data={modalidades}
+      rowKey={(m) => m.id}
+      loading={loading}
+      skeletonRows={5}
+      emptyMessage={
+        <div className="px-6 py-12 text-center text-gray-500">Nenhuma modalidade encontrada</div>
+      }
+      ariaLabel="Tabela de modalidades"
+    />
   );
 }
 
 function buildUpdatePayload(
-  raw: ModalidadeEditFormValues,
+  raw: { nome: string; descricao: string; status: string },
   contaId?: string | null,
 ): UpdateModalidadePayload {
   if (!contaId) {

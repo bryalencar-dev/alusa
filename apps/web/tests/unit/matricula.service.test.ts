@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { PeriodicidadePlano, Status } from '@prisma/client';
 import { prisma } from '@alusa/lib';
 
 // Precisa mockar o alias '@/prisma/client' antes de importar o serviço
@@ -105,12 +106,12 @@ describe('serviço de matrícula', () => {
       });
       const sala = await prisma.sala.upsert({
         where: { id: 'sala-matricula-test' },
-        update: { nome: 'Sala M1', status: 'ATIVO', contaId: conta.id, capacidade: 15 },
+        update: { nome: 'Sala M1', status: Status.ATIVO, contaId: conta.id, capacidade: 15 },
         create: {
           id: 'sala-matricula-test',
           contaId: conta.id,
           nome: 'Sala M1',
-          status: 'ATIVO',
+          status: Status.ATIVO,
           capacidade: 15,
         },
       });
@@ -125,7 +126,7 @@ describe('serviço de matrícula', () => {
           diasSemana: ['SEG'],
           horaInicio: '09:00',
           horaFim: '10:00',
-          status: 'ATIVO',
+          status: Status.ATIVO,
           capacidade: 20,
         },
         create: {
@@ -137,7 +138,7 @@ describe('serviço de matrícula', () => {
           diasSemana: ['SEG'],
           horaInicio: '09:00',
           horaFim: '10:00',
-          status: 'ATIVO',
+          status: Status.ATIVO,
           capacidade: 20,
         },
       });
@@ -149,18 +150,16 @@ describe('serviço de matrícula', () => {
           contaId: conta.id,
           nome: 'Plano Teste',
           descricao: 'Plano para testes',
-          periodicidade: 'MENSAL',
+          periodicidade: PeriodicidadePlano.MENSAL,
           valor: '123.45',
-          status: 'ATIVO',
         },
         create: {
           id: 'plano-test',
           contaId: conta.id,
           nome: 'Plano Teste',
           descricao: 'Plano para testes',
-          periodicidade: 'MENSAL',
+          periodicidade: PeriodicidadePlano.MENSAL,
           valor: '123.45',
-          status: 'ATIVO',
         },
       } as unknown as Parameters<typeof prisma.plano.upsert>[0]);
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { planoFormSchema, type PlanoFormOutput, type PlanoPeriodicidade } from '@alusa/lib';
+import {
+  planoFormSchema,
+  type PlanoFormOutput,
+  type PlanoPeriodicidade,
+  type PlanoStatus,
+} from '@alusa/lib';
 import {
   createPlanoRequest,
   updatePlanoRequest,
   type PlanoListItem,
-  formatPlanoValorBRL,
 } from '@/features/cadastro/planos/services/planos-service';
 import { CustomToast } from '@/components/CustomToast';
 import { toast } from 'sonner';
@@ -36,6 +40,7 @@ type FormState = {
   descricao: string;
   periodicidade: PlanoPeriodicidade;
   valor: string; // string para facilitar digitação; converter ao salvar
+  status?: PlanoStatus; // somente usado em modo edição
 };
 
 const defaultState: FormState = {
@@ -63,8 +68,9 @@ export function PlanoDialog({
         setValues({
           nome: plano.nome,
           descricao: plano.descricao ?? '',
-            periodicidade: plano.periodicidade,
+          periodicidade: plano.periodicidade,
           valor: plano.valor.toFixed(2),
+          status: plano.status,
         });
       } else {
         setValues(defaultState);
@@ -131,6 +137,7 @@ export function PlanoDialog({
           descricao: payload.descricao,
           periodicidade: payload.periodicidade,
           valor: payload.valor,
+          status: values.status, // pode estar indefinido (não envia)
         });
         toast.custom((t) => (
           <CustomToast
@@ -182,11 +189,11 @@ export function PlanoDialog({
           <DialogTitle className="text-lg font-semibold text-slate-900">
             {mode === 'edit' ? 'Editar plano' : 'Novo plano'}
           </DialogTitle>
-          <p className="mt-1 text-sm text-slate-600">
+          <DialogDescription className="mt-1 text-sm text-slate-600">
             {mode === 'edit'
               ? 'Atualize os dados do plano.'
               : 'Cadastre um novo plano de cobrança.'}
-          </p>
+          </DialogDescription>
         </div>
         <div className="flex flex-col gap-6 px-6 py-6">
           <section className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-5">
@@ -204,7 +211,11 @@ export function PlanoDialog({
                   value={values.nome}
                   onChange={(e) => handleChange('nome', e.target.value)}
                   placeholder="Ex.: Plano Mensal"
-                  className={errors.nome && 'border-[#DC2626] focus:border-[#DC2626] focus:ring-[#DC2626]/20'}
+                  className={`h-10 rounded-lg border bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#A94DFF]/30 focus:border-[#A94DFF] border-slate-200 ${
+                    errors.nome
+                      ? 'border-[#DC2626] focus:border-[#DC2626] focus:ring-[#DC2626]/20'
+                      : ''
+                  }`}
                 />
                 {errors.nome ? (
                   <p className="text-[11px] font-medium text-[#DC2626]">{errors.nome}</p>
@@ -220,6 +231,11 @@ export function PlanoDialog({
                   onChange={(e) => handleChange('descricao', e.target.value)}
                   rows={3}
                   placeholder="Descrição breve do plano"
+                  className={`rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#A94DFF]/30 focus:border-[#A94DFF] border-slate-200 resize-none ${
+                    errors.descricao
+                      ? 'border-[#DC2626] focus:border-[#DC2626] focus:ring-[#DC2626]/20'
+                      : ''
+                  }`}
                 />
                 {errors.descricao ? (
                   <p className="text-[11px] font-medium text-[#DC2626]">{errors.descricao}</p>
@@ -256,14 +272,33 @@ export function PlanoDialog({
                   placeholder="0,00"
                   value={values.valor}
                   onChange={(e) => handleChange('valor', e.target.value)}
+                  className={`h-10 rounded-lg border bg-white px-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#A94DFF]/30 focus:border-[#A94DFF] border-slate-200 ${
+                    errors.valor
+                      ? 'border-[#DC2626] focus:border-[#DC2626] focus:ring-[#DC2626]/20'
+                      : ''
+                  }`}
                 />
                 {errors.valor ? (
                   <p className="text-[11px] font-medium text-[#DC2626]">{errors.valor}</p>
                 ) : null}
-                {values.valor && !errors.valor ? (
-                  <p className="text-[11px] text-slate-500">{formatPreviewValor(values.valor)}</p>
-                ) : null}
               </div>
+              {mode === 'edit' ? (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-600">Status</label>
+                  <Select
+                    value={values.status}
+                    onValueChange={(val) => handleChange('status', val as PlanoStatus)}
+                  >
+                    <SelectTrigger className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm data-[placeholder]:text-slate-400 focus:border-[#A94DFF] focus:outline-none focus:ring-2 focus:ring-[#A94DFF]/30">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ATIVO">Ativo</SelectItem>
+                      <SelectItem value="INATIVO">Inativo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>
@@ -302,10 +337,6 @@ function formatPeriodicidade(value: PlanoPeriodicidade) {
   }
 }
 
-function formatPreviewValor(raw: string) {
-  const numeric = Number(raw.replace(',', '.'));
-  if (!Number.isFinite(numeric)) return '';
-  return `≈ ${formatPlanoValorBRL(numeric)}`;
-}
+// preview de valor removido conforme solicitação
 
 export default PlanoDialog;

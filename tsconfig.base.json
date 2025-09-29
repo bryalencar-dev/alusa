@@ -22,9 +22,11 @@
     "baseUrl": ".",
     "paths": {
       "@alusa/ui": ["packages/ui/src"],
+      "@alusa/ui/*": ["packages/ui/src/*"],
       "@alusa/lib": ["packages/lib/src"],
-  "@alusa/config/*": ["packages/config/*"],
-  "@/*": ["apps/web/*"]
+      "@alusa/lib/*": ["packages/lib/src/*"],
+      "@alusa/config/*": ["packages/config/*"],
+      "@/*": ["apps/web/*"]
     }
   }
 }

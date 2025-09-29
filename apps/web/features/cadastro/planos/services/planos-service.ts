@@ -171,7 +171,7 @@ export async function deletePlanoRequest(input: DeletePlanoRequestInput): Promis
     const json = await response.json().catch(() => null);
     const message =
       (json as { error?: { message?: string } } | null)?.error?.message ??
-  'Não foi possível excluir o plano.';
+      'Não foi possível excluir o plano.';
     throw new Error(message);
   }
 }

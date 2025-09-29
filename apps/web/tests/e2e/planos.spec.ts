@@ -32,7 +32,7 @@ test.describe('Planos - CRUD sem travamentos', () => {
 
     await expect(page.getByTestId('planos-table')).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId('novo-plano')).toBeEnabled({ timeout: 15000 });
-    
+
     // 1. CRIAR PLANO
     await page.getByTestId('novo-plano').click();
 
@@ -69,16 +69,16 @@ test.describe('Planos - CRUD sem travamentos', () => {
         intervals: [500, 750, 1000],
       })
       .toBeGreaterThan(0);
-    
+
     // 2. EDITAR PLANO
     await planoRow.locator('button[aria-label="Editar plano"]').click();
     await expect(wizard).toBeVisible();
-    
+
     await page.getByTestId('plano-descricao').fill('Editado via E2E test');
     await page.getByTestId('wizard-next').click();
     await page.getByTestId('wizard-next').click();
     await page.getByTestId('salvar-plano').click();
-    
+
     // Verificar toast de sucesso na edição
     await expect
       .poll(async () => page.getByTestId('toast-success').count(), {
@@ -86,18 +86,18 @@ test.describe('Planos - CRUD sem travamentos', () => {
         intervals: [250, 500],
       })
       .toBeGreaterThan(0);
-    
+
     // Verificar que ainda está na tabela
     await expect(planoRow).toBeVisible();
-    
+
     // 3. INATIVAR PLANO
     await planoRow.locator('button[aria-label="Excluir plano"]').click();
     await expect(page.getByRole('dialog', { name: 'Inativar plano' })).toBeVisible();
     await page.getByRole('button', { name: 'Inativar' }).click();
-    
+
     // Verificar toast de inativação
     await expect(page.getByText('Plano inativado')).toBeVisible({ timeout: 10000 });
-    
+
     // Verificar que a página não travou - deve conseguir interagir normalmente
     await expect(page.getByTestId('novo-plano')).toBeEnabled();
   });

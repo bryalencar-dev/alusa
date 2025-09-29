@@ -15,19 +15,38 @@ function jsonError(status: number, code: string, message: string, details?: unkn
   return NextResponse.json({ error: { code, message, details } }, { status });
 }
 
-async function resolveContaId(requestContaId: string | null): Promise<string | null> {
-  if (requestContaId?.trim()) return requestContaId.trim();
+interface ContaContext {
+  contaId: string | null;
+  sessionContaId: string | null;
+  mismatch: boolean;
+}
+
+async function resolveContaContext(requestContaId: string | null): Promise<ContaContext> {
+  const requested = requestContaId?.trim() || null;
   const session = await getServerSession(authOptions).catch(() => null);
   const sessionContaId =
     (session as { user?: { contaId?: string } } | null)?.user?.contaId?.trim() || null;
-  return sessionContaId;
+
+  if (sessionContaId && requested && sessionContaId !== requested) {
+    return { contaId: null, sessionContaId, mismatch: true };
+  }
+
+  return { contaId: requested ?? sessionContaId, sessionContaId, mismatch: false };
 }
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const contaIdParam = url.searchParams.get('contaId');
-    const contaId = await resolveContaId(contaIdParam);
+    const contaContext = await resolveContaContext(url.searchParams.get('contaId'));
+    if (contaContext.mismatch) {
+      return jsonError(
+        403,
+        'CONTA_INVALIDA',
+        'A conta informada não pertence ao usuário autenticado.',
+      );
+    }
+
+    const contaId = contaContext.contaId;
     if (!contaId) {
       return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
     }
@@ -60,7 +79,16 @@ export async function POST(req: Request) {
       return jsonError(400, 'REQUISICAO_INVALIDA', 'Payload inválido');
     }
 
-    const contaId = await resolveContaId((body as { contaId?: string }).contaId ?? null);
+    const contaContext = await resolveContaContext((body as { contaId?: string }).contaId ?? null);
+    if (contaContext.mismatch) {
+      return jsonError(
+        403,
+        'CONTA_INVALIDA',
+        'A conta informada não pertence ao usuário autenticado.',
+      );
+    }
+
+    const contaId = contaContext.contaId;
     if (!contaId) {
       return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
     }
@@ -94,7 +122,16 @@ export async function PATCH(req: Request) {
       return jsonError(400, 'ID_OBRIGATORIO', 'id é obrigatório');
     }
 
-    const contaId = await resolveContaId((body as { contaId?: string }).contaId ?? null);
+    const contaContext = await resolveContaContext((body as { contaId?: string }).contaId ?? null);
+    if (contaContext.mismatch) {
+      return jsonError(
+        403,
+        'CONTA_INVALIDA',
+        'A conta informada não pertence ao usuário autenticado.',
+      );
+    }
+
+    const contaId = contaContext.contaId;
     if (!contaId) {
       return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
     }
@@ -105,9 +142,7 @@ export async function PATCH(req: Request) {
     }
 
     try {
-      const { id: _ignoredId, ...payload } = parsed.data;
-      void _ignoredId;
-      const plano = await updatePlano(id, payload);
+      const plano = await updatePlano(parsed.data);
       return NextResponse.json({ data: plano });
     } catch (error) {
       return jsonError(400, 'ERRO_ATUALIZAR_PLANO', (error as Error).message);
@@ -130,7 +165,16 @@ export async function DELETE(req: Request) {
       return jsonError(400, 'ID_OBRIGATORIO', 'id é obrigatório');
     }
 
-    const contaId = await resolveContaId((body as { contaId?: string }).contaId ?? null);
+    const contaContext = await resolveContaContext((body as { contaId?: string }).contaId ?? null);
+    if (contaContext.mismatch) {
+      return jsonError(
+        403,
+        'CONTA_INVALIDA',
+        'A conta informada não pertence ao usuário autenticado.',
+      );
+    }
+
+    const contaId = contaContext.contaId;
     if (!contaId) {
       return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
     }
