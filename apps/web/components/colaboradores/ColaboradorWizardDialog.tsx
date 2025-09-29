@@ -23,7 +23,7 @@ import {
 import { isValidCPF, isValidTelefone, isValidCEP } from './wizard/validators';
 import FotoFields from './wizard/steps/FotoFields';
 import { useDropzone } from 'react-dropzone';
-import { ImageCropDialog } from '../shared/ImageCropDialog';
+import { ImageCropDialog } from '../image/ImageCropDialog';
 // Resize/compress util para fotos (mantém qualidade razoável e reduz payload)
 async function resizeImageToDataURL(file: File, maxSize = 400, quality = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -550,9 +550,9 @@ export default function ColaboradorWizardDialog({
         <ImageCropDialog
           src={fotoPreview}
           open={cropOpen && !!fotoPreview}
-          onClose={() => setCropOpen(false)}
-          onApply={(dataUrl) => {
-            setFotoPreview(dataUrl);
+          onOpenChange={(o) => setCropOpen(o)}
+          onApply={(res) => {
+            setFotoPreview(res.dataUrl);
             setCropOpen(false);
           }}
           aspect={1}

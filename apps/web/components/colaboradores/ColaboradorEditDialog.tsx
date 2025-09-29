@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { IMaskInput } from 'react-imask';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
-import { ImageCropDialog } from '../shared/ImageCropDialog';
+import { ImageCropDialog } from '../image/ImageCropDialog';
 
 export type Status = 'ATIVO' | 'INATIVO';
 export type Cargo = 'PROFESSOR' | 'RECEPCAO' | 'FINANCEIRO' | 'ADMINISTRATIVO' | 'OUTRO';
@@ -386,9 +386,9 @@ export default function ColaboradorEditDialog({
     }
   }, [fotoPreview]);
 
-  const handleCropApply = React.useCallback((dataUrl: string) => {
-    setFoto(dataUrl);
-    setFotoPreview(dataUrl);
+  const handleCropApply = React.useCallback((res: { dataUrl: string }) => {
+    setFoto(res.dataUrl);
+    setFotoPreview(res.dataUrl);
     setFotoRemoved(false);
     setCropSource(null);
     setCropOpen(false);
@@ -981,10 +981,11 @@ export default function ColaboradorEditDialog({
         <ImageCropDialog
           src={cropSource}
           open={cropOpen && Boolean(cropSource)}
-          onClose={handleCropClose}
+          onOpenChange={(o) => { if (!o) handleCropClose(); else setCropOpen(true); }}
           onApply={handleCropApply}
           aspect={1}
           className="backdrop-blur-sm"
+          round
         />
       </DialogContent>
     </Dialog>

@@ -7,9 +7,8 @@ import { Progress } from '@/components/ui/progress';
 import { useForm, FormProvider } from 'react-hook-form';
 import { AnimatePresence, motion } from 'framer-motion';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ImageCropDialog } from '../shared/ImageCropDialog';
+import { ImageCropDialog } from '../image/ImageCropDialog';
 import { alunoSchema, type AlunoInput } from '../../../../prisma/zod/aluno';
-// UI e steps extraídos
 import { StepHeader, SectionCard } from './wizard/ui';
 import IdentificacaoFields from './wizard/steps/IdentificacaoFields';
 import EnderecoFields from './wizard/steps/EnderecoFields';
@@ -36,7 +35,6 @@ type StepId =
   | 'confirmar';
 type WizardData = AlunoInput;
 
-// ------------------------ componente principal ------------------------
 export interface AlunoWizardDialogProps {
   open: boolean;
   onOpenChange: (_open: boolean) => void;
@@ -50,76 +48,50 @@ export default function AlunoWizardDialog({
   onFinish,
   contaId,
 }: AlunoWizardDialogProps) {
+  // --- VISUAL STATE (não afeta lógica de formulário) ---
+  const [headerElevated, setHeaderElevated] = React.useState(false);
+  const scrollRef = React.useRef<HTMLDivElement | null>(null);
+
   const resolvedContaId = React.useMemo(() => {
-    if (typeof contaId === 'string' && contaId.trim().length > 0) {
-      return contaId;
-    }
+    if (typeof contaId === 'string' && contaId.trim().length > 0) return contaId;
     return null;
   }, [contaId]);
+
   const methods = useForm<WizardData>({
     resolver: zodResolver(alunoSchema),
-    defaultValues: {
-      status: 'ATIVO',
-      responsavel: null,
-    } as Partial<WizardData>,
+    defaultValues: { status: 'ATIVO', responsavel: null } as Partial<WizardData>,
     mode: 'onBlur',
   });
 
-  // Controle de confirmação de saída
   const [confirmClose, setConfirmClose] = React.useState(false);
-  // Sempre perguntar (requisito atual) — podemos depois condicionar a isDirty
-  function requestClose(next: boolean) {
-    if (next === false && open) {
-      setConfirmClose(true);
-      return;
-    }
-    onOpenChange(next);
-  }
-  // ESC dentro do overlay de confirmação
-  React.useEffect(() => {
-    if (!confirmClose) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setConfirmClose(false);
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [confirmClose]);
-
-  // Foto local
   const [foto, setFoto] = React.useState<string>('');
   const [cropSource, setCropSource] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const missingContaWarnedRef = React.useRef(false);
+  const [minorToastShown, setMinorToastShown] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
 
-  // Idade → responsável condicional
   const dataNascWatch = methods.watch('dataNasc');
   const birth = parseMaybeDate(dataNascWatch);
   const isMinor = birth ? yearsDiff(birth) < 18 : false;
 
-  // Steps dinâmicos
   const steps: { id: StepId; label: string }[] = React.useMemo(() => {
     const base: { id: StepId; label: string }[] = [
-      { id: 'identificacao', label: 'IDENTIFICAÇÃO' },
+      { id: 'identificacao', label: 'Identificação' },
       { id: 'endereco', label: 'Endereço' },
-      { id: 'saude', label: 'SAÚDE & EMERGÊNCIA' },
-      { id: 'perfil', label: 'PERFIL' },
+      { id: 'saude', label: 'Saúde & Emergência' },
+      { id: 'perfil', label: 'Perfil' },
       { id: 'foto', label: 'Foto' },
     ];
-    if (isMinor) base.push({ id: 'responsavel', label: 'RESPONSÁVEL' });
+    if (isMinor) base.push({ id: 'responsavel', label: 'Responsável' });
     base.push({ id: 'confirmar', label: 'Confirmação' });
     return base;
   }, [isMinor]);
-
   const [activeIndex, setActiveIndex] = React.useState(0);
-  const activeStep = steps[activeIndex]?.id ?? 'identificacao';
-  const [submitting, setSubmitting] = React.useState(false);
-  const [minorToastShown, setMinorToastShown] = React.useState(false);
-  // Crop dialog state (foto)
+  const activeStep = steps[activeIndex].id;
+
   const [cropOpen, setCropOpen] = React.useState(false);
 
-  // Reset ao abrir
   React.useEffect(() => {
     if (!open) return;
     methods.reset({
@@ -130,19 +102,10 @@ export default function AlunoWizardDialog({
     setFoto('');
     setCropSource(null);
     setCropOpen(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setActiveIndex(0);
     setMinorToastShown(false);
   }, [open, methods, resolvedContaId]);
-
-  React.useEffect(() => {
-    if (!resolvedContaId) {
-      return;
-    }
-    methods.setValue('contaId', resolvedContaId, { shouldDirty: false });
-  }, [resolvedContaId, methods]);
 
   const notifyError = React.useCallback((message: string) => {
     try {
@@ -169,7 +132,6 @@ export default function AlunoWizardDialog({
     }
   }, [open, resolvedContaId, notifyError]);
 
-  // Aviso para menor de idade via evento de toast
   React.useEffect(() => {
     if (isMinor && !minorToastShown) {
       try {
@@ -185,9 +147,23 @@ export default function AlunoWizardDialog({
     }
   }, [isMinor, minorToastShown]);
 
-  // Campos por step (validação incremental extraída)
-  const stepFields = React.useMemo(() => buildStepFieldMap(isMinor), [isMinor]);
+  function requestClose(next: boolean) {
+    if (next === false && open) {
+      setConfirmClose(true);
+      return;
+    }
+    onOpenChange(next);
+  }
+  React.useEffect(() => {
+    if (!confirmClose) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setConfirmClose(false);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmClose]);
 
+  const stepFields = React.useMemo(() => buildStepFieldMap(isMinor), [isMinor]);
   function canGoPrev() {
     return activeIndex > 0;
   }
@@ -195,9 +171,8 @@ export default function AlunoWizardDialog({
     if (canGoPrev()) setActiveIndex((i) => i - 1);
   }
   async function goNext() {
-    const id = activeStep;
-    const fields = stepFields[id] as unknown as (keyof WizardData)[];
-    if (fields.length > 0) {
+    const fields = stepFields[activeStep] as unknown as (keyof WizardData)[];
+    if (fields.length) {
       const ok = await methods.trigger(fields);
       if (!ok) {
         focusFirstError(methods.formState.errors);
@@ -229,9 +204,7 @@ export default function AlunoWizardDialog({
         contatoEmergenciaTelefone: digits(values.contatoEmergenciaTelefone),
         enderecoCep: digits(values.enderecoCep),
       };
-      if (foto) {
-        payload.foto = foto;
-      }
+      if (foto) payload.foto = foto;
       const res = await fetch('/api/alunos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -291,11 +264,9 @@ export default function AlunoWizardDialog({
     },
     [notifyError],
   );
-
   const handlePickPhoto = React.useCallback(() => {
     fileInputRef.current?.click();
   }, []);
-
   const handleEditPhoto = React.useCallback(() => {
     if (!foto) {
       handlePickPhoto();
@@ -304,22 +275,17 @@ export default function AlunoWizardDialog({
     setCropSource(foto);
     setCropOpen(true);
   }, [foto, handlePickPhoto]);
-
   const handleRemovePhoto = React.useCallback(() => {
     setFoto('');
     setCropSource(null);
     setCropOpen(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
-
-  const handleCropApply = React.useCallback((dataUrl: string) => {
-    setFoto(dataUrl);
+  const handleCropApply = React.useCallback((res: { dataUrl: string }) => {
+    setFoto(res.dataUrl);
     setCropSource(null);
     setCropOpen(false);
   }, []);
-
   const handleCropClose = React.useCallback(() => {
     setCropOpen(false);
     setCropSource(null);
@@ -333,11 +299,9 @@ export default function AlunoWizardDialog({
     const parts = base.split(/\s+/).filter(Boolean);
     const [first, second] = parts;
     const initials = `${first?.[0] ?? ''}${second?.[0] ?? ''}`.toUpperCase();
-    if (initials) return initials;
-    return (first?.[0] ?? 'A').toUpperCase();
+    return initials || (first?.[0] ?? 'A').toUpperCase();
   }, [nomeWatch, nomeSocialWatch]);
 
-  // Persistência local (draft) em localStorage com debounce
   React.useEffect(() => {
     type W = Window & { __alunoDraftTimer?: number };
     const subscription = methods.watch(() => {
@@ -347,11 +311,8 @@ export default function AlunoWizardDialog({
         try {
           const values = methods.getValues();
           const draft: Record<string, unknown> = { ...values };
-          if (foto) {
-            draft.__fotoDataUrl = foto;
-          } else {
-            delete draft.__fotoDataUrl;
-          }
+          if (foto) draft.__fotoDataUrl = foto;
+          else delete draft.__fotoDataUrl;
           localStorage.setItem('alunoWizardDraft', JSON.stringify(draft));
         } catch {
           /* noop */
@@ -361,152 +322,173 @@ export default function AlunoWizardDialog({
     return () => subscription.unsubscribe();
   }, [methods, foto]);
 
-  // ------------------------ render ------------------------
   return (
     <Dialog open={open} onOpenChange={requestClose}>
       <DialogContent
         title="Cadastrar aluno"
-        className="max-w-5xl w-full overflow-x-hidden"
+        className="max-w-5xl w-full overflow-hidden p-0 bg-slate-50"
         data-testid="aluno-wizard"
       >
-        {/* Cabeçalho do modal */}
-        <div className="mb-2">
-          <DialogTitle className="text-xl md:text-2xl font-medium tracking-tight">
+        <div
+          className={
+            'relative border-b border-slate-200 bg-slate-50 p-4 md:p-6 transition-shadow duration-200 ' +
+            (headerElevated ? 'shadow-sm' : '')
+          }
+        >
+          <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-accent/40 to-transparent" />
+          <DialogTitle className="text-xl font-semibold text-slate-900 tracking-tight">
             Cadastrar aluno
           </DialogTitle>
+          <p className="mt-1 text-sm text-slate-600 max-w-2xl">
+            Preencha os dados do aluno em etapas.
+          </p>
+          <div className="mt-4">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 ring-1 ring-inset ring-slate-200/50">
+              <Progress
+                value={((activeIndex + 1) / steps.length) * 100}
+                className="h-2 bg-transparent [&>div]:bg-gradient-to-r [&>div]:from-brand-accent [&>div]:to-brand-accent/70"
+                aria-label="Progresso do cadastro do aluno"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(((activeIndex + 1) / steps.length) * 100)}
+              />
+            </div>
+            <div
+              className="mt-2 text-xs font-medium text-slate-600"
+              aria-live="polite"
+              data-testid="wizard-progress-text"
+            >
+              Etapa {activeIndex + 1} de {steps.length}
+            </div>
+          </div>
         </div>
         <FormProvider {...methods}>
           <div className="flex max-h-[78vh] flex-col overflow-x-hidden">
-            {/* Top (progress + header) */}
-            <div className="space-y-4 pt-1 pb-3">
-              <div className="rounded-full bg-slate-200">
-                <Progress value={((activeIndex + 1) / steps.length) * 100} className="h-2" />
-              </div>
-              <div className="flex flex-wrap items-center justify-start gap-2 text-xs">
-                <span className="font-medium text-slate-600">
-                  Etapa {activeIndex + 1} de {steps.length}
-                </span>
+            <div
+              ref={scrollRef}
+              onScroll={(e) => {
+                const sc = e.currentTarget.scrollTop;
+                if (sc > 4 && !headerElevated) setHeaderElevated(true);
+                else if (sc <= 4 && headerElevated) setHeaderElevated(false);
+              }}
+              className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 bg-slate-50 scroll-smooth"
+            >
+              <div className="mx-auto w-full max-w-5xl">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeStep}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -12 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="space-y-6 w-full overflow-x-hidden"
+                  >
+                    {activeStep === 'identificacao' && (
+                      <SectionCard>
+                        <StepHeader title="Identificação" />
+                        <IdentificacaoFields />
+                      </SectionCard>
+                    )}
+                    {activeStep === 'endereco' && (
+                      <SectionCard>
+                        <StepHeader title="Endereço" />
+                        <EnderecoFields />
+                      </SectionCard>
+                    )}
+                    {activeStep === 'saude' && (
+                      <SectionCard>
+                        <StepHeader title="Saúde & Emergência" />
+                        <SaudeFields />
+                      </SectionCard>
+                    )}
+                    {activeStep === 'perfil' && (
+                      <SectionCard>
+                        <StepHeader
+                          title="Perfil & Classificação"
+                          hint="Campos de categorização interna e consentimentos."
+                        />
+                        <PerfilFields />
+                      </SectionCard>
+                    )}
+                    {activeStep === 'foto' && (
+                      <SectionCard>
+                        <StepHeader
+                          title="Foto do aluno"
+                          hint="Facilita identificação em listas e matrículas (Opcional)."
+                        />
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileInputChange}
+                        />
+                        <FotoFields
+                          fotoPreview={foto ? foto : null}
+                          avatarFallback={avatarFallback}
+                          onEdit={handleEditPhoto}
+                          onReplace={handlePickPhoto}
+                          onRemove={handleRemovePhoto}
+                        />
+                      </SectionCard>
+                    )}
+                    {activeStep === 'responsavel' && isMinor && (
+                      <SectionCard>
+                        <StepHeader
+                          title="Responsável"
+                          hint="Obrigatório para menores de 18 anos."
+                        />
+                        <ResponsavelFields />
+                      </SectionCard>
+                    )}
+                    {activeStep === 'confirmar' && (
+                      <SectionCard>
+                        <StepHeader
+                          title="Confirmar dados"
+                          hint="Revise cuidadosamente antes de concluir."
+                        />
+                        <ConfirmacaoSection all={methods.getValues()} fotoPreview={foto || null} />
+                      </SectionCard>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
             </div>
-
-            {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeStep}
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -12 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="space-y-6 pb-8 w-full overflow-x-hidden"
-                >
-                  {activeStep === 'identificacao' && (
-                    <SectionCard>
-                      <StepHeader title="Identificação" />
-                      <IdentificacaoFields />
-                    </SectionCard>
-                  )}
-                  {activeStep === 'endereco' && (
-                    <SectionCard>
-                      <StepHeader title="Endereço" />
-                      <EnderecoFields />
-                    </SectionCard>
-                  )}
-                  {activeStep === 'saude' && (
-                    <SectionCard>
-                      <StepHeader title="Saúde & Emergência" />
-                      <SaudeFields />
-                    </SectionCard>
-                  )}
-                  {activeStep === 'perfil' && (
-                    <SectionCard>
-                      <StepHeader
-                        title="Perfil & Classificação"
-                        hint="Campos de categorização interna e consentimentos."
-                      />
-                      <PerfilFields />
-                    </SectionCard>
-                  )}
-                  {activeStep === 'foto' && (
-                    <SectionCard>
-                      <StepHeader
-                        title="Foto do aluno"
-                        hint="Opcional — ajuda na rápida identificação em listas e matrículas."
-                      />
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileInputChange}
-                      />
-                      <FotoFields
-                        fotoPreview={foto ? foto : null}
-                        avatarFallback={avatarFallback}
-                        onEdit={handleEditPhoto}
-                        onReplace={handlePickPhoto}
-                        onRemove={handleRemovePhoto}
-                      />
-                    </SectionCard>
-                  )}
-                  {activeStep === 'responsavel' && isMinor && (
-                    <SectionCard>
-                      <StepHeader title="Responsável" hint="Obrigatório para menores de 18 anos." />
-                      <ResponsavelFields />
-                    </SectionCard>
-                  )}
-                  {activeStep === 'confirmar' && (
-                    <SectionCard>
-                      <StepHeader
-                        title="Confirmar dados"
-                        hint="Revise cuidadosamente antes de concluir."
-                      />
-                      <ConfirmacaoSection all={methods.getValues()} fotoPreview={foto || null} />
-                    </SectionCard>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            {/* Sticky footer */}
-            <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-4 border-t bg-white/90 px-0 py-3 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-              <div className="px-6 flex w-full items-center justify-end gap-3">
+            <div className="border-t border-slate-200 bg-slate-50 p-4 md:p-6 flex items-center justify-end gap-3 sticky bottom-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={goPrev}
+                disabled={!canGoPrev() || submitting}
+                className="h-10 px-4 min-w-[140px] border-slate-200 text-slate-600 bg-white hover:bg-slate-100 shadow-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 focus-visible:outline-none"
+                data-testid="wizard-prev"
+              >
+                Etapa Anterior
+              </Button>
+              {activeStep !== 'confirmar' ? (
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={goPrev}
-                  disabled={!canGoPrev() || submitting}
-                  className="h-10 px-4 border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-none"
-                  data-testid="wizard-prev"
+                  onClick={goNext}
+                  disabled={submitting}
+                  className="h-10 px-5 min-w-[160px] bg-brand-accent text-white shadow-none hover:bg-brand-accent/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-accent/60 disabled:opacity-60 disabled:pointer-events-none"
+                  data-testid="wizard-next"
                 >
-                  Etapa Anterior
+                  Próxima Etapa
                 </Button>
-                {activeStep !== 'confirmar' ? (
-                  <Button
-                    type="button"
-                    onClick={goNext}
-                    disabled={submitting}
-                    className="h-10 px-4 bg-violet-600 text-white hover:bg-violet-700 shadow-none"
-                    data-testid="wizard-next"
-                  >
-                    Próxima Etapa
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={submitAll}
-                    disabled={submitting}
-                    className="h-10 px-4 bg-violet-600 text-white hover:bg-violet-700 shadow-none"
-                    data-testid="aluno-concluir"
-                  >
-                    {submitting ? 'Salvando...' : 'Concluir'}
-                  </Button>
-                )}
-              </div>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={submitAll}
+                  disabled={submitting}
+                  className="h-10 px-5 min-w-[160px] bg-brand-accent text-white shadow-none hover:bg-brand-accent/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-accent/60 disabled:opacity-60 disabled:pointer-events-none"
+                  data-testid="aluno-concluir"
+                >
+                  {submitting ? 'Salvando...' : 'Concluir'}
+                </Button>
+              )}
             </div>
           </div>
         </FormProvider>
-        {/* Modal interno de confirmação */}
         {confirmClose && (
           <div className="absolute inset-0 z-[60] flex items-center justify-center bg-white/65 backdrop-blur-sm">
             <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl ring-1 ring-black/5 animate-in fade-in-0 zoom-in-95">
@@ -520,14 +502,14 @@ export default function AlunoWizardDialog({
                   type="button"
                   variant="outline"
                   autoFocus
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-brand-accent/40"
                   onClick={() => setConfirmClose(false)}
                 >
                   Continuar preenchendo
                 </Button>
                 <Button
                   type="button"
-                  className="bg-red-600 text-white hover:bg-red-700"
+                  className="bg-red-600 text-white hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500/60"
                   onClick={() => {
                     setConfirmClose(false);
                     onOpenChange(false);
@@ -539,14 +521,14 @@ export default function AlunoWizardDialog({
             </div>
           </div>
         )}
-        {/* Dialog de Crop */}
         <ImageCropDialog
           src={cropSource}
           open={cropOpen && Boolean(cropSource)}
-          onClose={handleCropClose}
+          onOpenChange={(o) => { if (!o) handleCropClose(); else setCropOpen(true); }}
           onApply={handleCropApply}
           aspect={1}
           title="Ajustar corte"
+          round
         />
       </DialogContent>
     </Dialog>

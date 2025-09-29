@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import toast from 'react-hot-toast';
 import { IMaskInput } from 'react-imask';
-import { ImageCropDialog } from '../shared/ImageCropDialog';
+import { ImageCropDialog } from '../image/ImageCropDialog';
 
 type StatusAluno = 'ATIVO' | 'INATIVO';
 
@@ -276,9 +276,9 @@ export function AlunoEditDialog({ open, onOpenChange, aluno, onSaved }: Props) {
     }
   }, [fotoPreview]);
 
-  const handleCropApply = React.useCallback((dataUrl: string) => {
-    setFoto(dataUrl);
-    setFotoPreview(dataUrl);
+  const handleCropApply = React.useCallback((res: { dataUrl: string }) => {
+    setFoto(res.dataUrl);
+    setFotoPreview(res.dataUrl);
     setFotoRemoved(false);
     setCropSource(null);
     setCropOpen(false);
@@ -877,10 +877,11 @@ export function AlunoEditDialog({ open, onOpenChange, aluno, onSaved }: Props) {
         <ImageCropDialog
           src={cropSource}
           open={cropOpen && Boolean(cropSource)}
-          onClose={handleCropClose}
+          onOpenChange={(o) => { if (!o) handleCropClose(); else setCropOpen(true); }}
           onApply={handleCropApply}
           aspect={1}
           title="Ajustar corte"
+          round
         />
       </DialogContent>
     </Dialog>
