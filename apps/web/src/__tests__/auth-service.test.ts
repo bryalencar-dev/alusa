@@ -1,29 +1,24 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
 import { verifyCredentials } from '@/lib/auth-service';
+import { createFirstUser } from '@/lib/first-user-service';
 import { resetDb } from '../../tests/utils/reset-db';
 
-const prisma = new PrismaClient();
+// Só roda estes testes se houver DATABASE_URL real (Postgres),
+// evitando falhas quando Prisma está configurado para Data Proxy ou sem DB local.
+const hasDb = !!process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres');
+const describeIf = hasDb ? describe : describe.skip;
 
-describe('verifyCredentials', () => {
+describeIf('verifyCredentials', () => {
+  const prisma = new PrismaClient();
   const email = 'test@example.com';
   const senha = 'SenhaFort3!';
     beforeAll(async () => {
       await resetDb(prisma);
-      const senhaHash: string = await bcrypt.hash(senha, 10);
-      // Cria usuario com conta aninhada para evitar problemas de FK em ambientes recém-resetados
-      await prisma.usuario.create({
-        data: {
-          nome: 'Teste',
-          email,
-          senhaHash,
-          role: 'ADMIN',
-          conta: { create: { nome: 'Conta Teste', cpfCnpj: '00000000000' } }
-        }
-      });
+      // Cria conta e usuário inicial (owner) usando o serviço oficial
+      await createFirstUser({ escolaNome: 'Conta Teste', cpfCnpj: '00000000000', nome: 'Teste', email, senha });
     });
-    afterAll(async () => { await prisma.$disconnect(); });
+  afterAll(async () => { await prisma.$disconnect(); });
   it('retorna usuário válido com credenciais corretas', async () => {
     const res = await verifyCredentials(email, senha);
     expect(res?.email).toBe(email);

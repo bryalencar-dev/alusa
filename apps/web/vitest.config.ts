@@ -5,33 +5,38 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    coverage: { provider: 'v8' },
+    // Coverage habilitado somente em CI para evitar crashes intermitentes no Windows local
+    coverage: { enabled: process.env.CI === 'true', provider: 'v8' },
+    sequence: { concurrent: false },
+    // Usa processos fork em vez de threads para evitar segfault no Windows (Node 22)
+    pool: 'forks',
+    poolOptions: { forks: { singleFork: true } },
     deps: {
-      inline: [/^@alusa\/lib/]
+      inline: [/^@alusa\/lib/],
     },
     include: [
       'src/**/*.{test,spec}.?(c|m)[jt]s?(x)',
       'tests/unit/**/*.{test,spec}.?(c|m)[jt]s?(x)',
-      'tests/**/*password-policy.test.ts'
+      'tests/**/*password-policy.test.ts',
     ],
-    exclude: [
-      'tests/e2e/**',
-      'node_modules/**',
-      'dist/**'
-    ],
-    setupFiles: [path.resolve(__dirname, 'test', 'setup.ts')]
+    exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
+    setupFiles: [path.resolve(__dirname, 'test', 'setup.ts')],
   },
   css: { postcss: { plugins: [] } },
   resolve: {
     alias: [
       { find: './app/globals.css', replacement: path.resolve(__dirname, 'vitest-empty.css') },
       { find: '@/prisma/client', replacement: path.resolve(__dirname, 'prisma', 'client.ts') },
-      { find: '@', replacement: path.resolve(__dirname) }
-    ]
+      {
+        find: /^@alusa\/lib(.*)$/,
+        replacement: path.resolve(__dirname, '..', '..', 'packages', 'lib', 'src') + '$1',
+      },
+      { find: '@', replacement: path.resolve(__dirname) },
+    ],
   },
   server: {
     fs: {
-      allow: [path.resolve(__dirname, '..', '..'), __dirname]
-    }
-  }
+      allow: [path.resolve(__dirname, '..', '..'), __dirname],
+    },
+  },
 });

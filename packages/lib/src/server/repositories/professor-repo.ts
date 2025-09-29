@@ -1,8 +1,5 @@
-import { PrismaClient } from '@prisma/client';
-
-// Nota: em projetos maiores, importe um singleton "prisma" compartilhado.
-// Aqui usamos uma instância local para isolar a lib.
-const prisma = new PrismaClient();
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { prisma } from '../../prisma';
 
 export type ProfessorListParams = {
   contaId: string;
@@ -34,7 +31,6 @@ export type CreateRepoInput = {
 export type UpdateRepoInput = Partial<CreateRepoInput>;
 
 export async function list({ contaId, page, pageSize, search }: ProfessorListParams) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = {
     contaId,
     ...(search
@@ -48,9 +44,12 @@ export async function list({ contaId, page, pageSize, search }: ProfessorListPar
   };
 
   const [items, total] = await Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    prisma.professor.findMany({ where: where as any, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }) as unknown as Promise<ProfessorRecord[]>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prisma.professor.findMany({
+      where: where as any,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }) as unknown as Promise<ProfessorRecord[]>,
     prisma.professor.count({ where: where as any }),
   ]);
 
@@ -58,8 +57,9 @@ export async function list({ contaId, page, pageSize, search }: ProfessorListPar
 }
 
 export async function getById(id: string, contaId: string): Promise<ProfessorRecord | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return prisma.professor.findFirst({ where: { id, contaId } as any }) as unknown as Promise<ProfessorRecord | null>;
+  return prisma.professor.findFirst({
+    where: { id, contaId } as any,
+  }) as unknown as Promise<ProfessorRecord | null>;
 }
 
 export async function create(contaId: string, data: CreateRepoInput): Promise<ProfessorRecord> {
@@ -71,11 +71,14 @@ export async function create(contaId: string, data: CreateRepoInput): Promise<Pr
     bio: data.bio ?? null,
     status: data.status ?? 'ATIVO',
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (await prisma.professor.create({ data: toCreate as any })) as unknown as ProfessorRecord;
 }
 
-export async function update(id: string, _contaId: string, data: UpdateRepoInput): Promise<ProfessorRecord> {
+export async function update(
+  id: string,
+  _contaId: string,
+  data: UpdateRepoInput,
+): Promise<ProfessorRecord> {
   const toUpdate = {
     ...(data.nome !== undefined ? { nome: data.nome } : {}),
     ...(data.email !== undefined ? { email: data.email } : {}),
@@ -83,12 +86,16 @@ export async function update(id: string, _contaId: string, data: UpdateRepoInput
     ...(data.bio !== undefined ? { bio: data.bio } : {}),
     ...(data.status !== undefined ? { status: data.status } : {}),
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (await prisma.professor.update({ where: { id }, data: toUpdate as any })) as unknown as ProfessorRecord;
+  return (await prisma.professor.update({
+    where: { id },
+    data: toUpdate as any,
+  })) as unknown as ProfessorRecord;
 }
 
 export async function remove(id: string): Promise<ProfessorRecord> {
   // soft-delete: apenas marca status = INATIVO e retorna o registro
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (await prisma.professor.update({ where: { id }, data: { status: 'INATIVO' } as any })) as unknown as ProfessorRecord;
+  return (await prisma.professor.update({
+    where: { id },
+    data: { status: 'INATIVO' } as any,
+  })) as unknown as ProfessorRecord;
 }

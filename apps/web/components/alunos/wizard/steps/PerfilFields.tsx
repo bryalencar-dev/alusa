@@ -12,17 +12,17 @@ export default function PerfilFields() {
     <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
       <div>
         <FieldLabel>Modalidade principal</FieldLabel>
-        <Input {...register("modalidadePrincipal")} placeholder="Ex.: Ballet" />
+  <Input {...register("modalidadePrincipal")} placeholder="Ex.: Ballet" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="modalidadePrincipal" />
       </div>
       <div>
         <FieldLabel>Nível</FieldLabel>
-        <Input {...register("nivel")} placeholder="Ex.: Intermediário" />
+  <Input {...register("nivel")} placeholder="Ex.: Intermediário" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="nivel" />
       </div>
       <div>
         <FieldLabel>Origem cadastro</FieldLabel>
-        <Input {...register("origemCadastro")} placeholder="Ex.: Indicação" />
+  <Input {...register("origemCadastro")} placeholder="Ex.: Indicação" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="origemCadastro" />
       </div>
       <div>
@@ -32,7 +32,7 @@ export default function PerfilFields() {
           name="tamanhoCamiseta"
           render={({ field }) => (
             <Select value={field.value ?? undefined} onValueChange={field.onChange}>
-              <SelectTrigger>
+              <SelectTrigger className="h-10 bg-white border border-gray-300 shadow-none">
                 <SelectValue placeholder="PP/P/M/G/GG" />
               </SelectTrigger>
               <SelectContent>
@@ -47,12 +47,12 @@ export default function PerfilFields() {
       </div>
       <div>
         <FieldLabel>Tam. Calçado</FieldLabel>
-        <Input {...register("tamanhoCalcado")} placeholder="Ex.: 37" />
+  <Input {...register("tamanhoCalcado")} placeholder="Ex.: 37" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="tamanhoCalcado" />
       </div>
       <div className="md:col-span-2">
         <FieldLabel>Tags (separadas por vírgula)</FieldLabel>
-        <Input {...register("tags" as const)} placeholder="Ex.: bolsista, potencial indicação" />
+  <Input {...register("tags" as const)} placeholder="Ex.: bolsista, potencial indicação" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div className="md:col-span-4 grid gap-4 sm:grid-cols-2">
         <div className="flex items-start gap-2 rounded-md border border-slate-200 p-3">

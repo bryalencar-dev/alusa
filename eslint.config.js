@@ -18,6 +18,10 @@ export default [
     languageOptions: { globals: { module: true, require: true, process: true } }
   },
   {
+    files: ['packages/eslint-preset/**/*.cjs'],
+    languageOptions: { globals: { module: true, require: true } }
+  },
+  {
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',

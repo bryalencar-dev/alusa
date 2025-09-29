@@ -18,30 +18,48 @@ interface Props {
 
 export default function ConfirmacaoSection({ all, fotoPreview }: Props) {
   const tagsJoined = Array.isArray(all.tags) ? all.tags.join(', ') : '';
-  const pairs: Array<[string, string | undefined | null]> = [
-    ["Nome", all.nome],
-    ["Nome social", all.nomeSocial],
-    ["Data de nascimento", all.dataNasc ? new Date(all.dataNasc as unknown as Date).toLocaleDateString() : ""],
-    ["CPF", all.cpf],
-    ["Email", all.email],
-    ["Telefone", all.telefone],
-    ["CEP", all.enderecoCep],
-    ["Endereço", all.enderecoLogradouro],
-    ["Número", all.enderecoNumero],
-    ["Bairro", all.enderecoBairro],
-    ["Cidade", all.enderecoCidade],
-    ["UF", all.enderecoUf],
-    ["Contato emergência", all.contatoEmergenciaNome],
-    ["Telefone emergência", all.contatoEmergenciaTelefone],
-    ["Código interno", "(gerado após salvar)"],
-    ["Modalidade principal", all.modalidadePrincipal],
-    ["Nível", all.nivel],
-    ["Origem cadastro", all.origemCadastro],
-    ["Tam. Camiseta", all.tamanhoCamiseta],
-    ["Tam. Calçado", all.tamanhoCalcado],
-    ["Tags", tagsJoined],
-    ["Consent. Imagem", all.consentimentoImagem ? 'Sim' : 'Não'],
-    ["Consent. Comunicações", all.consentimentoComunicacoes ? 'Sim' : 'Não'],
+  const fmtDate = all.dataNasc ? new Date(all.dataNasc as unknown as Date).toLocaleDateString() : '';
+  const grupos: Array<{titulo: string; itens: Array<[string, string | null | undefined]>}> = [
+    {
+      titulo: 'Identificação',
+      itens: [
+        ['Nome', all.nome],
+        ['Nome social', all.nomeSocial],
+        ['Data de nascimento', fmtDate],
+        ['CPF', all.cpf],
+      ],
+    },
+    {
+      titulo: 'Contato',
+      itens: [
+        ['Email', all.email],
+        ['Telefone', all.telefone],
+      ],
+    },
+    {
+      titulo: 'Endereço',
+      itens: [
+        ['CEP', all.enderecoCep],
+        ['Endereço', all.enderecoLogradouro],
+        ['Número', all.enderecoNumero],
+        ['Bairro', all.enderecoBairro],
+        ['Cidade', all.enderecoCidade],
+        ['UF', all.enderecoUf],
+      ],
+    },
+    {
+      titulo: 'Perfil',
+      itens: [
+        ['Modalidade principal', all.modalidadePrincipal],
+        ['Nível', all.nivel],
+        ['Origem cadastro', all.origemCadastro],
+        ['Tam. Camiseta', all.tamanhoCamiseta],
+        ['Tam. Calçado', all.tamanhoCalcado],
+        ['Tags', tagsJoined],
+        ['Consent. Imagem', all.consentimentoImagem ? 'Sim' : 'Não'],
+        ['Consent. Comunicações', all.consentimentoComunicacoes ? 'Sim' : 'Não'],
+      ],
+    },
   ];
   return (
     <div className="space-y-6">
@@ -58,11 +76,18 @@ export default function ConfirmacaoSection({ all, fotoPreview }: Props) {
           <p className="text-xs text-slate-500">Revise as informações antes de concluir.</p>
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-2 text-xs">
-        {pairs.map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-3">
-            <span className="text-slate-500">{k}</span>
-            <span className="max-w-[260px] truncate font-medium text-slate-800" title={String(v || "")}>{v || "-"}</span>
+      <div className="grid gap-4 md:grid-cols-2">
+        {grupos.map((g) => (
+          <div key={g.titulo} className="rounded-md border border-slate-200 p-3">
+            <h5 className="mb-2 text-xs font-semibold text-slate-700">{g.titulo}</h5>
+            <dl className="text-xs">
+              {g.itens.map(([k,v]) => (
+                <div key={k} className="flex justify-between gap-3 py-0.5">
+                  <dt className="text-slate-500">{k}</dt>
+                  <dd className="max-w-[260px] truncate font-medium text-slate-800" title={String(v || "")}>{v || '-'}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
         ))}
       </div>

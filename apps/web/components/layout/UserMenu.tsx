@@ -11,7 +11,7 @@ import {
   UserCircleIcon,
   SunIcon,
   MoonIcon,
-} from "@heroicons/react/24/outline";
+} from "@/components/icons/icons";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
 type Props = {
@@ -91,13 +91,13 @@ export default function UserMenu({ name, email, initials }: Props) {
           }}
         >
           <nav className="p-2">
-            {/* Meu perfil */}
+            {/* Minha conta */}
             <MenuLink
-              href="/perfil"
+              href="/conta"
               icon={<UserCircleIcon className="h-5 w-5" />}
               onClick={() => setOpen(false)}
             >
-              Meu perfil
+              Minha conta
             </MenuLink>
 
             {/* Ajuda */}

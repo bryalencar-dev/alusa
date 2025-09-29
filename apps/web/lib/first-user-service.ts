@@ -1,4 +1,5 @@
 import { PrismaClient, Role, type Usuario } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 
 const prisma: PrismaClient = new PrismaClient();
@@ -29,14 +30,35 @@ export async function createFirstUser(data: FirstUserInput): Promise<Usuario> {
   // Unicidade CPF/CNPJ para Conta
   const existingConta = await prisma.conta.findFirst({ where: { cpfCnpj: data.cpfCnpj } });
   if (existingConta) throw new CpfCnpjInUseError();
-  // Cria conta
-  const conta = await prisma.conta.create({ data: { nome: data.escolaNome, cpfCnpj: data.cpfCnpj } });
+  // Criar conta e usuário ADMIN e marcar como owner em uma transação
   const senhaHash = await bcrypt.hash(data.senha + bcryptPepper, bcryptRounds);
   try {
-    return await prisma.usuario.create({ data: { contaId: conta.id, nome: data.nome, email: data.email, senhaHash, role: Role.ADMIN } });
+    const result = await prisma.$transaction(async (tx) => {
+      const conta = await tx.conta.create({
+        data: {
+          id: randomUUID(),
+          nome: data.escolaNome,
+          cpfCnpj: data.cpfCnpj,
+        },
+        select: { id: true },
+      });
+      const user = await tx.usuario.create({
+        data: {
+          contaId: conta.id,
+          nome: data.nome,
+          email: data.email,
+          senhaHash,
+          role: Role.ADMIN,
+          status: 'ATIVO',
+        },
+      });
+      await tx.conta.update({ where: { id: conta.id }, data: { ownerUserId: user.id } });
+      return user;
+    });
+    return result;
   } catch (e: unknown) {
-    if (typeof e === 'object' && e && 'code' in e) {
-      const code = (e as any).code as string;
+    if (typeof e === 'object' && e !== null && 'code' in e) {
+      const code = String((e as { code?: unknown }).code || '');
       if (code === 'P2002') {
         // Violação de unicidade: pode ser email ou cpfCnpj (se corrida entre checagem e criação) => traduzir genericamente
         // Já validamos antes, mas em condição de corrida garantimos mensagem correta

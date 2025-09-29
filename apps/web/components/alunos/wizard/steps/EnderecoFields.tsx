@@ -64,33 +64,33 @@ export default function EnderecoFields() {
     <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-6">
       <div>
         <FieldLabel htmlFor="aluno-endereco-cep" required>CEP</FieldLabel>
-        <IMaskControlled id="aluno-endereco-cep" name="enderecoCep" mask="00000-000" placeholder="00000-000" ariaLabel="CEP" />
+  <IMaskControlled id="aluno-endereco-cep" data-testid="aluno-endereco-cep" name="enderecoCep" mask="00000-000" placeholder="00000-000" ariaLabel="CEP" />
         <FieldError name="enderecoCep" />
         {loading && <div className="mt-1 text-[10px] text-violet-600 animate-pulse">Buscando CEP...</div>}
       </div>
       <div className="md:col-span-3">
         <FieldLabel htmlFor="aluno-endereco-logradouro">Endereço</FieldLabel>
-        <Input id="aluno-endereco-logradouro" {...register("enderecoLogradouro")} placeholder="Rua/Av., travessa..." disabled={loading} />
+  <Input id="aluno-endereco-logradouro" data-testid="aluno-endereco-logradouro" {...register("enderecoLogradouro")} placeholder="Rua/Av., travessa..." disabled={loading} className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="aluno-endereco-numero">Número</FieldLabel>
-  <Input id="aluno-endereco-numero" {...register("enderecoNumero")} placeholder="Nº" />
+  <Input id="aluno-endereco-numero" data-testid="aluno-endereco-numero" {...register("enderecoNumero")} placeholder="Nº" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="aluno-endereco-complemento">Complemento</FieldLabel>
-  <Input id="aluno-endereco-complemento" {...register("enderecoComplemento")} placeholder="Apto, bloco..." />
+  <Input id="aluno-endereco-complemento" {...register("enderecoComplemento")} placeholder="Apto, bloco..." className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="aluno-endereco-bairro">Bairro</FieldLabel>
-  <Input id="aluno-endereco-bairro" {...register("enderecoBairro")} placeholder="Ex.: Centro" />
+  <Input id="aluno-endereco-bairro" data-testid="aluno-endereco-bairro" {...register("enderecoBairro")} placeholder="Ex.: Centro" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div className="md:col-span-3">
         <FieldLabel htmlFor="aluno-endereco-cidade">Cidade</FieldLabel>
-  <Input id="aluno-endereco-cidade" {...register("enderecoCidade")} placeholder="Ex.: Recife" />
+  <Input id="aluno-endereco-cidade" data-testid="aluno-endereco-cidade" {...register("enderecoCidade")} placeholder="Ex.: Recife" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="aluno-endereco-uf">UF</FieldLabel>
-  <Input id="aluno-endereco-uf" maxLength={2} {...register("enderecoUf")} placeholder="PE" />
+  <Input id="aluno-endereco-uf" data-testid="aluno-endereco-uf" maxLength={2} {...register("enderecoUf")} placeholder="PE" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="enderecoUf" />
       </div>
       <div className="md:col-span-6">
@@ -99,7 +99,7 @@ export default function EnderecoFields() {
           id="aluno-observacao"
           {...register("observacao")}
           rows={3}
-          className="w-full rounded-md border border-input px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-0 focus-visible:shadow-none placeholder:text-gray-400"
           placeholder="Notas gerais sobre o aluno (opcional)"
         />
       </div>

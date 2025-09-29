@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import type { FieldErrors } from 'react-hook-form';
 import { z } from 'zod';
@@ -14,7 +15,7 @@ import { nextParamToRedirect } from '@/lib/safe-redirect';
 
 const schema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(1, 'Informe a senha')
+  password: z.string().min(6, 'A senha deve ter ao menos 6 caracteres')
 });
 type FormData = z.infer<typeof schema>;
 
@@ -26,6 +27,8 @@ export default function LoginClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue } = useForm<FormData>({ resolver: zodResolver(schema), mode: 'onSubmit' });
+  const expiredToastShown = useRef(false);
+  const errorToastShown = useRef(false);
 
   useEffect(() => {
     try {
@@ -38,16 +41,61 @@ export default function LoginClient() {
     } catch { /* ignore */ }
   }, [setValue]);
 
+  // Feedback quando a sessão expira e o middleware envia expired=true
+  useEffect(() => {
+    if (expiredToastShown.current) return;
+    const expired = sp.get('expired');
+    if (expired === 'true') {
+      expiredToastShown.current = true;
+      toast.custom((t) => (
+        <CustomToast
+          title="Sua sessão expirou"
+          description="Faça login novamente."
+          variant="error"
+          onClose={() => { toast.dismiss(t); }}
+        />
+      ), { duration: 3000 });
+    }
+  }, [sp]);
+
+  // Feedback quando NextAuth retorna para a página com erro de credenciais
+  useEffect(() => {
+    if (errorToastShown.current) return;
+    const err = sp.get('error');
+    if (err) {
+      errorToastShown.current = true;
+      const msg = err === 'CredentialsSignin' ? 'Verifique e-mail e senha e tente novamente.' : 'Não foi possível autenticar. Tente novamente.';
+      toast.custom((t) => (
+        <CustomToast
+          title="Credenciais inválidas"
+          description={msg}
+          variant="error"
+          onClose={() => { toast.dismiss(t); }}
+        />
+      ));
+    }
+  }, [sp]);
+
   const onSubmit = (data: FormData) => {
     void (async () => {
       if (isAuthDebug) debugLog('login', 'attempt', { email: data.email });
-  const res = await signIn('credentials', { email: data.email, password: data.password, redirect: true, callbackUrl });
+      const res = await signIn('credentials', { email: data.email, password: data.password, redirect: true, callbackUrl });
       if (isAuthDebug) debugLog('login', 'signIn response', res);
       if (res?.error) {
+        const code = typeof res.error === 'string' ? res.error : 'CredentialsSignin';
+        if (isAuthDebug) debugLog('login', 'error', { code });
+        // Pró-usuário: mensagem amigável e CTA para cadastro quando parecer "usuário não encontrado"
+        const desc = (
+          <span>
+            Verifique e-mail e senha e tente novamente.{' '}
+            Não tem conta?{' '}
+            <a href="/auth/register" className="underline">Crie sua conta</a>.
+          </span>
+        );
         toast.custom((t) => (
           <CustomToast
-            title="Credenciais inválidas"
-            description="Verifique e-mail e senha e tente novamente."
+            title="Não foi possível fazer login"
+            description={desc}
             variant="error"
             onClose={() => { toast.dismiss(t); }}
           />
@@ -64,6 +112,7 @@ export default function LoginClient() {
         }
       } catch { /* ignore storage */ }
       // Com redirect:true o NextAuth já navega; opcionalmente podemos mostrar toast rápido.
+      if (isAuthDebug) debugLog('login', 'success', { email: data.email });
       toast.custom((t) => (
         <CustomToast
           variant="success"
@@ -124,7 +173,7 @@ export default function LoginClient() {
             placeholder="Digite seu E-mail"
             autoComplete="email"
             aria-invalid={!!errors.email || undefined}
-            className="w-full h-12 rounded-[30px] border-[1.5px] border-brand-stroke pl-5 pr-11 text-[14px] font-medium placeholder:text-brand-muted outline-none"
+            className="w-full h-12 rounded-[30px] border border-gray-300 bg-white pl-5 pr-11 text-[14px] font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-300 focus:ring-0"
             {...register('email')}
           />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted" aria-hidden>
@@ -138,7 +187,7 @@ export default function LoginClient() {
             placeholder="Digite sua senha"
             autoComplete="current-password"
             aria-invalid={!!errors.password || undefined}
-            className="w-full h-12 rounded-[30px] border-[1.5px] border-brand-stroke pl-5 pr-11 text-[14px] font-medium placeholder:text-brand-muted outline-none"
+            className="w-full h-12 rounded-[30px] border border-gray-300 bg-white pl-5 pr-11 text-[14px] font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-300 focus:ring-0"
             {...register('password')}
           />
           <button
@@ -160,9 +209,9 @@ export default function LoginClient() {
             />
             <span className="text-[#686868]">Lembrar-me</span>
           </label>
-          <a href="/forgot-password" className="text-[12px] text-brand-accent hover:underline outline-none rounded">
+          <Link href="/auth/forgot-password" className="text-[12px] text-brand-accent hover:underline outline-none rounded">
             Esqueceu sua senha?
-          </a>
+          </Link>
         </div>
         <div className="w-[320px] mt-2">
           <button
@@ -176,12 +225,9 @@ export default function LoginClient() {
         </div>
         <p className="text-center text-[11px] font-medium w-[320px] mt-4">
           <span className="text-[#686868]">Não tem uma conta? </span>
-          <a
-            href="/register"
-            className="text-brand-accent hover:underline outline-none rounded"
-          >
+          <Link href="/auth/register" className="text-brand-accent hover:underline outline-none rounded">
             Cadastre-se
-          </a>
+          </Link>
         </p>
       </form>
     </div>

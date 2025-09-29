@@ -13,7 +13,7 @@ export default function SaudeFields() {
         <textarea
           {...register("alergias")}
           rows={2}
-          className="w-full rounded-md border border-input px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-0 focus-visible:shadow-none placeholder:text-gray-400"
           placeholder="Liste alergias conhecidas (ou deixe em branco)"
         />
       </div>
@@ -22,13 +22,13 @@ export default function SaudeFields() {
         <textarea
           {...register("restricoesMedicas")}
           rows={2}
-          className="w-full rounded-md border border-input px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"
+          className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-0 focus-visible:shadow-none placeholder:text-gray-400"
           placeholder="Descreva restrições, medicamentos, etc. (opcional)"
         />
       </div>
       <div>
         <FieldLabel>Contato de emergência — nome</FieldLabel>
-        <Input {...register("contatoEmergenciaNome")} placeholder="Pessoa para contato" />
+  <Input {...register("contatoEmergenciaNome")} placeholder="Pessoa para contato" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="contatoEmergenciaNome" />
       </div>
       <div>

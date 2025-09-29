@@ -41,10 +41,10 @@ Button.displayName = 'Button';
 
 // Campo de input padrão
 export const inputVariants = cva(
-  'w-full h-12 rounded-[30px] bg-white outline outline-[1.5px] outline-brand-stroke px-5 text-[14px] font-medium placeholder:text-[#828282] focus:outline-brand-accent focus:ring-0',
+  'w-full h-12 rounded-[30px] border border-gray-300 bg-white px-5 text-[14px] font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-300 focus:ring-0',
   {
     variants: {
-      invalid: { true: 'outline-red-500 focus:outline-red-500' },
+      invalid: { true: 'border-red-500 focus:border-red-500' },
       withIcon: { true: 'pr-10' }
     },
     defaultVariants: { withIcon: true }

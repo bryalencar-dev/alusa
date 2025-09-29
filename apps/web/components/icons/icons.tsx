@@ -10,16 +10,19 @@ export {
   CalendarDaysIcon as Calendar,
   DocumentChartBarIcon as Reports,
   BuildingStorefrontIcon as StoreFront,
+  BuildingLibraryIcon as BuildingLibrary,
   TicketIcon as Ticket,
   Cog6ToothIcon as Settings,
   // Usuário / Sessão
   UserCircleIcon as UserCircle,
   ArrowRightOnRectangleIcon as Logout,
+  ArrowRightStartOnRectangleIcon as LogoutStart,
   UserPlusIcon as UserPlus,
   // Estados / Feedback
   CheckCircleIcon as CheckCircle,
   ExclamationTriangleIcon as Warning,
   InformationCircleIcon as InfoCircle,
+  QuestionMarkCircleIcon as Help,
   XCircleIcon as ErrorCircle,
   XMarkIcon as Close,
   // Ações / Controles
@@ -40,8 +43,17 @@ export {
   EyeSlashIcon as EyeOff,
   IdentificationIcon as IdCard,
   BookOpenIcon as BookOpen,
+  ClipboardDocumentCheckIcon as ClipboardDocumentCheck,
+  RectangleStackIcon as RectangleStack,
+  ChartBarIcon as ChartBar,
+  ShoppingBagIcon as ShoppingBag,
   ClockIcon as Clock,
-  ArrowPathIcon as Refresh
+  ArrowPathIcon as Refresh,
+  SunIcon as Sun,
+  MoonIcon as Moon,
+  // Ações de compartilhamento/cópia
+  DocumentDuplicateIcon as Copy,
+  ShareIcon as Share2
 } from '@heroicons/react/24/outline';
 
 // Ícones adicionais / aliases semânticos centralizados
@@ -56,3 +68,46 @@ export {
   ChevronLeftIcon as ChevronsLeft, // fallback para duplo (não existe direto em heroicons)
   ChevronRightIcon as ChevronsRight // fallback para duplo (não existe direto)
 } from '@heroicons/react/24/outline';
+
+// Reexportações com nomes originais (outline), para facilitar migração gradual
+export {
+  Squares2X2Icon,
+  AcademicCapIcon,
+  UserIcon,
+  UsersIcon,
+  BookOpenIcon,
+  BuildingLibraryIcon,
+  RectangleStackIcon,
+  ClipboardDocumentCheckIcon,
+  BanknotesIcon,
+  CalendarDaysIcon,
+  ChartBarIcon,
+  ShoppingBagIcon,
+  TicketIcon,
+  Cog6ToothIcon,
+  ChevronLeftIcon,
+  ChevronDownIcon,
+  QuestionMarkCircleIcon,
+  ArrowRightStartOnRectangleIcon,
+  UserCircleIcon,
+  SunIcon,
+  MoonIcon
+} from '@heroicons/react/24/outline';
+
+// Variantes SOLID necessárias, exportadas com sufixo "Solid"
+export {
+  Squares2X2Icon as Squares2X2Solid,
+  AcademicCapIcon as AcademicCapSolid,
+  UserIcon as UserSolid,
+  UsersIcon as UsersSolid,
+  BookOpenIcon as BookOpenSolid,
+  BuildingLibraryIcon as BuildingLibrarySolid,
+  RectangleStackIcon as RectangleStackSolid,
+  ClipboardDocumentCheckIcon as ClipboardDocumentCheckSolid,
+  BanknotesIcon as BanknotesSolid,
+  CalendarDaysIcon as CalendarDaysSolid,
+  ChartBarIcon as ChartBarSolid,
+  ShoppingBagIcon as ShoppingBagSolid,
+  TicketIcon as TicketSolid,
+  Cog6ToothIcon as Cog6ToothSolid
+} from '@heroicons/react/24/solid';

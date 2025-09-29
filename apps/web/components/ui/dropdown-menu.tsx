@@ -17,7 +17,11 @@ const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-default select-none items-center rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors data-[state=open]:bg-gray-100",
+      "flex cursor-default select-none items-center rounded-md px-3 py-2 text-sm font-medium outline-none transition-all duration-200",
+      // Hover/realce: apenas fundo suave; não alterar cor do texto
+      "hover:bg-purple-50 data-[highlighted]:bg-purple-50",
+      "focus:bg-purple-50 focus:outline-none",
+      "data-[state=open]:bg-purple-50",
       inset && "pl-8",
       className
     )}
@@ -78,7 +82,11 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-sm font-medium outline-none transition-all duration-200",
+      // Hover/realce: apenas fundo suave; não alterar cor do texto
+      "hover:bg-purple-50 data-[highlighted]:bg-purple-50",
+      "focus:bg-purple-50 focus:outline-none",
+      "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       inset && "pl-8",
       className
     )}

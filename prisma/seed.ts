@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role, PeriodicidadePlano } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -70,73 +70,108 @@ async function seedAlunos(contaId: string) {
   });
 }
 
-async function seedTurmas(contaId: string) {
-  const turmasData = [
+async function seedModalidadeSala(contaId: string) {
+  const modalidade = await prisma.modalidade.upsert({
+    where: { uq_modalidade_conta_nome: { contaId, nome: 'Ballet' } },
+    update: { status: 'ATIVO', descricao: 'Aulas de Ballet Clássico' },
+    create: { contaId, nome: 'Ballet', status: 'ATIVO', descricao: 'Aulas de Ballet Clássico' },
+  });
+  await prisma.modalidade.upsert({
+    where: { uq_modalidade_conta_nome: { contaId, nome: 'Jazz' } },
+    update: { status: 'ATIVO', descricao: 'Dança Jazz para vários níveis' },
+    create: { contaId, nome: 'Jazz', status: 'ATIVO', descricao: 'Dança Jazz para vários níveis' },
+  });
+  const salaPrincipal = await prisma.sala.upsert({
+    where: { uq_sala_conta_nome: { contaId, nome: 'Sala Principal' } },
+    update: { status: 'ATIVO', capacidade: 30 },
+    create: {
+      contaId,
+      nome: 'Sala Principal',
+      capacidade: 30,
+      status: 'ATIVO',
+      descricao: 'Sala ampla principal',
+    },
+  });
+  const salaSecundaria = await prisma.sala.upsert({
+    where: { uq_sala_conta_nome: { contaId, nome: 'Sala Secundária' } },
+    update: { status: 'ATIVO', capacidade: 15 },
+    create: {
+      contaId,
+      nome: 'Sala Secundária',
+      capacidade: 15,
+      status: 'ATIVO',
+      descricao: 'Sala de apoio menor',
+    },
+  });
+  return { modalidade, sala: salaPrincipal, salaSecundaria };
+}
+
+async function seedTurmas(contaId: string, modalidadeId: string, salaId: string) {
+  const dados = [
     {
       id: 'turma-ballet-iniciante',
       nome: 'Ballet Iniciante',
-      modalidade: 'Ballet',
-      diasSemana: ['SEGUNDA', 'QUARTA'],
-      horarioInicio: '18:00',
-      horarioFim: '19:00',
-    },
-    {
-      id: 'turma-jazz-intermediario',
-      nome: 'Jazz Intermediario',
-      modalidade: 'Jazz',
-      diasSemana: ['TERCA', 'QUINTA'],
-      horarioInicio: '19:00',
-      horarioFim: '20:00',
+      diasSemana: ['SEG', 'QUA', 'DOM'],
+      horaInicio: '18:00',
+      horaFim: '19:00',
+      capacidade: 20,
     },
   ];
-
-  const turmas = [];
-  for (const data of turmasData) {
+  const turmas: { id: string; nome: string }[] = [];
+  for (const d of dados) {
     const turma = await prisma.turma.upsert({
-      where: { id: data.id },
+      where: { id: d.id },
       update: {
-        nome: data.nome,
-        modalidade: data.modalidade,
-        diasSemana: data.diasSemana,
-        horarioInicio: data.horarioInicio,
-        horarioFim: data.horarioFim,
-        sala: 'Sala 1',
-        status: 'ATIVA',
+        nome: d.nome,
+        diasSemana: d.diasSemana,
+        horaInicio: d.horaInicio,
+        horaFim: d.horaFim,
+        capacidade: d.capacidade,
+        modalidadeId,
+        salaId,
         contaId,
+        status: 'ATIVO',
       },
       create: {
-        id: data.id,
+        id: d.id,
         contaId,
-        nome: data.nome,
-        modalidade: data.modalidade,
-        diasSemana: data.diasSemana,
-        horarioInicio: data.horarioInicio,
-        horarioFim: data.horarioFim,
-        sala: 'Sala 1',
+        nome: d.nome,
+        diasSemana: d.diasSemana,
+        horaInicio: d.horaInicio,
+        horaFim: d.horaFim,
+        capacidade: d.capacidade,
+        modalidadeId,
+        salaId,
+        status: 'ATIVO',
       },
     });
-    turmas.push(turma);
+    turmas.push({ id: turma.id, nome: turma.nome });
   }
-
-  console.log('[seed] turmas prontas', turmas.map((t) => ({ id: t.id, nome: t.nome, modalidade: t.modalidade })));
+  console.log(
+    '[seed] turmas prontas',
+    turmas.map((t) => ({ id: t.id, nome: t.nome })),
+  );
   return turmas;
 }
 
 async function seedPlanos(contaId: string) {
-  const planosData = [
+  const planosData: Array<{
+    nome: string;
+    descricao: string;
+    periodicidade: PeriodicidadePlano;
+    valor: string;
+  }> = [
     {
-      nome: 'Mensal 1x/semana',
-      descricao: 'Acesso a uma aula semanal',
-      valor: '150.00',
-      vencimentoDia: 10,
-      frequenciaSemanal: 1,
+      nome: 'Mensal 1x/semana - R$ 165',
+      descricao: 'Inclui uma aula semanal com cobrança mensal.',
+      periodicidade: 'MENSAL' as PeriodicidadePlano,
+      valor: '165.00',
     },
     {
-      nome: 'Mensal 2x/semana',
-      descricao: 'Acesso a duas aulas semanais',
-      valor: '250.00',
-      vencimentoDia: 10,
-      frequenciaSemanal: 2,
+      nome: 'Quinzenal ilimitado - R$ 280',
+      descricao: 'Acesso ilimitado com cobrança quinzenal.',
+      periodicidade: 'QUINZENAL' as PeriodicidadePlano,
+      valor: '280.00',
     },
   ];
 
@@ -146,24 +181,25 @@ async function seedPlanos(contaId: string) {
       where: { uq_plano_conta_nome: { contaId, nome: data.nome } },
       update: {
         descricao: data.descricao,
+        periodicidade: data.periodicidade,
         valor: data.valor,
-        vencimentoDia: data.vencimentoDia,
-        frequenciaSemanal: data.frequenciaSemanal,
         status: 'ATIVO',
       },
       create: {
         contaId,
         nome: data.nome,
         descricao: data.descricao,
+        periodicidade: data.periodicidade,
         valor: data.valor,
-        vencimentoDia: data.vencimentoDia,
-        frequenciaSemanal: data.frequenciaSemanal,
       },
     });
     planos.push(plano);
   }
 
-  console.log('[seed] planos prontos', planos.map((p) => ({ id: p.id, nome: p.nome, valor: p.valor })));
+  console.log(
+    '[seed] planos prontos',
+    planos.map((p) => ({ id: p.id, nome: p.nome, valor: p.valor })),
+  );
   return planos;
 }
 
@@ -180,14 +216,13 @@ async function seedCombo(contaId: string, turmaIds: string[]) {
       descricao: 'Pacote combinando Ballet Iniciante e Jazz Intermediario',
     },
   });
-
-  for (const turmaId of turmaIds) {
-    await prisma.comboTurma.upsert({
-      where: { uq_comboturma_unique: { comboId: combo.id, turmaId } },
-      update: {},
-      create: { comboId: combo.id, turmaId },
-    });
-  }
+  // Inserção em lote evitando duplicados (chave não única declarada no schema original, usamos verificação manual)
+  const existentes = await prisma.comboTurma.findMany({ where: { comboId: combo.id } });
+  const jaSet = new Set(existentes.map((e) => e.turmaId));
+  const novos = turmaIds
+    .filter((id) => !jaSet.has(id))
+    .map((turmaId) => ({ comboId: combo.id, turmaId }));
+  if (novos.length) await prisma.comboTurma.createMany({ data: novos });
 
   console.log('[seed] combo pronto', { id: combo.id, nome: combo.nome, turmas: turmaIds });
 }
@@ -229,34 +264,41 @@ async function seedDescontos(contaId: string) {
     descontos.push(desconto);
   }
 
-  console.log('[seed] descontos prontos', descontos.map((d) => ({ id: d.id, nome: d.nome, tipo: d.tipo })));
+  console.log(
+    '[seed] descontos prontos',
+    descontos.map((d) => ({ id: d.id, nome: d.nome, tipo: d.tipo })),
+  );
   return descontos;
 }
 
 async function seedProfessores(contaId: string) {
-  // Upsert idempotente por email (email é único global; múltiplos NULLs são permitidos no Postgres)
+  // Upsert idempotente por email
   const email = 'professor@example.com';
   const nome = 'Professor Exemplo';
-  const telefone = '11999999999';
-  const bio = 'Instrutor de Ballet';
+  const telefoneCel = '11999999999';
+  const miniBio = 'Instrutor de Ballet';
+  const cpf = '12345678901'; // dado fictício apenas para ambiente de desenvolvimento
+  const dataNasc = new Date('1990-01-01');
 
-  // Observação: até a migração e geração do client, as tipagens locais podem não refletir o novo schema.
-  // Usamos assertions para manter o seed idempotente e coerente com o novo modelo.
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const where: any = { email };
-  const update: any = { nome, telefone, bio, status: 'ATIVO' };
-  const create: any = { contaId, nome, email, telefone, bio, status: 'ATIVO' };
-  const prof = await (prisma as any).professor.upsert({ where, update, create });
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+  // O modelo Professor exige: contaId, nome, cpf, dataNasc, email, telefoneCel (+ campos opcionais)
+  const prof = await prisma.professor.upsert({
+    where: { email },
+    update: { nome, telefoneCel, miniBio, status: 'ATIVO' },
+    create: { contaId, nome, email, telefoneCel, miniBio, status: 'ATIVO', cpf, dataNasc },
+  });
 
   console.log('[seed] professor pronto', { id: prof.id, nome: prof.nome, email: prof.email });
 }
 
 async function main() {
   const conta = await ensureConta();
-  const turmas = await seedTurmas(conta.id);
+  const { modalidade, sala } = await seedModalidadeSala(conta.id);
+  const turmas = await seedTurmas(conta.id, modalidade.id, sala.id);
   const planos = await seedPlanos(conta.id);
-  await seedCombo(conta.id, turmas.map((t) => t.id));
+  await seedCombo(
+    conta.id,
+    turmas.map((t) => t.id),
+  );
   const descontos = await seedDescontos(conta.id);
   await seedProfessores(conta.id);
   await seedAlunos(conta.id);
@@ -275,14 +317,36 @@ async function main() {
   await prisma.usuario.upsert({
     where: { email: adminEmail },
     update: { nome: 'Administrador', role: Role.ADMIN },
-    create: { contaId: conta.id, nome: 'Administrador', email: adminEmail, senhaHash, role: Role.ADMIN }
+    create: {
+      contaId: conta.id,
+      nome: 'Administrador',
+      email: adminEmail,
+      senhaHash,
+      role: Role.ADMIN,
+    },
   });
   console.log('[seed] usuario admin pronto', { email: adminEmail, senha: adminSenhaPlain });
+
+  const alunoEmail = 'aluno@example.com';
+  const alunoSenhaPlain = 'senha123';
+  const alunoSenhaHash = await bcrypt.hash(alunoSenhaPlain + pepper, rounds);
+  await prisma.usuario.upsert({
+    where: { email: alunoEmail },
+    update: { nome: 'Aluno Seed', role: Role.RESPONSAVEL, contaId: conta.id },
+    create: {
+      contaId: conta.id,
+      nome: 'Aluno Seed',
+      email: alunoEmail,
+      senhaHash: alunoSenhaHash,
+      role: Role.RESPONSAVEL,
+    },
+  });
+  console.log('[seed] usuario aluno pronto', { email: alunoEmail, senha: alunoSenhaPlain });
   console.log('[seed] resumo IDs', {
     conta: conta.id,
-    turmas: turmas.map(t => t.id),
-    planos: planos.map(p => p.id),
-    descontos: descontos.map(d => d.id),
+    turmas: turmas.map((t) => t.id),
+    planos: planos.map((p) => p.id),
+    descontos: descontos.map((d) => d.id),
   });
   console.log('[seed] concluido');
 }

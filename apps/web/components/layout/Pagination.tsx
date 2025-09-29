@@ -9,7 +9,14 @@ export interface PaginationProps {
   hideIfSinglePage?: boolean;
 }
 
-export function Pagination({ total, page, pageSize, onChange, className, hideIfSinglePage = true }: PaginationProps) {
+export function Pagination({
+  total,
+  page,
+  pageSize,
+  onChange,
+  className,
+  hideIfSinglePage = true,
+}: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pages = useMemo<(number | '…')[]>(() => {
     if (totalPages <= 1) return [1];
@@ -30,20 +37,42 @@ export function Pagination({ total, page, pageSize, onChange, className, hideIfS
   return (
     <nav aria-label="Paginação" className={className + ' flex justify-center pt-4'}>
       <div className="flex items-center gap-2 text-sm">
-        <PageBtn label="Primeira" disabled={page === 1} onClick={() => onChange(1)}>«</PageBtn>
-        <PageBtn label="Anterior" disabled={page === 1} onClick={() => onChange(Math.max(1, page - 1))}>‹</PageBtn>
-        {pages.map((p, i) => p === '…' ? (
-          <span key={i} className="px-2 text-brand-accent/40">…</span>
-        ) : (
-          <PageBtn
-            key={p}
-            aria-current={p === page ? 'page' : undefined}
-            active={p === page}
-            onClick={() => onChange(p)}
-          >{p}</PageBtn>
-        ))}
-        <PageBtn label="Próxima" disabled={page === totalPages} onClick={() => onChange(Math.min(totalPages, page + 1))}>›</PageBtn>
-        <PageBtn label="Última" disabled={page === totalPages} onClick={() => onChange(totalPages)}>»</PageBtn>
+        <PageBtn label="Primeira" disabled={page === 1} onClick={() => onChange(1)}>
+          «
+        </PageBtn>
+        <PageBtn
+          label="Anterior"
+          disabled={page === 1}
+          onClick={() => onChange(Math.max(1, page - 1))}
+        >
+          ‹
+        </PageBtn>
+        {pages.map((p, i) =>
+          p === '…' ? (
+            <span key={i} className="px-2 text-brand-accent/40">
+              …
+            </span>
+          ) : (
+            <PageBtn
+              key={p}
+              aria-current={p === page ? 'page' : undefined}
+              active={p === page}
+              onClick={() => onChange(p)}
+            >
+              {p}
+            </PageBtn>
+          ),
+        )}
+        <PageBtn
+          label="Próxima"
+          disabled={page === totalPages}
+          onClick={() => onChange(Math.min(totalPages, page + 1))}
+        >
+          ›
+        </PageBtn>
+        <PageBtn label="Última" disabled={page === totalPages} onClick={() => onChange(totalPages)}>
+          »
+        </PageBtn>
       </div>
     </nav>
   );

@@ -9,10 +9,16 @@ describe('Aluno Service', () => {
 
   beforeAll(async () => {
     // garante conta existente
+    // Garante conta com owner (obrigatório)
+    const owner = await prisma.usuario.upsert({
+      where: { email: 'owner+aluno.test@example.com' },
+      update: {},
+      create: { id: 'owner-aluno-test', contaId: contaId, nome: 'Owner Test', email: 'owner+aluno.test@example.com', senhaHash: 'x', role: 'ADMIN', status: 'ATIVO' }
+    });
     await prisma.conta.upsert({
       where: { id: contaId },
-      update: { nome: 'Conta Teste' },
-      create: { id: contaId, nome: 'Conta Teste', cpfCnpj: '99999999999999' }
+      update: { ownerUserId: owner.id },
+      create: { id: contaId, nome: 'Conta Teste', cpfCnpj: '99999999999999', ownerUserId: owner.id }
     });
     
     // Limpar dados de teste (ordem importa por causa das FKs)

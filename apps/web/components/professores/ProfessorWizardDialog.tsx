@@ -105,7 +105,7 @@ function StepPessoais() {
       </div>
       <div className="space-y-1">
         <FieldLabel>CPF</FieldLabel>
-        <IMaskInput mask="000.000.000-00" placeholder="000.000.000-00" className="w-full border rounded px-3 py-2 text-sm" {...register("cpf")} />
+  <IMaskInput mask="000.000.000-00" placeholder="000.000.000-00" className="w-full border border-gray-300 bg-white rounded px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 hover:border-purple-300 hover:bg-purple-25 focus:outline-none focus:ring-0 focus:shadow-none focus:border-gray-300 focus:bg-white" {...register("cpf")} />
         {errors.cpf && <p className="text-xs text-red-600">{errors.cpf.message as string}</p>}
       </div>
       <div className="space-y-1">
@@ -144,16 +144,16 @@ function StepContatoEndereco({ onCepFilled }: { onCepFilled?: () => Promise<void
       </div>
       <div className="space-y-1">
         <FieldLabel>Telefone Celular</FieldLabel>
-        <IMaskInput mask="(00) 00000-0000" placeholder="(00) 00000-0000" className="w-full border rounded px-3 py-2 text-sm" {...register("telefoneCel")} />
+  <IMaskInput mask="(00) 00000-0000" placeholder="(00) 00000-0000" className="w-full border border-gray-300 bg-white rounded px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 hover:border-purple-300 hover:bg-purple-25 focus:outline-none focus:ring-0 focus:shadow-none focus:border-gray-300 focus:bg-white" {...register("telefoneCel")} />
         {errors.telefoneCel && <p className="text-xs text-red-600">{errors.telefoneCel.message as string}</p>}
       </div>
       <div className="space-y-1">
         <FieldLabel>Telefone Fixo (opcional)</FieldLabel>
-        <IMaskInput mask="(00) 0000-0000" placeholder="(00) 0000-0000" className="w-full border rounded px-3 py-2 text-sm" {...register("telefoneFixo")} />
+  <IMaskInput mask="(00) 0000-0000" placeholder="(00) 0000-0000" className="w-full border border-gray-300 bg-white rounded px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 hover:border-purple-300 hover:bg-purple-25 focus:outline-none focus:ring-0 focus:shadow-none focus:border-gray-300 focus:bg-white" {...register("telefoneFixo")} />
       </div>
       <div className="space-y-1">
         <FieldLabel>CEP</FieldLabel>
-        <IMaskInput mask="00000-000" placeholder="00000-000" className="w-full border rounded px-3 py-2 text-sm" {...register("cep")}
+  <IMaskInput mask="00000-000" placeholder="00000-000" className="w-full border border-gray-300 bg-white rounded px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 hover:border-purple-300 hover:bg-purple-25 focus:outline-none focus:ring-0 focus:shadow-none focus:border-gray-300 focus:bg-white" {...register("cep")}
           onBlur={async (e: React.FocusEvent<HTMLInputElement>) => {
             const raw = e.currentTarget.value.replace(/\D/g, "");
             if (raw.length === 8) {

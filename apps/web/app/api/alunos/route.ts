@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listAlunos, createAluno, alunoCreateSchema, type AlunoCreateInput } from '@alusa/lib';
 
 // Util simples para limpar dígitos
-const digits = (v: unknown) => typeof v === 'string' ? v.replace(/\D/g, '') : v;
+const digits = (v: unknown) => (typeof v === 'string' ? v.replace(/\D/g, '') : v);
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -10,28 +10,48 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const contaId = searchParams.get('contaId') || 'conta-default';
-    
+    const contaId = (searchParams.get('contaId') || '').trim();
+    if (!contaId) {
+      return NextResponse.json({ error: 'contaId é obrigatório' }, { status: 400 });
+    }
+
     const alunos = await listAlunos(contaId);
-    
-    return NextResponse.json({
-      success: true,
-      items: alunos,
-      total: alunos.length
+    const items = alunos.map((aluno) => {
+      const bolsaRaw = aluno.bolsaDescontoPercent;
+      const bolsaDescontoPercent =
+        bolsaRaw === null || bolsaRaw === undefined ? null : Number(bolsaRaw);
+
+      return {
+        id: aluno.id,
+        nome: aluno.nome ?? '',
+        email: aluno.email ?? null,
+        telefone: aluno.telefone ?? null,
+        status: aluno.status ?? 'ATIVO',
+        foto: aluno.foto ?? null,
+        cpf: aluno.cpf ?? null,
+        consentimentoImagem: aluno.consentimentoImagem ?? null,
+        dataConsentimentoImagem: aluno.dataConsentimentoImagem
+          ? aluno.dataConsentimentoImagem.toISOString()
+          : null,
+        isentoTaxaMatricula: aluno.isentoTaxaMatricula ?? null,
+        bolsaDescontoPercent,
+        tags: Array.isArray(aluno.tags) ? aluno.tags : null,
+      };
     });
+    return NextResponse.json({ items });
   } catch (error) {
     console.error('Erro ao listar alunos:', error);
-    return NextResponse.json(
-      { error: 'Erro ao carregar alunos' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao carregar alunos' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const raw = await request.json();
-    const contaId = raw.contaId || 'conta-default';
+    const contaId = typeof raw.contaId === 'string' ? raw.contaId.trim() : '';
+    if (!contaId) {
+      return NextResponse.json({ error: 'contaId é obrigatório' }, { status: 400 });
+    }
 
     // Adaptar payload flat do wizard (enderecoCep, enderecoLogradouro, ...) para o formato esperado pela lib (endereco: {...})
     const endereco = {
@@ -41,7 +61,7 @@ export async function POST(request: NextRequest) {
       complemento: raw.enderecoComplemento || undefined,
       bairro: raw.enderecoBairro || 'Bairro',
       cidade: raw.enderecoCidade || 'Cidade',
-      uf: (raw.enderecoUf || 'SP').toString().slice(0,2).toUpperCase(),
+      uf: (raw.enderecoUf || 'SP').toString().slice(0, 2).toUpperCase(),
     };
 
     // Normalizar responsavel (a lib espera campos diretos, endereço pode ser parcial)
@@ -51,15 +71,17 @@ export async function POST(request: NextRequest) {
         ...responsavel,
         cpf: digits(responsavel.cpf),
         telefone: digits(responsavel.telefone),
-        endereco: responsavel.enderecoCep ? {
-          cep: digits(responsavel.enderecoCep),
-          logradouro: responsavel.enderecoLogradouro || 'Endereco',
-          numero: responsavel.enderecoNumero || 'SN',
-          complemento: responsavel.enderecoComplemento || undefined,
-          bairro: responsavel.enderecoBairro || 'Bairro',
-          cidade: responsavel.enderecoCidade || 'Cidade',
-          uf: (responsavel.enderecoUf || 'SP').toString().slice(0,2).toUpperCase(),
-        } : undefined
+        endereco: responsavel.enderecoCep
+          ? {
+              cep: digits(responsavel.enderecoCep),
+              logradouro: responsavel.enderecoLogradouro || 'Endereco',
+              numero: responsavel.enderecoNumero || 'SN',
+              complemento: responsavel.enderecoComplemento || undefined,
+              bairro: responsavel.enderecoBairro || 'Bairro',
+              cidade: responsavel.enderecoCidade || 'Cidade',
+              uf: (responsavel.enderecoUf || 'SP').toString().slice(0, 2).toUpperCase(),
+            }
+          : undefined,
       };
     }
 
@@ -67,7 +89,11 @@ export async function POST(request: NextRequest) {
       contaId,
       nome: raw.nome,
       nomeSocial: raw.nomeSocial || undefined,
-      dataNasc: raw.dataNasc ? (typeof raw.dataNasc === 'string' ? new Date(raw.dataNasc) : raw.dataNasc) : undefined,
+      dataNasc: raw.dataNasc
+        ? typeof raw.dataNasc === 'string'
+          ? new Date(raw.dataNasc)
+          : raw.dataNasc
+        : undefined,
       cpf: digits(raw.cpf),
       email: raw.email,
       telefone: digits(raw.telefone),
@@ -79,12 +105,16 @@ export async function POST(request: NextRequest) {
       alergias: raw.alergias || undefined,
       restricoesMedicas: raw.restricoesMedicas || undefined,
       contatoEmergenciaNome: raw.contatoEmergenciaNome || undefined,
-      contatoEmergenciaTelefone: raw.contatoEmergenciaTelefone ? digits(raw.contatoEmergenciaTelefone) : undefined,
+      contatoEmergenciaTelefone: raw.contatoEmergenciaTelefone
+        ? digits(raw.contatoEmergenciaTelefone)
+        : undefined,
       origemCadastro: raw.origemCadastro || undefined,
       bolsaDescontoPercent: raw.bolsaDescontoPercent ?? undefined,
       isentoTaxaMatricula: raw.isentoTaxaMatricula ?? undefined,
       consentimentoImagem: raw.consentimentoImagem ?? undefined,
-      dataConsentimentoImagem: raw.dataConsentimentoImagem ? new Date(raw.dataConsentimentoImagem) : undefined,
+      dataConsentimentoImagem: raw.dataConsentimentoImagem
+        ? new Date(raw.dataConsentimentoImagem)
+        : undefined,
       consentimentoComunicacoes: raw.consentimentoComunicacoes ?? undefined,
       tamanhoCamiseta: raw.tamanhoCamiseta || undefined,
       tamanhoCalcado: raw.tamanhoCalcado || undefined,
@@ -98,10 +128,14 @@ export async function POST(request: NextRequest) {
     try {
       parsed = alunoCreateSchema.parse(transformed);
     } catch (e) {
-      const issues = (e as { issues?: Array<{ path: (string|number)[]; message: string }> }).issues;
+      const issues = (e as { issues?: Array<{ path: (string | number)[]; message: string }> })
+        .issues;
       if (issues?.length) {
         const first = issues[0];
-        return NextResponse.json({ error: first.message, field: first.path.join('.'), details: issues }, { status: 400 });
+        return NextResponse.json(
+          { error: first.message, field: first.path.join('.'), details: issues },
+          { status: 400 },
+        );
       }
       return NextResponse.json({ error: 'Payload inválido' }, { status: 400 });
     }

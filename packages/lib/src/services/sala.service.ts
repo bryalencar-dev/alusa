@@ -1,0 +1,116 @@
+import { prisma } from '../prisma';
+import { salaSchema } from '../schemas/sala.schema';
+import type { Sala } from '@prisma/client';
+
+export interface SalaListOptions {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: 'ATIVO' | 'INATIVO';
+}
+
+export async function createSala(input: {
+  contaId: string;
+  nome: string;
+  descricao?: string;
+  capacidade: number;
+  status?: 'ATIVO' | 'INATIVO';
+}): Promise<Sala> {
+  const parsed = salaSchema.parse({
+    nome: input.nome?.trim(),
+    descricao: input.descricao?.trim() || undefined,
+    capacidade: input.capacidade,
+    status: input.status,
+  });
+
+  if (input.contaId === 'conta-default') {
+    await prisma.conta.upsert({
+      where: { id: 'conta-default' },
+      update: {},
+      create: {
+        id: 'conta-default',
+        nome: 'Alusa Demo',
+        cpfCnpj: '00000000000000',
+        status: 'ATIVO',
+      },
+    });
+  }
+
+  const exists = await prisma.sala.findFirst({
+    where: { contaId: input.contaId, nome: parsed.nome },
+  });
+  if (exists) throw new Error('Já existe uma sala com este nome nesta conta');
+  try {
+    return await prisma.sala.create({
+      data: {
+        contaId: input.contaId,
+        nome: parsed.nome,
+        descricao: parsed.descricao,
+        capacidade: parsed.capacidade,
+        status: parsed.status ?? 'ATIVO',
+      },
+    });
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') console.error('[createSala] erro', e);
+    throw e;
+  }
+}
+
+export async function updateSala(input: {
+  id: string;
+  contaId: string;
+  nome?: string;
+  descricao?: string;
+  capacidade?: number;
+  status?: 'ATIVO' | 'INATIVO';
+}): Promise<Sala> {
+  const current = await prisma.sala.findFirst({ where: { id: input.id, contaId: input.contaId } });
+  if (!current) throw new Error('Sala não encontrada');
+  const merged = {
+    nome: input.nome ?? current.nome,
+    descricao: input.descricao ?? current.descricao ?? undefined,
+    capacidade: input.capacidade ?? current.capacidade,
+    status: (input.status ?? current.status) as 'ATIVO' | 'INATIVO',
+  };
+  const parsed = salaSchema.parse(merged);
+  if (parsed.nome !== current.nome) {
+    const dup = await prisma.sala.findFirst({
+      where: { contaId: input.contaId, nome: parsed.nome, id: { not: input.id } },
+    });
+    if (dup) throw new Error('Já existe uma sala com este nome nesta conta');
+  }
+  return prisma.sala.update({
+    where: { id: current.id },
+    data: {
+      nome: parsed.nome,
+      descricao: parsed.descricao,
+      capacidade: parsed.capacidade,
+      status: parsed.status ?? current.status,
+    },
+  });
+}
+
+export async function listSalas(contaId: string, opts: SalaListOptions = {}) {
+  const page = Math.max(1, opts.page || 1);
+  const pageSize = Math.min(100, Math.max(1, opts.pageSize || 20));
+  const where: Record<string, unknown> = { contaId };
+  if (opts.q) where.nome = { contains: opts.q, mode: 'insensitive' };
+  if (opts.status) where.status = opts.status;
+  const [data, total] = await Promise.all([
+    prisma.sala.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.sala.count({ where }),
+  ]);
+  return { data, page, pageSize, total };
+}
+
+export async function deleteSala(id: string, contaId: string): Promise<Sala> {
+  const current = await prisma.sala.findFirst({ where: { id, contaId } });
+  if (!current) throw new Error('Sala não encontrada');
+  if (current.status === 'INATIVO') return current;
+  return prisma.sala.update({ where: { id }, data: { status: 'INATIVO' } });
+}

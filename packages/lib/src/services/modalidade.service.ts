@@ -1,0 +1,119 @@
+import { prisma } from '../prisma';
+import { modalidadeSchema } from '../schemas/modalidade.schema';
+import type { Modalidade } from '@prisma/client';
+
+export interface ModalidadeListOptions {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: string;
+}
+
+export async function createModalidade(input: {
+  contaId: string;
+  nome: string;
+  descricao?: string;
+  status?: string;
+}): Promise<Modalidade> {
+  // Normaliza e valida
+  const parsed = modalidadeSchema.parse({
+    nome: input.nome?.trim(),
+    descricao: input.descricao?.trim() || undefined,
+    status: input.status,
+  });
+
+  // Garante conta-default em ambiente de dev (pattern usado em outros serviços)
+  if (input.contaId === 'conta-default') {
+    await prisma.conta.upsert({
+      where: { id: 'conta-default' },
+      update: {},
+      create: {
+        id: 'conta-default',
+        nome: 'Alusa Demo',
+        cpfCnpj: '00000000000000',
+        status: 'ATIVO',
+      },
+    });
+  }
+
+  // Verifica duplicidade (case sensitive por enquanto)
+  const exists = await prisma.modalidade.findFirst({
+    where: { contaId: input.contaId, nome: parsed.nome },
+  });
+  if (exists) throw new Error('Já existe uma modalidade com este nome nesta conta');
+
+  try {
+    return await prisma.modalidade.create({
+      data: {
+        contaId: input.contaId,
+        nome: parsed.nome,
+        descricao: parsed.descricao,
+        status: parsed.status ?? 'ATIVO',
+      },
+    });
+  } catch (e) {
+    // Erros de FK ou constraint caem aqui
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[createModalidade] erro', e);
+    }
+    throw e;
+  }
+}
+
+export async function updateModalidade(input: {
+  id: string;
+  contaId: string;
+  nome?: string;
+  descricao?: string;
+  status?: string;
+}): Promise<Modalidade> {
+  const current = await prisma.modalidade.findFirst({
+    where: { id: input.id, contaId: input.contaId },
+  });
+  if (!current) throw new Error('Modalidade não encontrada');
+  const merged = {
+    nome: input.nome ?? current.nome,
+    descricao: input.descricao ?? current.descricao ?? undefined,
+    status: (input.status ?? current.status) as string,
+  };
+  const parsed = modalidadeSchema.parse(merged);
+  if (parsed.nome !== current.nome) {
+    const dup = await prisma.modalidade.findFirst({
+      where: { contaId: input.contaId, nome: parsed.nome, id: { not: input.id } },
+    });
+    if (dup) throw new Error('Já existe uma modalidade com este nome nesta conta');
+  }
+  return prisma.modalidade.update({
+    where: { id: current.id },
+    data: {
+      nome: parsed.nome,
+      descricao: parsed.descricao,
+      status: parsed.status ?? current.status,
+    },
+  });
+}
+
+export async function listModalidades(contaId: string, opts: ModalidadeListOptions = {}) {
+  const page = Math.max(1, opts.page || 1);
+  const pageSize = Math.min(100, Math.max(1, opts.pageSize || 20));
+  const where: Record<string, unknown> = { contaId };
+  if (opts.q) where.nome = { contains: opts.q, mode: 'insensitive' };
+  if (opts.status) where.status = opts.status;
+  const [data, total] = await Promise.all([
+    prisma.modalidade.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.modalidade.count({ where }),
+  ]);
+  return { data, page, pageSize, total };
+}
+
+export async function deleteModalidade(id: string, contaId: string): Promise<Modalidade> {
+  const current = await prisma.modalidade.findFirst({ where: { id, contaId } });
+  if (!current) throw new Error('Modalidade não encontrada');
+  if (current.status === 'INATIVO') return current;
+  return prisma.modalidade.update({ where: { id }, data: { status: 'INATIVO' } });
+}

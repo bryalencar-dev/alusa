@@ -2,6 +2,19 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Wizard de Aluno', () => {
   test.beforeEach(async ({ page }) => {
+    // Primeiro faz registro/login para ter acesso às páginas autenticadas
+    await page.goto('/register');
+    await page.fill('[data-testid="register-nome-first"]', 'Admin');
+    await page.fill('[data-testid="register-nome-last"]', 'E2E');
+    await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
+    await page.fill('[data-testid="register-email"]', 'admin-e2e@example.com');
+    await page.fill('[data-testid="register-senha"]', 'SenhaFort3!');
+    await page.fill('[data-testid="register-senha-confirmar"]', 'SenhaFort3!');
+    await page.check('input[type="checkbox"]'); // aceitar termos
+    await page.click('[data-testid="register-submit"]');
+    // Aguarda redirecionamento bem-sucedido (qualquer página autenticada)
+    await page.waitForTimeout(2000);
+
     // Intercepta GET de alunos para lista vazia inicialmente
     await page.route('**/api/alunos?**', async (route, request) => {
       if (request.method() === 'GET') {
@@ -27,33 +40,34 @@ test.describe('Wizard de Aluno', () => {
   });
 
   test('cadastro de aluno completo', async ({ page }) => {
-    await page.goto('/admin/alunos');
+    await page.goto('/alunos');
 
     // Aguarda carregamento da página e botão estar visível
-    await expect(page.getByText('Alunos')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Novo aluno' })).toBeVisible();
-    
-    // Abre o wizard
-    await page.getByRole('button', { name: 'Novo aluno' }).click();
+    await expect(page.getByText('Gestão de Alunos')).toBeVisible();
+    await expect(page.getByTestId('abrir-wizard-aluno')).toBeVisible();
 
-    // Preenche campos obrigatórios - nome e data de nascimento
+    // Abre o wizard
+    await page.getByTestId('abrir-wizard-aluno').click();    // Preenche campos obrigatórios - nome e data de nascimento
     await page.getByTestId('aluno-nome').fill('Aluno E2E Wizard');
     const dataInput = page.getByTestId('aluno-dataNasc');
     await dataInput.click();
-    await dataInput.fill('01/01/1990'); // Data formatada
+    await dataInput.fill('1990-01-01'); // Data formato ISO para input type="date"
     await dataInput.blur();
+
+    // Preenche outros campos obrigatórios
+    await page.fill('#aluno-cpf', '123.456.789-01');
+    await page.fill('#aluno-email', 'aluno.e2e@example.com');
+    await page.fill('#aluno-telefone', '(11) 99999-8888');
 
     // Aguarda um pouco para validação
     await page.waitForTimeout(500);
 
     // Avança para Foto
-    await page.getByRole('button', { name: 'Próximo' }).click();
+    await page.getByTestId('wizard-next').click();
     await expect(page.getByTestId('aluno-step-label')).toHaveText('Foto');
-    
+
     // Avança para Endereço (pula Foto)
-    await page.getByRole('button', { name: 'Próximo' }).click();
-    
-    // Aguarda chegar no step de endereço
+    await page.getByTestId('wizard-next').click();    // Aguarda chegar no step de endereço
     await expect(page.getByTestId('aluno-step-label')).toHaveText('Endereço');
     
     // Preenche endereço obrigatório
@@ -67,10 +81,10 @@ test.describe('Wizard de Aluno', () => {
     await page.getByTestId('aluno-endereco-uf').fill('SP');
 
     // Avança até Confirmação (pula passos opcionais)
-    await page.getByRole('button', { name: 'Próximo' }).click(); // Saúde
-    await page.getByRole('button', { name: 'Próximo' }).click(); // Emergência  
-    await page.getByRole('button', { name: 'Próximo' }).click(); // Preferências
-    await page.getByRole('button', { name: 'Próximo' }).click(); // Para Confirmação
+    await page.getByTestId('wizard-next').click(); // Saúde
+    await page.getByTestId('wizard-next').click(); // Emergência  
+    await page.getByTestId('wizard-next').click(); // Preferências
+    await page.getByTestId('wizard-next').click(); // Para Confirmação
     
     // Aguarda chegar na confirmação
     await expect(page.getByTestId('aluno-step-label')).toHaveText('Confirmação');
@@ -104,7 +118,7 @@ test.describe('Wizard de Aluno', () => {
     await page.waitForTimeout(1000);
     
     // Se ainda estiver visível, tentar verificar o que está bloqueando
-    const isStillVisible = await page.getByTestId('wizard-aluno').isVisible();
+    const isStillVisible = await page.getByTestId('aluno-wizard').isVisible();
     if (isStillVisible) {
       // Procurar por erros de validação
       const errorElements = await page.locator('.text-red-500, .text-red-600, [class*="error"]').all();
@@ -126,7 +140,7 @@ test.describe('Wizard de Aluno', () => {
     }
     
     // Aguarda o dialog fechar após o cadastro - isso confirma que o POST foi bem-sucedido
-    await expect(page.getByTestId('wizard-aluno')).toBeHidden({ timeout: 10000 });
+    await expect(page.getByTestId('aluno-wizard')).toBeHidden({ timeout: 10000 });
 
     // Confirma que voltamos para a lista
     await expect(page.getByRole('button', { name: 'Novo aluno' })).toBeVisible();
@@ -145,6 +159,6 @@ test.describe('Wizard de Aluno', () => {
 
     // Confirma que wizard fechou: botão Novo aluno visível novamente
     await expect(page.getByRole('button', { name: 'Novo aluno' })).toBeVisible();
-    await expect(page.getByTestId('wizard-aluno')).toBeHidden();
+    await expect(page.getByTestId('aluno-wizard')).toBeHidden();
   });
 });

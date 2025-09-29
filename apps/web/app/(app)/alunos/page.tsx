@@ -1,18 +1,20 @@
-"use client";
+'use client';
+'use client';
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useEffect, useState } from 'react';
+import { AlunosFeature } from '@/features/cadastro/alunos/AlunosFeature';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Trash2,
   Plus,
@@ -26,23 +28,23 @@ import {
   Edit3,
   Eye,
   EyeOff,
-} from "@/components/icons/icons";
+} from '@/components/icons/icons';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import AlunoWizardDialog from "@/components/alunos/AlunoWizardDialog";
-import { AlunoEditDialog, type EditAluno } from "@/components/alunos/AlunoEditDialog";
-import AlunoDeleteDialog from "@/components/alunos/AlunoDeleteDialog";
+} from '@/components/ui/dropdown-menu';
+import AlunoWizardDialog from '@/components/alunos/AlunoWizardDialog';
+import { AlunoEditDialog, type EditAluno } from '@/components/alunos/AlunoEditDialog';
+import ConfirmDeleteDialog from '@/components/dialogs/ConfirmDeleteDialog';
 
 type Aluno = {
   id: string;
   nome: string;
   email?: string;
   telefone?: string;
-  status: "ATIVO" | "INATIVO";
+  status: 'ATIVO' | 'INATIVO';
   foto?: string;
   cpf?: string;
   consentimentoImagem?: boolean;
@@ -55,20 +57,13 @@ type Aluno = {
 };
 
 function maskCpf(cpf: string) {
-  const d = cpf.replace(/\D/g, "");
+  const d = cpf.replace(/\D/g, '');
   if (d.length !== 11) return cpf;
-  return (
-    d.slice(0, 3) +
-    "." +
-    d.slice(3, 6) +
-    "." +
-    d.slice(6, 9) +
-    "-" +
-    d.slice(9, 11)
-  );
+  return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9, 11);
 }
 
-export default function AlunosPage() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function LegacyAlunosPage() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alunos, setAlunos] = useState<Aluno[]>([]);
@@ -83,34 +78,31 @@ export default function AlunosPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteAlunoId, setDeleteAlunoId] = useState<string | null>(null);
   const [deleteAlunoNome, setDeleteAlunoNome] = useState<string | undefined>(undefined);
+  const [deleteMotivo, setDeleteMotivo] = useState('');
   // Ordenação
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("ASC");
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('ASC');
 
   // Filtros
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "TODOS" | "ATIVO" | "INATIVO"
-  >("TODOS");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'TODOS' | 'ATIVO' | 'INATIVO'>('TODOS');
   // Removido: isento/bolsa do print. Manteremos apenas Status e Busca na barra.
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/alunos?contaId=conta-default", {
-        cache: "no-store",
+      const res = await fetch('/api/alunos?contaId=conta-default', {
+        cache: 'no-store',
       });
-      if (!res.ok) throw new Error("Falha ao carregar alunos");
+      if (!res.ok) throw new Error('Falha ao carregar alunos');
       const data = await res.json();
       const items = (Array.isArray(data?.items) ? data.items : []).map(
         (a: Partial<Aluno>) =>
           ({
             id: String(a.id),
-            nome: String(a.nome ?? ""),
+            nome: String(a.nome ?? ''),
             email: a.email ?? undefined,
             telefone: a.telefone ?? undefined,
-            status: (a.status === "INATIVO" ? "INATIVO" : "ATIVO") as
-              | "ATIVO"
-              | "INATIVO",
+            status: (a.status === 'INATIVO' ? 'INATIVO' : 'ATIVO') as 'ATIVO' | 'INATIVO',
             foto: a.foto ?? undefined,
             cpf: a.cpf ?? undefined,
             consentimentoImagem: Boolean(a.consentimentoImagem),
@@ -120,7 +112,7 @@ export default function AlunosPage() {
             tags: Array.isArray(a.tags) ? a.tags : [],
             dataInativacao: a.dataInativacao ?? null,
             motivoInativacao: a.motivoInativacao ?? null,
-          } as Aluno)
+          }) as Aluno,
       );
       setAlunos(items);
     } catch {
@@ -157,20 +149,16 @@ export default function AlunosPage() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const nome = aluno.nome.toLowerCase();
-      const email = (aluno.email || "").toLowerCase();
-      const cpf = (aluno.cpf || "").replace(/\D/g, "");
-      const termNumbers = searchTerm.replace(/\D/g, "");
+      const email = (aluno.email || '').toLowerCase();
+      const cpf = (aluno.cpf || '').replace(/\D/g, '');
+      const termNumbers = searchTerm.replace(/\D/g, '');
 
-      if (
-        !nome.includes(term) &&
-        !email.includes(term) &&
-        !cpf.includes(termNumbers)
-      ) {
+      if (!nome.includes(term) && !email.includes(term) && !cpf.includes(termNumbers)) {
         return false;
       }
     }
 
-    if (statusFilter !== "TODOS" && aluno.status !== statusFilter) {
+    if (statusFilter !== 'TODOS' && aluno.status !== statusFilter) {
       return false;
     }
 
@@ -181,8 +169,8 @@ export default function AlunosPage() {
 
   // Aplicar ordenação por nome conforme sortOrder
   const orderedAlunos = [...filteredAlunos].sort((a, b) => {
-    const comp = a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" });
-    return sortOrder === "ASC" ? comp : -comp;
+    const comp = a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
+    return sortOrder === 'ASC' ? comp : -comp;
   });
 
   return (
@@ -198,35 +186,37 @@ export default function AlunosPage() {
       </div>
 
       {/* Barra de ações */}
-  <div className="bg-white rounded-xl border p-4">
+      <div className="bg-white rounded-xl border p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {/* Ações à esquerda */}
           <div className="flex items-center gap-3">
             <Button
               onClick={() => setOpen(true)}
-              className="bg-brand-accent hover:bg-brand-accent/90 text-white"
+              className="h-10 px-4 bg-brand-accent hover:bg-brand-accent/90 text-white shadow-none"
               aria-label="Cadastrar aluno"
               data-testid="abrir-wizard-aluno"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Aluno
+              <Plus className="h-4 w-4 mr-2 transition-none" />
+              Cadastrar aluno
             </Button>
             <Button
               variant="outline"
               onClick={() => setHideSensitive((v) => !v)}
-              className="bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-              title={hideSensitive ? "Mostrar CPF, e-mail e telefone" : "Ocultar CPF, e-mail e telefone"}
-              aria-label={hideSensitive ? "Mostrar dados sensíveis" : "Ocultar dados sensíveis"}
+              className="h-10 px-4 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-none [&_svg]:transition-none"
+              title={
+                hideSensitive ? 'Mostrar CPF, e-mail e telefone' : 'Ocultar CPF, e-mail e telefone'
+              }
+              aria-label={hideSensitive ? 'Mostrar dados sensíveis' : 'Ocultar dados sensíveis'}
               aria-pressed={hideSensitive}
             >
               {hideSensitive ? (
                 <>
-                  <Eye className="h-4 w-4 mr-2" />
+                  <Eye className="h-4 w-4 mr-2 transition-none" />
                   Mostrar dados
                 </>
               ) : (
                 <>
-                  <EyeOff className="h-4 w-4 mr-2" />
+                  <EyeOff className="h-4 w-4 mr-2 transition-none" />
                   Ocultar dados
                 </>
               )}
@@ -240,9 +230,9 @@ export default function AlunosPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                  className="h-10 px-4 bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-none"
                 >
-                  <Filter className="h-4 w-4 mr-2" />
+                  <Filter className="h-4 w-4 mr-2 transition-none" />
                   Filtro
                 </Button>
               </DropdownMenuTrigger>
@@ -251,28 +241,26 @@ export default function AlunosPage() {
                   Ordenar por nome
                 </div>
                 <DropdownMenuItem
-                  onClick={() => setSortOrder("ASC")}
-                  className={"justify-between " + (sortOrder === "ASC" ? "text-brand-accent" : "")}
+                  onClick={() => setSortOrder('ASC')}
+                  className={'justify-between ' + (sortOrder === 'ASC' ? 'text-brand-accent' : '')}
                 >
                   A–Z (crescente)
-                  {sortOrder === "ASC" ? <CheckCircle className="h-4 w-4" /> : null}
+                  {sortOrder === 'ASC' ? <CheckCircle className="h-4 w-4" /> : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => setSortOrder("DESC")}
-                  className={"justify-between " + (sortOrder === "DESC" ? "text-brand-accent" : "")}
+                  onClick={() => setSortOrder('DESC')}
+                  className={'justify-between ' + (sortOrder === 'DESC' ? 'text-brand-accent' : '')}
                 >
                   Z–A (decrescente)
-                  {sortOrder === "DESC" ? <CheckCircle className="h-4 w-4" /> : null}
+                  {sortOrder === 'DESC' ? <CheckCircle className="h-4 w-4" /> : null}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Select
               value={statusFilter}
-              onValueChange={(value) =>
-                setStatusFilter(value as typeof statusFilter)
-              }
+              onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="h-10 !w-auto md:!w-auto shrink-0 min-w-[140px] max-w-[170px] whitespace-nowrap bg-white text-gray-700 border border-gray-300 shadow-none px-3 flex items-center justify-between gap-2">
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent align="end">
@@ -282,13 +270,13 @@ export default function AlunosPage() {
               </SelectContent>
             </Select>
 
-            <div className="relative flex-1 md:w-[320px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <div className="relative w-full md:flex-1 md:min-w-[250px] md:max-w-[420px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 transition-none" />
               <Input
                 placeholder="Buscar por nome, email ou CPF..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="h-10 pl-10 border border-gray-300 shadow-none placeholder:text-gray-400"
               />
             </div>
           </div>
@@ -350,32 +338,24 @@ export default function AlunosPage() {
             {/* Linhas */}
             <div className="divide-y">
               {orderedAlunos.length === 0 ? (
-                <div className="px-6 py-12 text-center text-gray-500">
-                  Nenhum aluno encontrado
-                </div>
+                <div className="px-6 py-12 text-center text-gray-500">Nenhum aluno encontrado</div>
               ) : (
                 // Paginação client-side
-                (() => {
-                  const totalPages = Math.max(
-                    1,
-                    Math.ceil(orderedAlunos.length / pageSize)
-                  );
+                ((() => {
+                  const totalPages = Math.max(1, Math.ceil(orderedAlunos.length / pageSize));
                   if (page > totalPages) setPage(totalPages);
-                })()
-                  ,
-                orderedAlunos
-                  .slice((page - 1) * pageSize, page * pageSize)
-                  .map((aluno) => {
+                })(),
+                orderedAlunos.slice((page - 1) * pageSize, page * pageSize).map((aluno) => {
                   const initials = aluno.nome
                     .split(/\s+/)
                     .slice(0, 2)
                     .map((p) => p[0])
-                    .join("")
+                    .join('')
                     .toUpperCase();
                   const shouldBlur = (val: string | undefined) =>
-                    hideSensitive && !!val && val !== "-";
+                    hideSensitive && !!val && val !== '-';
                   const blurBox =
-                    "inline-block filter blur-[3px] px-1 -mx-1 py-0.5 -my-0.5 leading-[20px]";
+                    'inline-block filter blur-[3px] px-1 -mx-1 py-0.5 -my-0.5 leading-[20px]';
 
                   return (
                     <div
@@ -386,15 +366,16 @@ export default function AlunosPage() {
                         {/* Aluno */}
                         <div className="col-span-3 flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            {aluno.foto ? (
-                              <AvatarImage src={aluno.foto} alt={aluno.nome} />
-                            ) : null}
+                            {aluno.foto ? <AvatarImage src={aluno.foto} alt={aluno.nome} /> : null}
                             <AvatarFallback className="bg-purple-100 text-purple-700 font-medium">
                               {initials}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <div className="font-normal text-gray-900 text-[13px] truncate" data-testid={`aluno-nome-${aluno.id}`}>
+                            <div
+                              className="font-normal text-gray-900 text-[13px] truncate"
+                              data-testid={`aluno-nome-${aluno.id}`}
+                            >
                               {aluno.nome}
                             </div>
                             {/* Espaço reservado para chips abaixo do nome */}
@@ -422,35 +403,35 @@ export default function AlunosPage() {
 
                         {/* CPF */}
                         <div className="col-span-2 text-[13px] text-gray-700 text-center">
-                          <span className={shouldBlur(aluno.cpf) ? blurBox : "leading-[20px]"}>
-                            {aluno.cpf ? maskCpf(aluno.cpf) : "-"}
+                          <span className={shouldBlur(aluno.cpf) ? blurBox : 'leading-[20px]'}>
+                            {aluno.cpf ? maskCpf(aluno.cpf) : '-'}
                           </span>
                         </div>
 
                         {/* E-mail */}
                         <div
                           className="col-span-3 text-[13px] text-gray-700 text-center"
-                          title={aluno.email || ""}
+                          title={aluno.email || ''}
                         >
                           {shouldBlur(aluno.email) ? (
-                            <span className={blurBox}>{aluno.email || "-"}</span>
+                            <span className={blurBox}>{aluno.email || '-'}</span>
                           ) : (
                             <span className="inline-block max-w-full truncate leading-[20px]">
-                              {aluno.email || "-"}
+                              {aluno.email || '-'}
                             </span>
                           )}
                         </div>
 
                         {/* Telefone */}
                         <div className="col-span-2 text-[13px] text-gray-700 text-center">
-                          <span className={shouldBlur(aluno.telefone) ? blurBox : "leading-[20px]"}>
-                            {aluno.telefone || "-"}
+                          <span className={shouldBlur(aluno.telefone) ? blurBox : 'leading-[20px]'}>
+                            {aluno.telefone || '-'}
                           </span>
                         </div>
 
                         {/* Status */}
                         <div className="col-span-1 flex justify-center">
-                          {aluno.status === "ATIVO" ? (
+                          {aluno.status === 'ATIVO' ? (
                             <Badge className="bg-green-100 text-green-700 border-green-200">
                               Ativo
                             </Badge>
@@ -492,7 +473,7 @@ export default function AlunosPage() {
                       </div>
                     </div>
                   );
-                })
+                }))
               )}
             </div>
           </>
@@ -520,25 +501,85 @@ export default function AlunosPage() {
           onCreated();
         }}
       />
-      <AlunoDeleteDialog
+      <ConfirmDeleteDialog
         open={deleteOpen}
+        title="Excluir aluno"
+        description={(() => {
+          if (!deleteAlunoNome) {
+            return 'Tem certeza que deseja excluir este aluno? Esta ação é permanente.';
+          }
+          const parts = deleteAlunoNome.trim().split(/\s+/);
+          const first = parts[0];
+          const last = parts.length > 1 ? parts[parts.length - 1] : '';
+          const display =
+            last && last.toLowerCase() !== first.toLowerCase() ? `${first} ${last}` : first;
+          return (
+            <span>
+              Tem certeza que deseja excluir <strong>{display}</strong>? Esta ação é permanente.
+            </span>
+          );
+        })()}
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        loadingLabel="Excluindo..."
         onOpenChange={(o) => {
           if (!o) {
             setDeleteAlunoId(null);
             setDeleteAlunoNome(undefined);
+            setDeleteMotivo('');
           }
           setDeleteOpen(o);
         }}
-        alunoId={deleteAlunoId}
-        alunoNome={deleteAlunoNome}
-        onDeleted={() => {
-          setDeleteOpen(false);
-          load();
+        onConfirm={async () => {
+          if (!deleteAlunoId) return;
+          try {
+            const qs = deleteMotivo.trim()
+              ? `?motivo=${encodeURIComponent(deleteMotivo.trim())}`
+              : '';
+            const res = await fetch(`/api/alunos/${deleteAlunoId}${qs}`, { method: 'DELETE' });
+            if (!res.ok) {
+              // opcional: capturar erro
+              return;
+            }
+            try {
+              window.dispatchEvent(new CustomEvent('alunos:changed'));
+            } catch {
+              /* noop */
+            }
+            setDeleteOpen(false);
+            setDeleteAlunoId(null);
+            setDeleteAlunoNome(undefined);
+            setDeleteMotivo('');
+            load();
+          } catch {
+            /* noop */
+          }
         }}
-      />
+      >
+        <div className="space-y-3 text-left">
+          <label
+            htmlFor="motivo-aluno"
+            className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
+          >
+            Motivo (opcional)
+          </label>
+          <textarea
+            id="motivo-aluno"
+            value={deleteMotivo}
+            onChange={(e) => setDeleteMotivo(e.target.value)}
+            rows={3}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-[#7A1BFF] focus:outline-none focus:ring-2 focus:ring-[#A94DFF]/40"
+            placeholder="Ex.: duplicado, teste, solicitação do responsável..."
+          />
+          <p className="text-xs leading-4 text-slate-500">
+            Esse campo é opcional e fica registrado apenas para controle interno.
+          </p>
+        </div>
+      </ConfirmDeleteDialog>
     </div>
   );
 }
+void LegacyAlunosPage;
 
 function mapToEditAluno(a: Aluno): EditAluno {
   return {
@@ -596,7 +637,7 @@ function Pagination({
   const clamp = (n: number) => Math.min(totalPages, Math.max(1, n));
 
   const makePages = () => {
-    const pages: (number | "…")[] = [];
+    const pages: (number | '…')[] = [];
     const maxButtons = 5; // 1, 2, current, last-1, last (com elipses)
     if (totalPages <= maxButtons + 2) {
       for (let i = 1; i <= totalPages; i++) pages.push(i);
@@ -606,9 +647,9 @@ function Pagination({
     const left = Math.max(2, page - siblings);
     const right = Math.min(totalPages - 1, page + siblings);
     pages.push(1);
-    if (left > 2) pages.push("…");
+    if (left > 2) pages.push('…');
     for (let i = left; i <= right; i++) pages.push(i);
-    if (right < totalPages - 1) pages.push("…");
+    if (right < totalPages - 1) pages.push('…');
     pages.push(totalPages);
     return pages;
   };
@@ -618,11 +659,7 @@ function Pagination({
   return (
     <div className="flex items-center justify-center py-6">
       <div className="flex items-center gap-2 text-sm">
-        <IconButton
-          aria-label="Primeira página"
-          disabled={page === 1}
-          onClick={() => onChange(1)}
-        >
+        <IconButton aria-label="Primeira página" disabled={page === 1} onClick={() => onChange(1)}>
           <ChevronsLeft className="h-4 w-4" />
         </IconButton>
         <IconButton
@@ -634,7 +671,7 @@ function Pagination({
         </IconButton>
 
         {pages.map((p, idx) =>
-          p === "…" ? (
+          p === '…' ? (
             <span key={`e-${idx}`} className="px-2 text-brand-accent/50">
               …
             </span>
@@ -642,19 +679,19 @@ function Pagination({
             <button
               key={p}
               onClick={() => onChange(p)}
-              aria-current={p === page ? "page" : undefined}
+              aria-current={p === page ? 'page' : undefined}
               className={
-                "h-8 w-8 rounded-md border transition grid place-items-center " +
-                "border-brand-accent/30 text-brand-accent hover:bg-brand-accent hover:text-white hover:border-brand-accent " +
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40 focus-visible:ring-offset-1 focus-visible:ring-offset-white " +
+                'h-8 w-8 rounded-md border transition grid place-items-center ' +
+                'border-brand-accent/30 text-brand-accent hover:bg-brand-accent hover:text-white hover:border-brand-accent ' +
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/40 focus-visible:ring-offset-1 focus-visible:ring-offset-white ' +
                 (p === page
-                  ? "bg-brand-accent text-white border-brand-accent hover:bg-brand-accent/90 hover:text-white"
-                  : "bg-white")
+                  ? 'bg-brand-accent text-white border-brand-accent hover:bg-brand-accent/90 hover:text-white'
+                  : 'bg-white')
               }
             >
               {p}
             </button>
-          )
+          ),
         )}
 
         <IconButton
@@ -680,12 +717,12 @@ function IconButton({
   children,
   onClick,
   disabled,
-  "aria-label": ariaLabel,
+  'aria-label': ariaLabel,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
-  "aria-label"?: string;
+  'aria-label'?: string;
 }) {
   return (
     <button
@@ -700,4 +737,8 @@ function IconButton({
       {children}
     </button>
   );
+}
+
+export default function AlunosPage() {
+  return <AlunosFeature />;
 }

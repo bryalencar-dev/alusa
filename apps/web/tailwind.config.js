@@ -31,6 +31,14 @@ module.exports = {
         violet: {
           600: '#7c3aed',
           700: '#6d28d9'
+        },
+        purple: {
+          25: '#fefcff',
+          50: '#faf5ff',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          600: '#7c3aed',
+          900: '#581c87'
         }
       },
       boxShadow: {

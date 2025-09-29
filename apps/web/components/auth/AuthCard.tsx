@@ -1,16 +1,15 @@
-// AuthCard: container padrão de formulários de autenticação
-import React from 'react';
-import { cn } from '../../lib/ui';
+"use client";
+import type { HTMLAttributes, ReactNode } from 'react';
 
-export interface AuthCardProps extends React.HTMLAttributes<HTMLDivElement> {
-  children: React.ReactNode;
+interface Props extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode;
+  className?: string;
 }
 
-export function AuthCard({ className, children, ...rest }: AuthCardProps) {
+export default function AuthCard({ children, className, ...rest }: Props) {
   return (
     <div
-      data-component="AuthCard"
-      className={cn('flex flex-col items-center justify-center gap-5 bg-white rounded-[40px] px-10 py-[42px] w-[420px] max-w-[92vw] shadow-card', className)}
+      className={`mx-auto w-[420px] max-w-[92vw] rounded-[40px] bg-white p-10 shadow-[0_6px_24px_rgba(0,0,0,0.12)] flex flex-col items-center ${className ?? ''}`}
       {...rest}
     >
       {children}

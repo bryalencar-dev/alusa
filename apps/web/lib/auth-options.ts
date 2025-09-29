@@ -5,7 +5,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { z } from 'zod';
 import { verifyCredentials } from './auth-service';
 
-declare module 'next-auth/jwt' { interface JWT { id?: string; role?: string } }
+declare module 'next-auth/jwt' { interface JWT { id?: string; role?: string; contaId?: string } }
 
 const creds = z.object({ email: z.string().email(), password: z.string().min(6) });
 const secret = process.env.NEXTAUTH_SECRET;
@@ -20,10 +20,16 @@ export const authOptions: NextAuthOptions = {
     credentials: { email: { label: 'Email', type: 'text' }, password: { label: 'Senha', type: 'password' } },
     async authorize(raw) {
       const parsed = creds.safeParse(raw);
-      if (!parsed.success) return null;
+      if (!parsed.success) {
+        if (process.env.AUTH_DEBUG === 'true') console.debug('[auth] authorize zod fail', parsed.error.flatten());
+        return null;
+      }
       const u = await verifyCredentials(parsed.data.email, parsed.data.password);
-      if (!u) return null;
-  return { id: u.id, name: u.nome, email: u.email, role: u.role } as any;
+      if (!u) {
+        if (process.env.AUTH_DEBUG === 'true') console.debug('[auth] authorize invalid credentials', { email: parsed.data.email });
+        return null;
+      }
+  return { id: u.id, name: u.nome, email: u.email, role: u.role, contaId: u.contaId } as any;
     }
   }) as any],
   callbacks: {
@@ -35,6 +41,7 @@ export const authOptions: NextAuthOptions = {
         // Propagar também email e name com defaults não-undefined
         (token as any).email = (user as any).email ?? '';
         (token as any).name = (user as any).name ?? '';
+        (token as any).contaId = (user as any).contaId ?? '';
       }
       return token;
     },
@@ -45,6 +52,7 @@ export const authOptions: NextAuthOptions = {
       (session.user as any).email = (token as any).email ?? '';
       (session.user as any).name = (token as any).name ?? '';
       (session.user as any).role = (token as any).role ?? 'USER';
+      (session.user as any).contaId = (token as any).contaId ?? '';
       return session;
     },
     async redirect({ url, baseUrl }) {

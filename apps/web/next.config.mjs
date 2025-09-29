@@ -9,11 +9,22 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   transpilePackages: ['@alusa/lib', '@alusa/ui'],
+  async rewrites() {
+    return [
+      { source: '/auth/login', destination: '/login' },
+      { source: '/auth/register', destination: '/register' },
+      { source: '/auth/accept', destination: '/accept' },
+      { source: '/auth/complete-profile', destination: '/complete-profile' },
+      { source: '/auth/forgot-password', destination: '/forgot-password' },
+      { source: '/auth/reset-password', destination: '/reset-password' },
+    ];
+  },
   webpack: (config) => {
     // Alias direto para o pacote do monorepo (fallback robusto para pnpm)
     config.resolve = config.resolve || {};
     config.resolve.alias = config.resolve.alias || {};
     config.resolve.alias['@alusa/lib'] = resolvePath(__dirname, '../../packages/lib/dist');
+    config.resolve.alias['@alusa/lib/client'] = resolvePath(__dirname, '../../packages/lib/dist/client.js');
     return config;
   },
 };

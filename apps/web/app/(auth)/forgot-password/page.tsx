@@ -4,16 +4,31 @@ import React, { useState } from 'react';
 import { Mail } from '@/components/icons/icons';
 import { toast } from 'sonner';
 import { CustomToast } from '@/components/CustomToast';
+import AuthPageContainer from '@/components/auth/AuthPageContainer';
+import AuthCard from '@/components/auth/AuthCard';
+import { debugLog, isAuthDebug } from '@/lib/debug-logger';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const safeParse = async (r: Response): Promise<{ error?: string }> => {
+    try {
+      const j: unknown = await r.json();
+      if (typeof j === 'object' && j !== null) {
+        const rec = j as Record<string, unknown>;
+        if (typeof rec.error === 'string') return { error: rec.error };
+      }
+      return {};
+    } catch { return { error: 'Recuperação indisponível.' }; }
+  };
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
     try {
+      if (isAuthDebug) debugLog('forgot-password', 'request', { email });
       const res = await fetch('/api/auth/forgot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -21,17 +36,8 @@ export default function ForgotPasswordPage() {
       });
 
       if (res.status === 501) {
-        async function safeParse(r: Response): Promise<{ error?: string }> {
-          try {
-            const j: unknown = await r.json();
-            if (typeof j === 'object' && j !== null) {
-              const rec = j as Record<string, unknown>;
-              if (typeof rec.error === 'string') return { error: rec.error };
-            }
-            return {};
-          } catch { return { error: 'Recuperação indisponível.' }; }
-        }
         const body = await safeParse(res);
+        if (isAuthDebug) debugLog('forgot-password', 'unavailable', { status: res.status });
         toast.custom((t) => (
           <CustomToast
             variant="error"
@@ -41,6 +47,7 @@ export default function ForgotPasswordPage() {
           />
         ));
       } else if (res.ok) {
+        if (isAuthDebug) debugLog('forgot-password', 'success');
         toast.custom((t) => (
           <CustomToast
             variant="info"
@@ -50,6 +57,7 @@ export default function ForgotPasswordPage() {
           />
         ));
       } else {
+        if (isAuthDebug) debugLog('forgot-password', 'error', { status: res.status });
         toast.custom((t) => (
           <CustomToast
             variant="error"
@@ -60,6 +68,7 @@ export default function ForgotPasswordPage() {
         ));
       }
     } catch {
+      if (isAuthDebug) debugLog('forgot-password', 'network-error');
       toast.custom((t) => (
         <CustomToast
           variant="error"
@@ -74,10 +83,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="mx-auto w-[420px] max-w-[92vw] rounded-[40px] bg-white p-10 shadow-[0_6px_24px_rgba(0,0,0,0.12)] flex flex-col items-center" data-layer="form forgot-password">
-      <h1 className="text-2xl font-bold text-center">Recuperar senha</h1>
-      <p className="text-sm text-[#686868] text-center mt-2 max-w-[320px]">Informe o e-mail cadastrado. Enviaremos um link para redefinir sua senha.</p>
-      <form onSubmit={(e)=>{ void onSubmit(e); }} className="mt-6 flex flex-col gap-5 items-center w-full" noValidate>
+    <AuthPageContainer>
+      <AuthCard className="w-[420px] p-10">
+        <h1 className="text-2xl font-bold text-center">Recuperar senha</h1>
+        <p className="text-sm text-[#686868] text-center mt-2 max-w-[320px]">Informe o e-mail cadastrado. Enviaremos um link para redefinir sua senha.</p>
+        <form onSubmit={(e)=>{ void onSubmit(e); }} className="mt-6 flex flex-col gap-5 items-center w-full" noValidate>
         <div className="relative mx-auto w-[320px] h-12">
           <label htmlFor="email" className="sr-only">E-mail</label>
           <input
@@ -88,7 +98,7 @@ export default function ForgotPasswordPage() {
             required
             value={email}
             onChange={(e)=>{ setEmail(e.target.value); }}
-            className="h-12 w-full rounded-[30px] border border-[#E2E2E8] pl-5 pr-11 text-sm placeholder:text-[#828282] outline-none focus:outline-none"
+            className="h-12 w-full rounded-[30px] border border-gray-300 bg-white pl-5 pr-11 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-300 focus:ring-0"
             aria-invalid={email.length>0 && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? 'true' : undefined}
           />
           <Mail className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#828282]" aria-hidden />
@@ -102,9 +112,10 @@ export default function ForgotPasswordPage() {
         </button>
         <p className="text-center text-[11px] font-medium w-[320px] mt-1">
           <span className="text-[#686868]">Tenho uma conta? </span>
-          <a href="/login" className="text-[#4F2298] hover:underline">Fazer login</a>
+          <a href="/auth/login" className="text-[#4F2298] hover:underline">Fazer login</a>
         </p>
-      </form>
-    </div>
+        </form>
+      </AuthCard>
+    </AuthPageContainer>
   );
 }

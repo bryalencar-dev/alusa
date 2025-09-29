@@ -19,24 +19,23 @@ import {
   TicketIcon,
   Cog6ToothIcon,
   ChevronLeftIcon,
-} from '@heroicons/react/24/outline';
-import {
-  Squares2X2Icon as Squares2X2Solid,
-  AcademicCapIcon as AcademicCapSolid,
-  UserIcon as UserSolid,
-  UsersIcon as UsersSolid,
-  BookOpenIcon as BookOpenSolid,
-  BuildingLibraryIcon as BuildingLibrarySolid,
-  RectangleStackIcon as RectangleStackSolid,
-  ClipboardDocumentCheckIcon as ClipboardDocumentCheckSolid,
-  BanknotesIcon as BanknotesSolid,
-  CalendarDaysIcon as CalendarDaysSolid,
-  ChartBarIcon as ChartBarSolid,
-  ShoppingBagIcon as ShoppingBagSolid,
-  TicketIcon as TicketSolid,
-  Cog6ToothIcon as Cog6ToothSolid,
-} from '@heroicons/react/24/solid';
+  Squares2X2Solid,
+  AcademicCapSolid,
+  UserSolid,
+  UsersSolid,
+  BookOpenSolid,
+  BuildingLibrarySolid,
+  RectangleStackSolid,
+  ClipboardDocumentCheckSolid,
+  BanknotesSolid,
+  CalendarDaysSolid,
+  ChartBarSolid,
+  ShoppingBagSolid,
+  TicketSolid,
+  Cog6ToothSolid,
+} from '@/components/icons/icons';
 import { useTheme } from '@/components/theme/ThemeProvider';
+import { useSession } from 'next-auth/react';
 
 /** Tokens visuais (mantém sua coluna/tamanho) */
 const TOKENS = {
@@ -47,7 +46,13 @@ const TOKENS = {
 } as const;
 
 type SubItem = { label: string; href: string; icon: React.ReactNode; iconSolid: React.ReactNode };
-type Group = { key: string; label: string; icon: React.ReactNode; iconSolid: React.ReactNode; items: SubItem[] };
+type Group = {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  iconSolid: React.ReactNode;
+  items: SubItem[];
+};
 
 const GROUPS: Group[] = [
   {
@@ -56,11 +61,48 @@ const GROUPS: Group[] = [
     icon: <AcademicCapIcon className="h-5 w-5" />,
     iconSolid: <AcademicCapSolid className="h-5 w-5" />,
     items: [
-      { label: 'Alunos', href: '/alunos', icon: <UserIcon className="h-5 w-5" />, iconSolid: <UserSolid className="h-5 w-5" /> },
-      { label: 'Professores', href: '/professores', icon: <UsersIcon className="h-5 w-5" />, iconSolid: <UsersSolid className="h-5 w-5" /> },
-      { label: 'Turmas', href: '/turmas', icon: <BookOpenIcon className="h-5 w-5" />, iconSolid: <BookOpenSolid className="h-5 w-5" /> },
-      { label: 'Salas', href: '/salas', icon: <BuildingLibraryIcon className="h-5 w-5" />, iconSolid: <BuildingLibrarySolid className="h-5 w-5" /> },
-      { label: 'Cursos', href: '/cursos', icon: <RectangleStackIcon className="h-5 w-5" />, iconSolid: <RectangleStackSolid className="h-5 w-5" /> },
+      {
+        label: 'Alunos',
+        href: '/alunos',
+        icon: <UserIcon className="h-5 w-5" />,
+        iconSolid: <UserSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Colaboradores',
+        href: '/colaboradores',
+        icon: <UsersIcon className="h-5 w-5" />,
+        iconSolid: <UsersSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Turmas',
+        href: '/turmas',
+        icon: <BookOpenIcon className="h-5 w-5" />,
+        iconSolid: <BookOpenSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Planos',
+        href: '/planos',
+        icon: <RectangleStackIcon className="h-5 w-5" />,
+        iconSolid: <RectangleStackSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Modalidades',
+        href: '/modalidades',
+        icon: <BookOpenIcon className="h-5 w-5" />,
+        iconSolid: <BookOpenSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Salas',
+        href: '/salas',
+        icon: <BuildingLibraryIcon className="h-5 w-5" />,
+        iconSolid: <BuildingLibrarySolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Cursos',
+        href: '/cursos',
+        icon: <RectangleStackIcon className="h-5 w-5" />,
+        iconSolid: <RectangleStackSolid className="h-5 w-5" />,
+      },
     ],
   },
   {
@@ -121,7 +163,12 @@ const GROUPS: Group[] = [
     icon: <CalendarDaysIcon className="h-5 w-5" />,
     iconSolid: <CalendarDaysSolid className="h-5 w-5" />,
     items: [
-      { label: 'Minhas Turmas', href: '/aulas/turmas', icon: <BookOpenIcon className="h-5 w-5" />, iconSolid: <BookOpenSolid className="h-5 w-5" /> },
+      {
+        label: 'Minhas Turmas',
+        href: '/aulas/turmas',
+        icon: <BookOpenIcon className="h-5 w-5" />,
+        iconSolid: <BookOpenSolid className="h-5 w-5" />,
+      },
       {
         label: 'Presença',
         href: '/aulas/presenca',
@@ -168,9 +215,24 @@ const GROUPS: Group[] = [
     icon: <ShoppingBagIcon className="h-5 w-5" />,
     iconSolid: <ShoppingBagSolid className="h-5 w-5" />,
     items: [
-      { label: 'Produtos', href: '/loja/produtos', icon: <ShoppingBagIcon className="h-5 w-5" />, iconSolid: <ShoppingBagSolid className="h-5 w-5" /> },
-      { label: 'Pedidos', href: '/loja/pedidos', icon: <ShoppingBagIcon className="h-5 w-5" />, iconSolid: <ShoppingBagSolid className="h-5 w-5" /> },
-      { label: 'Estoque', href: '/loja/estoque', icon: <ShoppingBagIcon className="h-5 w-5" />, iconSolid: <ShoppingBagSolid className="h-5 w-5" /> },
+      {
+        label: 'Produtos',
+        href: '/loja/produtos',
+        icon: <ShoppingBagIcon className="h-5 w-5" />,
+        iconSolid: <ShoppingBagSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Pedidos',
+        href: '/loja/pedidos',
+        icon: <ShoppingBagIcon className="h-5 w-5" />,
+        iconSolid: <ShoppingBagSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Estoque',
+        href: '/loja/estoque',
+        icon: <ShoppingBagIcon className="h-5 w-5" />,
+        iconSolid: <ShoppingBagSolid className="h-5 w-5" />,
+      },
     ],
   },
   {
@@ -179,12 +241,80 @@ const GROUPS: Group[] = [
     icon: <TicketIcon className="h-5 w-5" />,
     iconSolid: <TicketSolid className="h-5 w-5" />,
     items: [
-      { label: 'Lista', href: '/eventos', icon: <TicketIcon className="h-5 w-5" />, iconSolid: <TicketSolid className="h-5 w-5" /> },
-      { label: 'Criar', href: '/eventos/novo', icon: <TicketIcon className="h-5 w-5" />, iconSolid: <TicketSolid className="h-5 w-5" /> },
-      { label: 'Ingressos', href: '/eventos/ingressos', icon: <TicketIcon className="h-5 w-5" />, iconSolid: <TicketSolid className="h-5 w-5" /> },
+      {
+        label: 'Lista',
+        href: '/eventos',
+        icon: <TicketIcon className="h-5 w-5" />,
+        iconSolid: <TicketSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Criar',
+        href: '/eventos/novo',
+        icon: <TicketIcon className="h-5 w-5" />,
+        iconSolid: <TicketSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Ingressos',
+        href: '/eventos/ingressos',
+        icon: <TicketIcon className="h-5 w-5" />,
+        iconSolid: <TicketSolid className="h-5 w-5" />,
+      },
     ],
   },
 ];
+
+// Mapa de permissões por role
+type RoleKey = 'ADMIN' | 'FINANCEIRO' | 'RECEPCAO' | 'PROFESSOR' | 'RESPONSAVEL' | 'ALUNO' | string;
+const PERMISSIONS: Record<
+  RoleKey,
+  {
+    allowDashboard: boolean;
+    allowGroups: Array<{ key: string; items?: string[] }>;
+    allowSettings?: boolean;
+    allowPortal?: boolean;
+  }
+> = {
+  ADMIN: {
+    allowDashboard: true,
+    allowGroups: GROUPS.map((g) => ({ key: g.key })),
+    allowSettings: true,
+    allowPortal: true,
+  },
+  FINANCEIRO: {
+    allowDashboard: true,
+    allowGroups: [{ key: 'financeiro' }, { key: 'relatorios' }],
+    allowPortal: false,
+    allowSettings: false,
+  },
+  RECEPCAO: {
+    allowDashboard: true,
+    allowGroups: [
+      { key: 'cadastro', items: ['/alunos', '/colaboradores'] },
+      { key: 'matriculas' },
+      { key: 'eventos' },
+    ],
+    allowPortal: false,
+    allowSettings: false,
+  },
+  PROFESSOR: {
+    allowDashboard: true,
+    allowGroups: [{ key: 'aulas' }, { key: 'relatorios' }],
+    allowPortal: false,
+    allowSettings: false,
+  },
+  RESPONSAVEL: {
+    allowDashboard: true,
+    allowGroups: [],
+    allowPortal: true,
+    allowSettings: false,
+  },
+  ALUNO: {
+    allowDashboard: true,
+    allowGroups: [],
+    allowPortal: true,
+    allowSettings: false,
+  },
+};
 
 /** Collapsible com overflow hidden (evita “vazar” conteúdo fechado) */
 function Collapsible({ open, children }: { open: boolean; children: React.ReactNode }) {
@@ -231,20 +361,31 @@ function useFloatingMarker() {
   }, [update]);
 
   // Atualiza na próxima pintura quando o alvo mudar
-  useLayoutEffect(() => { update(); });
+  useLayoutEffect(() => {
+    update();
+  });
 
-  const setActiveElement = useCallback((el: HTMLElement | null) => {
-    if (el) {
-      activeElRef.current = el;
-      // aguarda layout para posicionar
-      requestAnimationFrame(() => update());
-    }
-  }, [update]);
+  const setActiveElement = useCallback(
+    (el: HTMLElement | null) => {
+      if (el) {
+        activeElRef.current = el;
+        // aguarda layout para posicionar
+        requestAnimationFrame(() => update());
+      }
+    },
+    [update],
+  );
 
   return { navRef, markerRef, setActiveElement, visible } as const;
 }
 
 function Sidebar() {
+  const { data: session } = useSession();
+  const role =
+    typeof session?.user === 'object' && session?.user && 'role' in session.user
+      ? ((session.user as { role?: string }).role as RoleKey | undefined)
+      : undefined;
+  const perm = role && PERMISSIONS[role] ? PERMISSIONS[role] : PERMISSIONS['RESPONSAVEL'];
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null); // apenas 1 grupo aberto
@@ -308,9 +449,25 @@ function Sidebar() {
       color: 'var(--sidebar-text)',
       backgroundColor: activeBg ? 'var(--sidebar-active-bg-light)' : 'transparent',
       marginLeft: collapsed ? collapsedOffset : 0,
-      transition: 'width 300ms cubic-bezier(0.22,1,0.36,1), margin-left 300ms cubic-bezier(0.22,1,0.36,1), background-color 200ms ease',
+      transition:
+        'width 300ms cubic-bezier(0.22,1,0.36,1), margin-left 300ms cubic-bezier(0.22,1,0.36,1), background-color 200ms ease',
     } as React.CSSProperties;
   };
+
+  // Filtra grupos conforme permissões
+  const allowedGroups = GROUPS.filter((g) => {
+    if (perm.allowGroups.some((p) => p.key === g.key && (!p.items || p.items.length === 0)))
+      return true;
+    // se houver filtro por items, mantenha o grupo e filtra itens adiante
+    return perm.allowGroups.some((p) => p.key === g.key);
+  }).map((g) => {
+    const entry = perm.allowGroups.find((p) => p.key === g.key);
+    if (!entry || !entry.items || entry.items.length === 0) return g;
+    return {
+      ...g,
+      items: g.items.filter((i) => entry.items!.includes(i.href)),
+    } as Group;
+  });
 
   return (
     <aside
@@ -323,14 +480,16 @@ function Sidebar() {
       style={{ backgroundColor: `var(--sidebar-bg)` }}
     >
       {/* Topo (como antes): logo centralizada e botão absoluto no topo à direita */}
-  <div className="relative px-4 pt-7 pb-8">
+      <div className="relative px-4 pt-7 pb-8">
         <button
           type="button"
           onClick={toggleSidebar}
           aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
           className={[
             'flex items-center justify-center rounded-xl outline-none sidebar-text transition-colors z-10 pointer-events-auto',
-            collapsed ? 'mx-auto block h-9 w-9' : 'absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 sidebar-hover',
+            collapsed
+              ? 'mx-auto block h-9 w-9'
+              : 'absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 sidebar-hover',
           ].join(' ')}
           style={collapsed ? { backgroundColor: 'var(--sidebar-active-bg-light)' } : undefined}
         >
@@ -342,7 +501,9 @@ function Sidebar() {
           className={[
             'flex items-center justify-center transition-all duration-300',
             // Quando recolhido: some suavemente sem ocupar espaço
-            collapsed ? 'opacity-0 -translate-y-1 pointer-events-none h-0 overflow-hidden' : 'opacity-100 translate-y-0 h-auto',
+            collapsed
+              ? 'opacity-0 -translate-y-1 pointer-events-none h-0 overflow-hidden'
+              : 'opacity-100 translate-y-0 h-auto',
           ].join(' ')}
           aria-hidden={collapsed ? true : undefined}
         >
@@ -353,7 +514,10 @@ function Sidebar() {
               width={132}
               height={40}
               className="h-10 w-auto select-none transition-all duration-300"
-              style={{ opacity: collapsed ? 0 : 1, transform: collapsed ? 'scale(0.98)' : 'scale(1)' }}
+              style={{
+                opacity: collapsed ? 0 : 1,
+                transform: collapsed ? 'scale(0.98)' : 'scale(1)',
+              }}
               draggable={false}
             />
           </Link>
@@ -361,7 +525,7 @@ function Sidebar() {
       </div>
 
       {/* Navegação (sem scrollbar) */}
-  <nav
+      <nav
         ref={navRef as React.RefObject<HTMLElement>}
         className="relative flex-1 overflow-hidden px-0 pb-4"
         style={{
@@ -381,54 +545,65 @@ function Sidebar() {
               height: 0,
               opacity: visible ? 1 : 0,
               left: '0px',
-              transition: 'top 300ms cubic-bezier(0.22,1,0.36,1), height 300ms cubic-bezier(0.22,1,0.36,1), opacity 300ms cubic-bezier(0.22,1,0.36,1)',
+              transition:
+                'top 300ms cubic-bezier(0.22,1,0.36,1), height 300ms cubic-bezier(0.22,1,0.36,1), opacity 300ms cubic-bezier(0.22,1,0.36,1)',
               transitionDelay: visible ? '60ms' : '0ms',
             }}
           />
         )}
         <ul className="flex flex-col gap-2">
           {/* Dashboard */}
-          <li className="relative">
-            <Link
-              href="/dashboard"
-              aria-label="Dashboard"
-              className={[
-                'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
-                anyGroupOpen ? 'font-light' : (activeKey === 'dashboard' ? 'font-semibold' : 'font-medium'),
-                anyGroupOpen ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : '',
-                anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]',
-              ].join(' ')}
-              style={pill(activeKey === 'dashboard')}
-              onClick={onClickDashboard}
-              ref={activeKey === 'dashboard' ? (el) => setActiveElement(el) : undefined}
-            >
-              {/* Hover overlay */}
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
-              />
-              <span className="flex h-5 w-5 items-center justify-center relative z-10">
-                {activeKey === 'dashboard' ? (
-                  <Squares2X2Solid className="h-5 w-5" />
-                ) : (
-                  <Squares2X2Icon className="h-5 w-5" />
-                )}
-              </span>
-              <span
+          {perm.allowDashboard && (
+            <li className="relative">
+              <Link
+                href="/dashboard"
+                aria-label="Dashboard"
                 className={[
-                  'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                  collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                  'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                  collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
+                  anyGroupOpen
+                    ? 'font-light'
+                    : activeKey === 'dashboard'
+                      ? 'font-semibold'
+                      : 'font-medium',
+                  anyGroupOpen
+                    ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                    : '',
+                  anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]',
                 ].join(' ')}
+                style={pill(activeKey === 'dashboard')}
+                onClick={onClickDashboard}
+                ref={activeKey === 'dashboard' ? (el) => setActiveElement(el) : undefined}
               >
-                Dashboard
-              </span>
-            </Link>
-          </li>
+                {/* Hover overlay */}
+                <span
+                  aria-hidden
+                  className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{
+                    backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))',
+                  }}
+                />
+                <span className="flex h-5 w-5 items-center justify-center relative z-10">
+                  {activeKey === 'dashboard' ? (
+                    <Squares2X2Solid className="h-5 w-5" />
+                  ) : (
+                    <Squares2X2Icon className="h-5 w-5" />
+                  )}
+                </span>
+                <span
+                  className={[
+                    'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                  ].join(' ')}
+                >
+                  Dashboard
+                </span>
+              </Link>
+            </li>
+          )}
 
           {/* Grupos */}
-          {GROUPS.map((group) => {
+          {allowedGroups.map((group) => {
             const isOpen = openKey === group.key && !collapsed;
             const groupHasRoute = group.items.some((i) => pathname.startsWith(i.href));
             const groupSelected = activeKey === group.key;
@@ -440,20 +615,28 @@ function Sidebar() {
 
             return (
               <li key={group.key} className="relative">
-
                 {/* Botão do grupo (sem setas) */}
                 <button
                   type="button"
                   onClick={() => onClickGroup(group.key)}
                   aria-expanded={isOpen}
+                  data-testid={`sidebar-group-${group.key}`}
                   className={[
                     'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
                     collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
-                    (anyGroupOpen && openKey !== group.key)
+                    anyGroupOpen && openKey !== group.key
                       ? 'font-light'
-                      : ((groupSelected || groupHasRoute) ? 'font-semibold' : 'font-medium'),
-                    anyGroupOpen && openKey !== group.key ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : '',
-                    isOpen ? 'hover:scale-[1.02]' : (anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]'),
+                      : groupSelected || groupHasRoute
+                        ? 'font-semibold'
+                        : 'font-medium',
+                    anyGroupOpen && openKey !== group.key
+                      ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                      : '',
+                    isOpen
+                      ? 'hover:scale-[1.02]'
+                      : anyGroupOpen
+                        ? 'hover:scale-95'
+                        : 'hover:scale-[1.02]',
                   ].join(' ')}
                   style={pill(groupSelected)}
                   aria-label={group.label}
@@ -463,9 +646,13 @@ function Sidebar() {
                   <span
                     aria-hidden
                     className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                    style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
+                    style={{
+                      backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))',
+                    }}
                   />
-                  <span className="flex h-5 w-5 items-center justify-center relative z-10">{(groupSelected || groupHasRoute) ? group.iconSolid : group.icon}</span>
+                  <span className="flex h-5 w-5 items-center justify-center relative z-10">
+                    {groupSelected || groupHasRoute ? group.iconSolid : group.icon}
+                  </span>
                   <span
                     className={[
                       'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
@@ -486,6 +673,7 @@ function Sidebar() {
                           <Link
                             href={item.href}
                             aria-label={item.label}
+                            data-testid={item.href === '/planos' ? 'sidebar-planos' : undefined}
                             className={[
                               'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.02]',
                               collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
@@ -500,7 +688,10 @@ function Sidebar() {
                             <span
                               aria-hidden
                               className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                              style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
+                              style={{
+                                backgroundColor:
+                                  'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))',
+                              }}
                             />
                             <span className="flex h-5 w-5 items-center justify-center relative z-10">
                               {subActive ? item.iconSolid : item.icon}
@@ -526,53 +717,67 @@ function Sidebar() {
       </nav>
 
       {/* Configurações */}
-      <div
-        className="mt-auto pb-6"
-        style={{
-          paddingLeft: collapsed ? collapsedGutter : 'calc(8px + 12px)',
-          paddingRight: collapsed ? collapsedGutter : 12,
-        }}
-      >
-        <ul>
-          <li className="relative">
-            <Link
-              href="/admin/configuracoes"
-              aria-label="Configurações"
-              className={[
-                'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
-                anyGroupOpen ? 'font-light' : (pathname.startsWith('/admin/configuracoes') ? 'font-semibold' : 'font-medium'),
-                anyGroupOpen ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : '',
-                anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]',
-              ].join(' ')}
-              style={pill(pathname.startsWith('/admin/configuracoes'))}
-              ref={pathname.startsWith('/admin/configuracoes') ? (el) => setActiveElement(el) : undefined}
-            >
-              {/* Hover overlay */}
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                style={{ backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))' }}
-              />
-              <span className="flex h-5 w-5 items-center justify-center relative z-10">
-                {pathname.startsWith('/admin/configuracoes') ? (
-                  <Cog6ToothSolid className="h-5 w-5" />
-                ) : (
-                  <Cog6ToothIcon className="h-5 w-5" />
-                )}
-              </span>
-              <span
+      {perm.allowSettings && (
+        <div
+          className="mt-auto pb-6"
+          style={{
+            paddingLeft: collapsed ? collapsedGutter : 'calc(8px + 12px)',
+            paddingRight: collapsed ? collapsedGutter : 12,
+          }}
+        >
+          <ul>
+            <li className="relative">
+              <Link
+                href="/admin/configuracoes"
+                aria-label="Configurações"
                 className={[
-                  'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-                  collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                  'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                  collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
+                  anyGroupOpen
+                    ? 'font-light'
+                    : pathname.startsWith('/admin/configuracoes')
+                      ? 'font-semibold'
+                      : 'font-medium',
+                  anyGroupOpen
+                    ? 'opacity-40 scale-90 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]'
+                    : '',
+                  anyGroupOpen ? 'hover:scale-95' : 'hover:scale-[1.02]',
                 ].join(' ')}
+                style={pill(pathname.startsWith('/admin/configuracoes'))}
+                ref={
+                  pathname.startsWith('/admin/configuracoes')
+                    ? (el) => setActiveElement(el)
+                    : undefined
+                }
               >
-                Configurações
-              </span>
-            </Link>
-          </li>
-        </ul>
-      </div>
+                {/* Hover overlay */}
+                <span
+                  aria-hidden
+                  className="absolute inset-0 rounded-[10px] z-0 opacity-0 group-hover:opacity-100 transition-[opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{
+                    backgroundColor: 'var(--sidebar-hover-bg, var(--sidebar-active-bg-light))',
+                  }}
+                />
+                <span className="flex h-5 w-5 items-center justify-center relative z-10">
+                  {pathname.startsWith('/admin/configuracoes') ? (
+                    <Cog6ToothSolid className="h-5 w-5" />
+                  ) : (
+                    <Cog6ToothIcon className="h-5 w-5" />
+                  )}
+                </span>
+                <span
+                  className={[
+                    'truncate relative z-10 transition-[opacity,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                    collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
+                  ].join(' ')}
+                >
+                  Configurações
+                </span>
+              </Link>
+            </li>
+          </ul>
+        </div>
+      )}
     </aside>
   );
 }

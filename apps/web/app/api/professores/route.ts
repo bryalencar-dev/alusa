@@ -1,15 +1,103 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { ProfessorCreateSchema } from '@alusa/lib';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 function jsonError(status: number, code: string, message: string, details?: unknown) {
-  return NextResponse.json({ error: { code, message, details } }, { status, headers: { 'cache-control': 'no-store' } });
+  return NextResponse.json(
+    { error: { code, message, details } },
+    { status, headers: { 'cache-control': 'no-store' } },
+  );
 }
 
 const prisma = new PrismaClient();
+
+async function ensureProfessoresFromColaboradores(contaId: string) {
+  try {
+    const [colaboradores, professoresExistentes] = await Promise.all([
+      prisma.colaborador.findMany({
+        where: { contaId, cargo: 'PROFESSOR' },
+        select: {
+          id: true,
+          nome: true,
+          cpf: true,
+          dataNasc: true,
+          email: true,
+          telefone1: true,
+          status: true,
+          enderecoCep: true,
+          enderecoLogradouro: true,
+          enderecoNumero: true,
+          enderecoComplemento: true,
+          enderecoBairro: true,
+          enderecoCidade: true,
+          enderecoUf: true,
+          especialidade: true,
+          foto: true,
+        },
+      }),
+      prisma.professor.findMany({
+        where: { contaId },
+        select: { id: true, cpf: true, email: true },
+      }),
+    ]);
+
+    const byCpf = new Map<string, string>();
+    const byEmail = new Map<string, string>();
+    for (const prof of professoresExistentes) {
+      if (prof.cpf) byCpf.set(prof.cpf, prof.id);
+      if (prof.email) byEmail.set(prof.email.toLowerCase(), prof.id);
+    }
+
+    for (const colab of colaboradores) {
+      const cpf = colab.cpf ?? undefined;
+      const email = colab.email ? colab.email.toLowerCase() : undefined;
+      const telefone = colab.telefone1 ?? undefined;
+      const exists = (cpf && byCpf.get(cpf)) || (email && byEmail.get(email)) || null;
+      if (exists) continue;
+
+      const hasRequired = Boolean(cpf && colab.dataNasc && email && telefone);
+      if (!hasRequired) {
+        continue;
+      }
+
+      const created = await prisma.professor.create({
+        data: {
+          contaId,
+          nome: colab.nome,
+          cpf: cpf!,
+          dataNasc: colab.dataNasc!,
+          email: email!,
+          telefoneCel: telefone!,
+          telefoneFixo: null,
+          cep: colab.enderecoCep ?? null,
+          logradouro: colab.enderecoLogradouro ?? null,
+          numero: colab.enderecoNumero ?? null,
+          complemento: colab.enderecoComplemento ?? null,
+          bairro: colab.enderecoBairro ?? null,
+          cidade: colab.enderecoCidade ?? null,
+          uf: colab.enderecoUf ?? null,
+          formacao: null,
+          especialidades: colab.especialidade ? [colab.especialidade] : [],
+          dataAdmissao: null,
+          statusContratual: null,
+          cargaHoraria: null,
+          miniBio: null,
+          foto: colab.foto ?? null,
+          status: colab.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
+        },
+      });
+      if (cpf) byCpf.set(cpf, created.id);
+      if (email) byEmail.set(email, created.id);
+    }
+  } catch (err) {
+    console.error('[api/professores] sync colaboradores->professores falhou', err);
+  }
+}
 
 type CreateBody = {
   contaId: string;
@@ -43,26 +131,58 @@ type CreateBody = {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-  const q = (url.searchParams.get('q') || '').trim();
-  const contaId = url.searchParams.get('contaId') || undefined;
+    const q = (url.searchParams.get('q') || '').trim();
+    const contaIdParam = url.searchParams.get('contaId')?.trim() || null;
+    const session = await getServerSession(authOptions).catch(() => null);
+    const sessionContaId =
+      (session as { user?: { contaId?: string } } | null)?.user?.contaId?.trim() || null;
+    const contaId = contaIdParam ?? sessionContaId;
+    if (!contaId) {
+      return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
+    }
+    if (sessionContaId && contaId !== sessionContaId) {
+      return jsonError(
+        403,
+        'CONTA_INVALIDA',
+        'A conta informada não pertence ao usuário autenticado.',
+      );
+    }
     const status = url.searchParams.get('status') || undefined;
     const page = Math.max(1, Number(url.searchParams.get('page') || '1'));
     const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize') || '20')));
+    await ensureProfessoresFromColaboradores(contaId);
     const where: Record<string, unknown> = {
-      ...(contaId ? { contaId } : {}),
+      contaId,
       ...(status ? { status } : {}),
       ...(q
-        ? { OR: [{ nome: { contains: q, mode: 'insensitive' } }, { email: { contains: q, mode: 'insensitive' } }] }
+        ? {
+            OR: [
+              { nome: { contains: q, mode: 'insensitive' } },
+              { email: { contains: q, mode: 'insensitive' } },
+            ],
+          }
         : {}),
     };
 
     const [data, total] = await Promise.all([
-      prisma.professor.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.professor.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       prisma.professor.count({ where }),
     ]);
-    return NextResponse.json({ data, page, pageSize, total }, { headers: { 'cache-control': 'no-store' } });
+    return NextResponse.json(
+      { data, page, pageSize, total },
+      { headers: { 'cache-control': 'no-store' } },
+    );
   } catch (e: unknown) {
-    return jsonError(500, 'ERRO_DESCONHECIDO', (e as Error)?.message || 'Erro ao listar professores');
+    return jsonError(
+      500,
+      'ERRO_DESCONHECIDO',
+      (e as Error)?.message || 'Erro ao listar professores',
+    );
   }
 }
 
@@ -74,6 +194,20 @@ export async function POST(req: Request) {
       return jsonError(422, 'ERRO_VALIDACAO', 'Falha de validação', parsed.error.flatten());
     }
     const data = parsed.data as CreateBody;
+    const session = await getServerSession(authOptions).catch(() => null);
+    const sessionContaId =
+      (session as { user?: { contaId?: string } } | null)?.user?.contaId?.trim() || null;
+    const contaId = data.contaId?.trim();
+    if (!contaId) {
+      return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
+    }
+    if (sessionContaId && contaId !== sessionContaId) {
+      return jsonError(
+        403,
+        'CONTA_INVALIDA',
+        'A conta informada não pertence ao usuário autenticado.',
+      );
+    }
     // Sanitização mínima
     const toCreate = {
       nome: data.nome.trim(),
@@ -83,7 +217,7 @@ export async function POST(req: Request) {
       sexo: data.sexo || null,
       estadoCivil: data.estadoCivil || null,
       nacionalidade: data.nacionalidade || null,
-  email: data.email.trim(),
+      email: data.email.trim(),
       telefoneCel: data.telefoneCel,
       telefoneFixo: data.telefoneFixo || null,
       cep: data.cep || null,
@@ -101,12 +235,15 @@ export async function POST(req: Request) {
       miniBio: data.miniBio || null,
       foto: data.foto || null,
       status: data.status,
-      conta: { connect: { id: data.contaId } },
+      conta: { connect: { id: contaId } },
     } as const;
 
     try {
       const created = await prisma.professor.create({ data: toCreate });
-      return NextResponse.json({ data: created }, { status: 201, headers: { 'cache-control': 'no-store' } });
+      return NextResponse.json(
+        { data: created },
+        { status: 201, headers: { 'cache-control': 'no-store' } },
+      );
     } catch (e: unknown) {
       const code = (e as { code?: string })?.code;
       if (code === 'P2002') {

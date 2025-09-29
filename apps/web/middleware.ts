@@ -1,20 +1,25 @@
-import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 const isTest = process.env.TEST_ROUTES_ENABLED === 'true';
 
-const authMiddleware = withAuth({
-  pages: { signIn: '/auth/login' },
-});
+export default async function middleware(req: NextRequest) {
+  if (isTest) {
+    // Em testes E2E, não forçar login
+    return NextResponse.next();
+  }
 
-function bypassMiddleware() {
-  // Em testes E2E, não forçar login
-  return NextResponse.next();
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (token) return NextResponse.next();
+
+  const url = req.nextUrl.clone();
+  const signInUrl = new URL('/auth/login', url.origin);
+  signInUrl.searchParams.set('expired', 'true');
+  // Requisito: após login sempre ir ao dashboard
+  signInUrl.searchParams.set('callbackUrl', '/dashboard');
+  return NextResponse.redirect(signInUrl);
 }
-
-const middleware = isTest ? bypassMiddleware : authMiddleware;
-
-export default middleware;
 
 export const config = { 
   matcher: [

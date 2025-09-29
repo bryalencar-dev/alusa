@@ -2,6 +2,7 @@
 import * as React from "react";
 import { useFormContext } from "react-hook-form";
 import { IMaskInput } from "react-imask";
+import { useEffect, useMemo, useState } from "react";
 
 export function StepHeader({ title, hint }: { title: string; hint?: string }) {
   return (
@@ -46,12 +47,14 @@ export function IMaskControlled({
   placeholder = "",
   ariaLabel,
   id,
+  inputClassName,
 }: {
   name: string;
   mask: string | string[];
   placeholder?: string;
   ariaLabel?: string;
   id?: string;
+  inputClassName?: string;
 }) {
   const ctx = useFormContext() as unknown as {
     watch: (_: string) => unknown;
@@ -65,10 +68,99 @@ export function IMaskControlled({
       mask={mask as any}
       value={val}
       onAccept={(v: unknown) => ctx.setValue(name, String(v), { shouldValidate: false })}
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-1"
+      className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus:shadow-none focus:border-gray-300 focus:bg-white focus-visible:outline-none focus-visible:ring-0 ${inputClassName ?? ""}`}
       placeholder={placeholder}
       aria-label={ariaLabel}
       id={id}
     />
+  );
+}
+
+// Utilitário local para formatar Date -> dd/mm/aaaa
+function formatDateDDMMYYYY(d?: Date | null): string {
+  if (!d || isNaN(d.getTime())) return "";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+// Campo com máscara de data que mantém o valor RHF como Date
+export function DateMaskControlled({
+  name,
+  id,
+  ariaLabel = "Data",
+  placeholder = "dd/mm/aaaa",
+  className,
+  inputClassName,
+  leftIcon,
+  rightIcon,
+}: {
+  name: string;
+  id?: string;
+  ariaLabel?: string;
+  placeholder?: string;
+  className?: string;
+  inputClassName?: string; // alias para className no input mascarado
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+}) {
+  const ctx = useFormContext() as unknown as {
+    watch: (_: string) => unknown;
+    setValue: (_: string, _v: unknown, _o?: unknown) => void;
+  };
+  const watched = ctx.watch(name) as unknown;
+  const initial = useMemo(() => {
+    return watched instanceof Date ? formatDateDDMMYYYY(watched) : "";
+  }, [watched]);
+  const [input, setInput] = useState<string>(initial);
+
+  // Sincroniza quando o valor do formulário mudar externamente (reset, etc.)
+  useEffect(() => {
+    setInput(initial);
+  }, [initial]);
+
+  function handleAccept(v: unknown) {
+    const s = String(v ?? "");
+    setInput(s);
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) {
+      const [, dd, mm, yyyy] = m;
+      const iso = `${yyyy}-${mm}-${dd}T00:00:00`;
+      const d = new Date(iso);
+      if (!isNaN(d.getTime())) {
+        ctx.setValue(name, d, { shouldValidate: false });
+        return;
+      }
+    }
+    // Se não estiver completo ou inválido, mantém undefined para não quebrar validação
+    ctx.setValue(name, undefined, { shouldValidate: false });
+  }
+
+  const inputEl = (
+    <IMaskInput
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mask={"00/00/0000" as any}
+      value={input}
+      onAccept={handleAccept}
+      className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus:shadow-none focus:border-gray-300 focus:bg-white focus-visible:outline-none focus-visible:ring-0 ${leftIcon ? "pl-9" : ""} ${rightIcon ? "pr-9" : ""} ${inputClassName ?? className ?? ""}`}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      id={id}
+      inputMode="numeric"
+    />
+  );
+
+  if (!leftIcon && !rightIcon) return inputEl;
+  return (
+    <div className="relative">
+      {inputEl}
+      {leftIcon ? (
+        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">{leftIcon}</div>
+      ) : null}
+      {rightIcon ? (
+        <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">{rightIcon}</div>
+      ) : null}
+    </div>
   );
 }

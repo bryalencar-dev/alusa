@@ -1,45 +1,40 @@
-"use client";
+'use client';
 
-import React, { useMemo, useId, useCallback, useState, type JSX } from "react";
-import { useSession } from "next-auth/react";
-import { Bell, Search } from "@/components/icons/icons";
-import NotificationsPanel from "@/components/notifications/NotificationsPanel";
-import UserMenu from "./UserMenu";
+import React, { useMemo, useId, useCallback, useState, type JSX } from 'react';
+import { useSession } from 'next-auth/react';
+import { Bell, Search } from '@/components/icons/icons';
+import NotificationsPanel from '@/components/notifications/NotificationsPanel';
+import UserMenu from './UserMenu';
 
 export default function CardHeader(): JSX.Element {
   const { data } = useSession();
-  const name = (data?.user?.name || "Usuário").trim();
-  const email = data?.user?.email || "email@exemplo.com";
+  const name = (data?.user?.name || 'Usuário').trim();
+  const email = data?.user?.email || 'email@exemplo.com';
   const searchId = useId();
 
   const initials = useMemo(() => {
-    if (!name) return "U";
+    if (!name) return 'U';
     const parts = name.split(/\s+/).filter(Boolean);
-    const first = parts[0]?.[0] || "U";
-    const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] || "") : "";
+    const first = parts[0]?.[0] || 'U';
+    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : '';
     return (first + last).toUpperCase();
   }, [name]);
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notifAnchorRef = React.useRef<HTMLDivElement | null>(null);
   const toggleNotifications = useCallback(() => {
     setNotificationsOpen((prev) => !prev);
   }, []);
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
 
   return (
-    <div
-      className="relative flex items-center justify-between"
-      aria-label="Header do conteúdo"
-    >
+    <div className="relative flex items-center justify-between" aria-label="Header do conteúdo">
       {/* Busca */}
       <div className="relative w-full max-w-[460px]">
         <label htmlFor={searchId} className="sr-only">
           Pesquisar
         </label>
-        <div
-          className="absolute left-3 top-1/2 -translate-y-1/2 opacity-70"
-          aria-hidden="true"
-        >
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-70" aria-hidden="true">
           <Search className="h-4 w-4" />
         </div>
         <input
@@ -54,7 +49,7 @@ export default function CardHeader(): JSX.Element {
       {/* Ações à direita */}
       <div className="flex items-center gap-4 pl-6">
         {/* Container relativo: botão + painel */}
-        <div className="relative">
+        <div className="relative" ref={notifAnchorRef}>
           <button
             type="button"
             aria-label="Notificações"
@@ -74,6 +69,7 @@ export default function CardHeader(): JSX.Element {
             open={notificationsOpen}
             onClose={closeNotifications}
             items={[]}
+            anchorRef={notifAnchorRef}
           />
         </div>
 

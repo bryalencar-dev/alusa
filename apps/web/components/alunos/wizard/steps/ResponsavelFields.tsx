@@ -60,7 +60,7 @@ export default function ResponsavelFields() {
     <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
       <div className="md:col-span-2">
         <FieldLabel htmlFor="resp-nome" required>Nome do responsável</FieldLabel>
-        <Input id="resp-nome" {...register("responsavel.nome" as const)} placeholder="Ex.: João dos Santos" />
+  <Input id="resp-nome" {...register("responsavel.nome" as const)} placeholder="Ex.: João dos Santos" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="responsavel.nome" />
       </div>
       <div>
@@ -70,7 +70,7 @@ export default function ResponsavelFields() {
       </div>
       <div>
         <FieldLabel htmlFor="resp-email" required>E-mail</FieldLabel>
-        <Input id="resp-email" type="email" {...register("responsavel.email" as const)} placeholder="email@exemplo.com" />
+  <Input id="resp-email" type="email" {...register("responsavel.email" as const)} placeholder="email@exemplo.com" className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
         <FieldError name="responsavel.email" />
       </div>
       <div>
@@ -92,27 +92,27 @@ export default function ResponsavelFields() {
       </div>
       <div className="md:col-span-2">
         <FieldLabel htmlFor="resp-logradouro">Endereço</FieldLabel>
-        <Input id="resp-logradouro" {...register("responsavel.enderecoLogradouro" as const)} placeholder="Rua/Av." disabled={loading} />
+  <Input id="resp-logradouro" {...register("responsavel.enderecoLogradouro" as const)} placeholder="Rua/Av." disabled={loading} className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="resp-numero">Número</FieldLabel>
-        <Input id="resp-numero" {...register("responsavel.enderecoNumero" as const)} placeholder="Nº" disabled={loading} />
+  <Input id="resp-numero" {...register("responsavel.enderecoNumero" as const)} placeholder="Nº" disabled={loading} className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="resp-complemento">Complemento</FieldLabel>
-        <Input id="resp-complemento" {...register("responsavel.enderecoComplemento" as const)} placeholder="Apto, bloco" disabled={loading} />
+  <Input id="resp-complemento" {...register("responsavel.enderecoComplemento" as const)} placeholder="Apto, bloco" disabled={loading} className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="resp-bairro">Bairro</FieldLabel>
-        <Input id="resp-bairro" {...register("responsavel.enderecoBairro" as const)} placeholder="Bairro" disabled={loading} />
+  <Input id="resp-bairro" {...register("responsavel.enderecoBairro" as const)} placeholder="Bairro" disabled={loading} className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="resp-cidade">Cidade</FieldLabel>
-        <Input id="resp-cidade" {...register("responsavel.enderecoCidade" as const)} placeholder="Cidade" disabled={loading} />
+  <Input id="resp-cidade" {...register("responsavel.enderecoCidade" as const)} placeholder="Cidade" disabled={loading} className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div>
         <FieldLabel htmlFor="resp-uf">UF</FieldLabel>
-        <Input id="resp-uf" maxLength={2} {...register("responsavel.enderecoUf" as const)} placeholder="UF" disabled={loading} />
+  <Input id="resp-uf" maxLength={2} {...register("responsavel.enderecoUf" as const)} placeholder="UF" disabled={loading} className="h-10 border-gray-300 bg-white shadow-none placeholder:text-gray-400" />
       </div>
       <div className="flex items-start gap-2 rounded-md border border-slate-200 p-3 md:col-span-2">
         <input type="checkbox" id="responsavelFinanceiro" className="mt-0.5 h-4 w-4" {...register("responsavel.financeiro" as const)} />

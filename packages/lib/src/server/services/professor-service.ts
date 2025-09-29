@@ -27,8 +27,8 @@ export async function create(contaId: string, data: ProfessorCreateInput): Promi
     const payload = {
       nome: parsed.nome,
       email: parsed.email ?? null,
-      telefone: parsed.telefone ?? null,
-      bio: parsed.bio ?? null,
+      telefone: parsed.telefoneCel ?? null,
+      bio: parsed.miniBio ?? null,
       status: 'ATIVO',
     };
 
@@ -54,8 +54,8 @@ export async function update(id: string, contaId: string, data: ProfessorUpdateI
     const payload = {
       ...(parsed.nome ? { nome: parsed.nome } : {}),
       ...(parsed.email !== undefined ? { email: parsed.email } : {}),
-      ...(parsed.telefone !== undefined ? { telefone: parsed.telefone } : {}),
-      ...(parsed.bio !== undefined ? { bio: parsed.bio } : {}),
+      ...(parsed.telefoneCel !== undefined ? { telefone: parsed.telefoneCel } : {}),
+      ...(parsed.miniBio !== undefined ? { bio: parsed.miniBio } : {}),
       ...(parsed.status ? { status: parsed.status } : {}),
     };
 

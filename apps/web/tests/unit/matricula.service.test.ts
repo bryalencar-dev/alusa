@@ -1,33 +1,44 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@alusa/lib';
 
 // Precisa mockar o alias '@/prisma/client' antes de importar o serviço
 vi.mock('@/prisma/client', async () => await import('../../prisma/client'));
 
-import type { CalcularPrecoOutput, CalcularPrecoInput, CriarMatriculaInput } from '@alusa/lib/src/services/matricula';
+import type { CalcularPrecoOutput, CalcularPrecoInput, CriarMatriculaInput } from '@alusa/lib';
 let calcularPrecoMatricula: (_: CalcularPrecoInput) => CalcularPrecoOutput;
-let criarMatricula: (_: CriarMatriculaInput) => Promise<{ matricula: unknown; cobranca: unknown; preco: CalcularPrecoOutput }>;
+let criarMatricula: (
+  _: CriarMatriculaInput,
+) => Promise<{ matricula: unknown; cobranca: unknown; preco: CalcularPrecoOutput }>;
 let listarMatriculas: (_alunoId: string) => Promise<unknown[]>;
 beforeAll(async () => {
-  const mod = await import('@alusa/lib/src/services/matricula');
+  const mod = await import('@alusa/lib');
   calcularPrecoMatricula = mod.calcularPrecoMatricula;
   criarMatricula = mod.criarMatricula;
   listarMatriculas = mod.listarMatriculas;
 });
 
-const prisma = new PrismaClient();
+// Serviço oficial para criar conta com owner atendendo ao schema
+import { createFirstUser } from '@/lib/first-user-service';
 
 describe('serviço de matrícula', () => {
   describe('calcularPrecoMatricula', () => {
     it('aplica desconto fixo', () => {
-      const r = calcularPrecoMatricula({ planoValor: 200, taxaMatricula: 0, descontos: [{ tipo: 'FIXO', valor: 50 }] });
+      const r = calcularPrecoMatricula({
+        planoValor: 200,
+        taxaMatricula: 0,
+        descontos: [{ tipo: 'FIXO', valor: 50 }],
+      });
       expect(r.plano).toBe(200);
       expect(r.descontosAplicados).toEqual([50]);
       expect(r.total).toBe(150);
     });
 
     it('aplica desconto percentual', () => {
-      const r = calcularPrecoMatricula({ planoValor: 300, taxaMatricula: 0, descontos: [{ tipo: 'PERCENTUAL', valor: 10 }] });
+      const r = calcularPrecoMatricula({
+        planoValor: 300,
+        taxaMatricula: 0,
+        descontos: [{ tipo: 'PERCENTUAL', valor: 10 }],
+      });
       expect(r.descontosAplicados[0]).toBe(30);
       expect(r.total).toBe(270);
     });
@@ -38,7 +49,7 @@ describe('serviço de matrícula', () => {
         taxaMatricula: 20,
         descontos: [
           { tipo: 'PERCENTUAL', valor: 10, cumulativo: true }, // 30
-          { tipo: 'FIXO', valor: 25, cumulativo: true } // 25
+          { tipo: 'FIXO', valor: 25, cumulativo: true }, // 25
         ],
       });
       expect(r.descontosAplicados).toEqual([30, 25]);
@@ -50,7 +61,7 @@ describe('serviço de matrícula', () => {
         planoValor: 400,
         descontos: [
           { tipo: 'PERCENTUAL', valor: 10 }, // 40
-          { tipo: 'FIXO', valor: 60 } // 60 => maior
+          { tipo: 'FIXO', valor: 60 }, // 60 => maior
         ],
       });
       expect(r.descontosAplicados).toEqual([60]);
@@ -58,41 +69,76 @@ describe('serviço de matrícula', () => {
     });
   });
 
-  describe('integração com Prisma', () => {
+  const hasDb = !!process.env.DATABASE_URL;
+  (hasDb ? describe : describe.skip)('integração com Prisma', () => {
     let alunoId: string;
     let turmaId: string;
     let planoId: string;
 
     async function ensureData() {
-      // Conta
-      const conta = await prisma.conta.upsert({
-        where: { id: 'conta-test' },
-        update: { nome: 'Conta Test', cpfCnpj: '00000000000191' },
-        create: { id: 'conta-test', nome: 'Conta Test', cpfCnpj: '00000000000191' },
+      // Garante a existência de uma conta com owner usando o fluxo oficial
+      const base = {
+        escolaNome: 'Conta Test',
+        cpfCnpj: '00000000000191',
+        nome: 'Owner Matricula',
+        email: 'owner+matricula.test@example.com',
+        senha: 'SenhaFort3!',
+      };
+      // Se já existir, ignora erro de duplicidade (teste pode rodar mais de uma vez)
+      try {
+        await createFirstUser(base);
+      } catch {
+        /* noop */
+      }
+      const conta = await prisma.conta.findFirstOrThrow({ where: { cpfCnpj: '00000000000191' } });
+
+      // Modalidade & Sala compatíveis com novo modelo
+      const modalidade = await prisma.modalidade.upsert({
+        where: { id: 'mod-matricula-test' },
+        update: { nome: 'Modalidade Teste', status: 'ATIVO', contaId: conta.id },
+        create: {
+          id: 'mod-matricula-test',
+          contaId: conta.id,
+          nome: 'Modalidade Teste',
+          status: 'ATIVO',
+        },
+      });
+      const sala = await prisma.sala.upsert({
+        where: { id: 'sala-matricula-test' },
+        update: { nome: 'Sala M1', status: 'ATIVO', contaId: conta.id, capacidade: 15 },
+        create: {
+          id: 'sala-matricula-test',
+          contaId: conta.id,
+          nome: 'Sala M1',
+          status: 'ATIVO',
+          capacidade: 15,
+        },
       });
 
-      // Turma
       const turma = await prisma.turma.upsert({
         where: { id: 'turma-test' },
         update: {
           contaId: conta.id,
           nome: 'Turma Teste',
-          modalidade: 'Teste',
-          sala: 'S1',
-          diasSemana: ['SEGUNDA'],
-          horarioInicio: '09:00',
-          horarioFim: '10:00',
-          status: 'ATIVA',
+          modalidadeId: modalidade.id,
+          salaId: sala.id,
+          diasSemana: ['SEG'],
+          horaInicio: '09:00',
+          horaFim: '10:00',
+          status: 'ATIVO',
+          capacidade: 20,
         },
         create: {
           id: 'turma-test',
           contaId: conta.id,
           nome: 'Turma Teste',
-          modalidade: 'Teste',
-          sala: 'S1',
-          diasSemana: ['SEGUNDA'],
-          horarioInicio: '09:00',
-          horarioFim: '10:00',
+          modalidadeId: modalidade.id,
+          salaId: sala.id,
+          diasSemana: ['SEG'],
+          horaInicio: '09:00',
+          horaFim: '10:00',
+          status: 'ATIVO',
+          capacidade: 20,
         },
       });
 
@@ -103,9 +149,8 @@ describe('serviço de matrícula', () => {
           contaId: conta.id,
           nome: 'Plano Teste',
           descricao: 'Plano para testes',
+          periodicidade: 'MENSAL',
           valor: '123.45',
-          vencimentoDia: 10,
-          frequenciaSemanal: 1,
           status: 'ATIVO',
         },
         create: {
@@ -113,11 +158,11 @@ describe('serviço de matrícula', () => {
           contaId: conta.id,
           nome: 'Plano Teste',
           descricao: 'Plano para testes',
+          periodicidade: 'MENSAL',
           valor: '123.45',
-          vencimentoDia: 10,
-          frequenciaSemanal: 1,
+          status: 'ATIVO',
         },
-      });
+      } as unknown as Parameters<typeof prisma.plano.upsert>[0]);
 
       // Aluno
       const uniqueEmail = `aluno.test+${Date.now()}@example.com`;
@@ -142,23 +187,32 @@ describe('serviço de matrícula', () => {
     });
 
     it('criarMatricula cria matrícula e cobrança inicial', async () => {
-  const { matricula, cobranca, preco } = await criarMatricula({ alunoId, turmaId, planoId, taxaMatricula: 15 });
-  const m = matricula as { id: string };
-  const c = cobranca as { id: string; status: string };
-  expect(m.id).toBeTruthy();
-  expect(c.id).toBeTruthy();
-  expect(c.status).toBe('PENDENTE');
+      const { matricula, cobranca, preco } = await criarMatricula({
+        alunoId,
+        turmaId,
+        planoId,
+        taxaMatricula: 15,
+      });
+      const m = matricula as { id: string };
+      const c = cobranca as { id: string; status: string };
+      expect(m.id).toBeTruthy();
+      expect(c.id).toBeTruthy();
+      expect(c.status).toBe('PENDENTE');
       expect(preco.total).toBeGreaterThan(0);
     });
 
     it('listarMatriculas retorna matrículas do aluno', async () => {
-  const list = (await listarMatriculas(alunoId)) as Array<{ turma?: { nome: string }; plano?: { nome?: string | null } | null; cobrancas: Array<{ valor: unknown; status: string }> }>;
-  expect(Array.isArray(list)).toBe(true);
-  expect(list.length).toBeGreaterThan(0);
+      const list = (await listarMatriculas(alunoId)) as Array<{
+        turma?: { nome: string };
+        plano?: { nome?: string | null } | null;
+        cobrancas: Array<{ valor: unknown; status: string }>;
+      }>;
+      expect(Array.isArray(list)).toBe(true);
+      expect(list.length).toBeGreaterThan(0);
       // conferir shape mínimo
       const m = list[0];
       expect(m.turma?.nome).toBeTruthy();
-  expect(m.plano?.nome).toBeTruthy();
+      expect(m.plano?.nome).toBeTruthy();
       expect(Array.isArray(m.cobrancas)).toBe(true);
     });
   });
