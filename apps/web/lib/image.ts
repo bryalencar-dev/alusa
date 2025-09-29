@@ -16,7 +16,9 @@ export interface GenerateCroppedOptions {
   exportSize?: number; // maior lado resultante
 }
 
-type HighQualityCtx = CanvasRenderingContext2D & { imageSmoothingQuality: 'low' | 'medium' | 'high' };
+type HighQualityCtx = CanvasRenderingContext2D & {
+  imageSmoothingQuality: 'low' | 'medium' | 'high';
+};
 
 export async function generateCroppedImage(
   imageSrc: string,
@@ -48,15 +50,15 @@ export async function generateCroppedImage(
       const scaled = document.createElement('canvas');
       scaled.width = targetW;
       scaled.height = targetH;
-  const sctx = scaled.getContext('2d') as HighQualityCtx | null;
+      const sctx = scaled.getContext('2d') as HighQualityCtx | null;
       if (!sctx) throw new Error('Canvas 2D context not available (scale)');
       sctx.imageSmoothingEnabled = true;
-  if (sctx.imageSmoothingQuality !== undefined) sctx.imageSmoothingQuality = 'high';
+      if (sctx.imageSmoothingQuality !== undefined) sctx.imageSmoothingQuality = 'high';
       sctx.drawImage(canvas, 0, 0, targetW, targetH);
       canvas.width = targetW;
       canvas.height = targetH;
-      ctx.clearRect(0,0,targetW,targetH);
-      ctx.drawImage(scaled,0,0);
+      ctx.clearRect(0, 0, targetW, targetH);
+      ctx.drawImage(scaled, 0, 0);
     }
   }
 

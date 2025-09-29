@@ -1,7 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ImageCropper } from './ImageCropper';
 import { generateCroppedImage } from '@/lib/image';
@@ -17,6 +23,7 @@ export type ImageCropDialogProps = {
   exportMime?: 'image/jpeg' | 'image/png' | 'image/webp';
   exportQuality?: number; // 0..1
   exportSize?: number; // lado maior final (default 512)
+  showGridWhenRect?: boolean;
   title?: string;
   onApply: (_result: { dataUrl: string; blob: Blob; width: number; height: number }) => void;
   className?: string;
@@ -89,6 +96,7 @@ export function ImageCropDialog({
                 image={src}
                 aspect={aspect}
                 round={round}
+                showGridWhenRect={true}
                 crop={crop}
                 zoom={zoom}
                 onCropChange={setCrop}

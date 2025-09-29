@@ -8,6 +8,7 @@ export type ImageCropperProps = {
   image: string;
   aspect?: number; // default 1
   round?: boolean; // default true
+  showGridWhenRect?: boolean; // exibe grid se não for round
   crop: { x: number; y: number };
   zoom: number;
   onCropChange: (_c: { x: number; y: number }) => void;
@@ -24,6 +25,7 @@ export const ImageCropper = React.memo(function ImageCropper({
   image,
   aspect = 1,
   round = true,
+  showGridWhenRect = true,
   crop,
   zoom,
   onCropChange,
@@ -32,7 +34,9 @@ export const ImageCropper = React.memo(function ImageCropper({
   className,
 }: ImageCropperProps) {
   return (
-    <div className={cn('relative w-full h-full overflow-hidden bg-slate-900/5 rounded-md', className)}>
+    <div
+      className={cn('relative w-full h-full overflow-hidden bg-slate-900/5 rounded-md', className)}
+    >
       <Cropper
         image={image}
         crop={crop}
@@ -42,7 +46,7 @@ export const ImageCropper = React.memo(function ImageCropper({
         onZoomChange={onZoomChange}
         onCropComplete={(_, area) => onCropComplete(area)}
         objectFit="cover"
-        showGrid={false}
+  showGrid={!round && showGridWhenRect}
         restrictPosition
         cropShape={round ? 'round' : 'rect'}
       />
