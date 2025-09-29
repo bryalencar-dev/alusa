@@ -14,7 +14,7 @@ export interface ImageCropDialogProps {
   maxZoom?: number;                 // limite de zoom (default 3)
   mimeType?: string;                // mime final (default image/jpeg)
   quality?: number;                 // qualidade jpeg (0..1)
-  roundPreview?: boolean;           // exibir dica/preview redondo futura?
+  round?: boolean;                  // exibir máscara / guia circular
   className?: string;               // estilização externa opcional
 }
 
@@ -39,6 +39,7 @@ export function ImageCropDialog({
   mimeType = 'image/jpeg',
   quality = 0.9,
   className,
+  round = true,
 }: ImageCropDialogProps) {
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(1);
@@ -82,16 +83,38 @@ export function ImageCropDialog({
         <h4 className="text-sm font-semibold text-slate-800">{title}</h4>
         <div className="relative h-72 w-full overflow-hidden rounded-md bg-slate-900/5">
           {src && (
-            <Cropper
-              image={src}
-              crop={crop}
-              zoom={zoom}
-              aspect={aspect}
-              onCropChange={setCrop}
-              onZoomChange={setZoom}
-              onCropComplete={onCropComplete}
-              objectFit="cover"
-            />
+            <>
+              <Cropper
+                image={src}
+                crop={crop}
+                zoom={zoom}
+                aspect={aspect}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+                objectFit="contain" /* evita achatamento forçado; mostra toda a área enquanto ajusta */
+                cropShape={round ? 'round' : 'rect'}
+                showGrid={!round} /* grid padrão só se quadrado; para round faremos overlay custom */
+              />
+              {round && (
+                // Overlay de grid circular custom para orientação (criado manualmente para ter linhas guias)
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="relative h-[90%] aspect-square rounded-full border border-white/40">
+                    {/* Linhas guias - thirds */}
+                    <div className="absolute inset-0">
+                      <div className="absolute top-1/3 left-0 h-px w-full bg-white/25" />
+                      <div className="absolute top-2/3 left-0 h-px w-full bg-white/25" />
+                      <div className="absolute left-1/3 top-0 w-px h-full bg-white/25" />
+                      <div className="absolute left-2/3 top-0 w-px h-full bg-white/25" />
+                    </div>
+                    {/* Escurece fora do círculo */}
+                    <div className="absolute -inset-4 rounded-full ring ring-white/10" />
+                  </div>
+                  {/* Máscara externa (círculo recortado) */}
+                  <div className="absolute inset-0 rounded-md [mask:radial-gradient(circle_at_center,transparent_45%,black_46%)] bg-black/40" />
+                </div>
+              )}
+            </>
           )}
         </div>
         <div className="flex items-center gap-3">
