@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
 import TableLayout from '@/components/layout/TableLayout';
 import { table } from '@/components/layout/TableStyles';
 import DataTable, { type DataTableColumn } from '@/components/layout/DataTable';
@@ -22,13 +21,9 @@ import { useDeleteDialog } from '@/hooks/use-delete-dialog';
 import { useEntityListFiltering } from '@/hooks/entity/use-entity-list-filtering';
 import useCurrentUser from '@/hooks/use-current-user';
 import { formatFirstLast } from '@alusa/lib';
-import SalaEditDialog, { type SalaEditFormValues } from '@/components/salas/SalaEditDialog';
+import SalaDialog from '@/components/salas/SalaDialog';
 import { useSalas } from './hooks/use-salas';
-import { updateSala, type SalaListItem, type UpdateSalaPayload } from './services/salas-service';
-
-const SalaWizardDrawer = dynamic(() => import('@/components/salas/SalaWizardDrawer'), {
-  ssr: false,
-});
+import { updateSala, createSala, type SalaListItem, type UpdateSalaPayload, type SalaStatus } from './services/salas-service';
 
 const PAGE_SIZE = 10;
 
@@ -59,7 +54,7 @@ export function SalasFeature() {
     },
   });
 
-  const [wizardOpen, setWizardOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<SortOrder>('ASC');
 
   const {
@@ -115,7 +110,10 @@ export function SalasFeature() {
       subtitle="Gerencie as salas cadastradas."
       actions={
         <Button
-          onClick={() => setWizardOpen(true)}
+          onClick={() => {
+            editDialog.closeDialog();
+            setDialogOpen(true);
+          }}
           className="h-10 px-4 bg-brand-accent hover:bg-brand-accent/90 text-white shadow-none"
           disabled={!contaId}
         >
@@ -154,47 +152,81 @@ export function SalasFeature() {
         />
       </div>
 
-      {contaId ? (
-        <SalaWizardDrawer
-          open={wizardOpen}
-          contaId={contaId}
-          onOpenChange={(open) => {
-            setWizardOpen(open);
-          }}
-          onSaved={() => {
-            setWizardOpen(false);
-            void reload();
-          }}
-        />
-      ) : null}
+      <SalaDialog
+        open={dialogOpen || !!editDialog.entity}
+        creating={!editDialog.entity}
+        sala={editDialog.entity ?? null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialogOpen(false);
+            editDialog.closeDialog();
+          } else {
+            setDialogOpen(true);
+          }
+        }}
+        onSubmit={async (formValues: { nome: string; status: string; capacidade: string; descricao: string }) => {
+          if (!contaId) {
+            toast.custom((t) => (
+              <CustomToast
+                variant="error"
+                title="Conta não encontrada"
+                description="Não foi possível identificar a conta para salvar a sala."
+                onClose={() => toast.dismiss(t)}
+              />
+            ));
+            return;
+          }
 
-      {editDialog.entity ? (
-        <SalaEditDialog
-          open={editDialog.open}
-          sala={editDialog.entity}
-          onOpenChange={(open) => {
-            if (!open) editDialog.closeDialog();
-          }}
-          onSubmit={async (formValues) => {
-            const current = editDialog.entity;
-            if (!current) return;
-            if (!contaId) {
+          const basePayload = {
+            contaId,
+            nome: formValues.nome.trim(),
+            descricao: formValues.descricao.trim() || null,
+            capacidade: Number(formValues.capacidade),
+            status: (formValues.status === 'INATIVO' ? 'INATIVO' : 'ATIVO') as SalaStatus,
+          };
+
+          // Create
+          if (!editDialog.entity) {
+            try {
+              const created = await createSala(basePayload);
+              setItems((prev) => [created, ...prev]);
               toast.custom((t) => (
                 <CustomToast
-                  variant="error"
-                  title="Conta não encontrada"
-                  description="Não foi possível identificar a conta para atualizar a sala."
+                  variant="success"
+                  title="Sala criada"
+                  description="A sala foi cadastrada."
                   onClose={() => toast.dismiss(t)}
                 />
               ));
+              setDialogOpen(false);
+              window.dispatchEvent(new CustomEvent('salas:changed'));
               return;
+            } catch (error) {
+              toast.custom((t) => (
+                <CustomToast
+                  variant="error"
+                  title="Erro ao salvar"
+                  description={(error as Error).message}
+                  onClose={() => toast.dismiss(t)}
+                />
+              ));
+              throw error;
             }
+          }
+
+          // Update
             try {
-              const payload = buildUpdatePayload(formValues, contaId);
-              const updated = await updateSala({ id: current.id, payload });
-              setItems((prev) =>
-                prev.map((sala) => (sala.id === updated.id ? { ...sala, ...updated } : sala)),
-              );
+              const current = editDialog.entity;
+              if (!current) return;
+              const updatePayload: UpdateSalaPayload = {
+                contaId,
+                nome: basePayload.nome,
+                descricao: basePayload.descricao,
+                capacidade: basePayload.capacidade,
+                status: basePayload.status,
+              };
+              const updated = await updateSala({ id: current.id, payload: updatePayload });
+              setItems((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
               toast.custom((t) => (
                 <CustomToast
                   variant="success"
@@ -216,9 +248,8 @@ export function SalasFeature() {
               ));
               throw error;
             }
-          }}
-        />
-      ) : null}
+        }}
+      />
 
       <ConfirmDeleteDialog
         open={deleteDialog.open}
@@ -341,25 +372,4 @@ function SalasTable({ salas, accountMissing, onEdit, onDelete, loading }: SalasT
   );
 }
 
-function buildUpdatePayload(raw: SalaEditFormValues, contaId: string | null): UpdateSalaPayload {
-  if (!contaId) {
-    throw new Error('Conta não encontrada para atualizar sala.');
-  }
-
-  const nome = raw.nome.trim();
-  const capacidadeNumber = Number(raw.capacidade);
-  const descricaoValue = raw.descricao.trim();
-
-  const payload: UpdateSalaPayload = {
-    contaId,
-    status: raw.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
-  };
-
-  if (nome) payload.nome = nome;
-  if (!Number.isNaN(capacidadeNumber) && capacidadeNumber > 0) {
-    payload.capacidade = capacidadeNumber;
-  }
-  payload.descricao = descricaoValue;
-
-  return payload;
-}
+// (Função buildUpdatePayload removida após unificação create/edit no SalaDialog)

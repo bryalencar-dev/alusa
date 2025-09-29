@@ -71,7 +71,9 @@ export interface CreateModalidadePayload {
   status?: ModalidadeStatus; // default ATIVO se omitido
 }
 
-export async function createModalidade(payload: CreateModalidadePayload): Promise<ModalidadeListItem> {
+export async function createModalidade(
+  payload: CreateModalidadePayload,
+): Promise<ModalidadeListItem> {
   const response = await fetch('/api/modalidades', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },

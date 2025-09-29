@@ -71,6 +71,36 @@ export interface UpdateSalaPayload {
   status?: SalaStatus;
 }
 
+export interface CreateSalaPayload {
+  contaId: string;
+  nome: string;
+  descricao?: string | null;
+  capacidade: number;
+  status?: SalaStatus; // default ATIVO
+}
+
+export async function createSala(payload: CreateSalaPayload): Promise<SalaListItem> {
+  const response = await fetch('/api/salas', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      ...payload,
+      status: payload.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
+    }),
+  });
+
+  const json = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      (json as { error?: { message?: string } } | null)?.error?.message ??
+      'Não foi possível criar a sala.';
+    throw new Error(message);
+  }
+  const data = (json as { data?: Record<string, unknown> } | null)?.data;
+  if (!data) throw new Error('Resposta inválida ao criar sala.');
+  return normalizeSala(data);
+}
+
 export async function updateSala({
   id,
   payload,
