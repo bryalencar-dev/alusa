@@ -42,6 +42,7 @@ export function ImageCropDialog({
   title = 'Ajustar corte',
   onApply,
   className,
+  showGridWhenRect = true,
 }: ImageCropDialogProps) {
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(1);
@@ -96,7 +97,7 @@ export function ImageCropDialog({
                 image={src}
                 aspect={aspect}
                 round={round}
-                showGridWhenRect={true}
+                showGridWhenRect={showGridWhenRect}
                 crop={crop}
                 zoom={zoom}
                 onCropChange={setCrop}

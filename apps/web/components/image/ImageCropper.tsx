@@ -46,7 +46,7 @@ export const ImageCropper = React.memo(function ImageCropper({
         onZoomChange={onZoomChange}
         onCropComplete={(_, area) => onCropComplete(area)}
         objectFit="cover"
-  showGrid={!round && showGridWhenRect}
+        showGrid={!round && showGridWhenRect}
         restrictPosition
         cropShape={round ? 'round' : 'rect'}
       />
