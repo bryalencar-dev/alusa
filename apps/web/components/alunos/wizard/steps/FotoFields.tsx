@@ -42,10 +42,11 @@ export default function FotoFields({
   };
 
   return (
-    <div className="flex flex-col gap-6 md:flex-row md:items-start">
+  <div className="flex flex-col gap-6 md:flex-row md:items-start">
       {/* Preview lateral (quando existir) */}
       <div className="flex items-start gap-4">
-        <div className="relative h-28 w-28 overflow-hidden rounded-full border border-slate-200 bg-white ring-1 ring-slate-200/60">
+        {/* Círculo agora com mesma altura da dropzone (h-40) */}
+        <div className="relative h-40 w-40 overflow-hidden rounded-full border border-slate-200 bg-white ring-1 ring-slate-200/60">
           {hasFoto ? (
             <img src={fotoPreview ?? ''} alt="Foto do aluno" className="h-full w-full object-cover" />
           ) : (
@@ -91,7 +92,7 @@ export default function FotoFields({
             onClick={onReplace}
             aria-label={hasFoto ? 'Substituir foto do aluno' : 'Adicionar foto do aluno'}
           className={
-            'flex flex-col items-center justify-center rounded-md border border-dashed px-4 py-8 text-center transition ' +
+            'flex h-40 flex-col items-center justify-center rounded-md border border-dashed px-4 text-center transition ' +
             (dragActive
               ? 'border-brand-accent bg-brand-accent/5'
               : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50')
