@@ -17,12 +17,7 @@ import type {
 } from '@/features/cadastro/turmas/services/turmas-service';
 import { useTurmaLookups } from '@/hooks/use-turma-lookups';
 import { useProfessoresLookup } from '@/hooks/use-professores-lookup';
-import {
-  Dialog as InnerDialog,
-  DialogContent as InnerDialogContent,
-  DialogTitle as InnerDialogTitle,
-} from '@/components/ui/dialog';
-import { modalidadeSchema } from '@alusa/lib';
+// Removido dialog interno de criação rápida; usaremos eventos globais para abrir diálogos existentes
 
 export type TurmaDialogMode = 'create' | 'edit';
 
@@ -119,42 +114,14 @@ export default function TurmaDialog({
   const lookups = useTurmaLookups(contaId);
   const professoresLookup = useProfessoresLookup(contaId);
   const loadingLookups = lookups.loading || professoresLookup.loading;
-  const [creatingModalidade, setCreatingModalidade] = useState(false);
-  const [newModalidadeNome, setNewModalidadeNome] = useState('');
-  const [newModalidadeErro, setNewModalidadeErro] = useState<string | null>(null);
-  const [savingModalidade, setSavingModalidade] = useState(false);
+  // Criação de modalidade/sala agora delega para módulos dedicados via eventos
 
-  async function handleCreateModalidadeQuick() {
-    if (!contaId) return;
-    const nome = newModalidadeNome.trim();
-    const parsed = modalidadeSchema.safeParse({ nome });
-    if (!parsed.success) {
-      setNewModalidadeErro(parsed.error.issues[0]?.message || 'Nome inválido');
-      return;
-    }
-    setSavingModalidade(true);
-    try {
-      const res = await fetch('/api/modalidades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contaId, nome }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(json?.error?.message || 'Falha ao criar modalidade');
-      const created = json?.data as { id: string; nome: string } | undefined;
-      // força reload lookups e seleciona
-      await lookups.reloadModalidades();
-      if (created?.id) {
-        handleChange('modalidadeId', created.id);
-      }
-      setCreatingModalidade(false);
-      setNewModalidadeNome('');
-      setNewModalidadeErro(null);
-    } catch (e) {
-      setNewModalidadeErro((e as Error).message);
-    } finally {
-      setSavingModalidade(false);
-    }
+  function openGlobalModalidadeDialog() {
+    window.dispatchEvent(new CustomEvent('modalidade:dialog:new'));
+  }
+
+  function openGlobalSalaDialog() {
+    window.dispatchEvent(new CustomEvent('sala:dialog:new'));
   }
 
   const statusOptions = useMemo(
@@ -354,7 +321,7 @@ export default function TurmaDialog({
                     value={values.modalidadeId}
                     onValueChange={(val) => {
                       if (val === '__create__') {
-                        setCreatingModalidade(true);
+                        openGlobalModalidadeDialog();
                         return;
                       }
                       handleChange('modalidadeId', val);
@@ -381,7 +348,13 @@ export default function TurmaDialog({
                   <label className={labelClass}>Sala</label>
                   <Select
                     value={values.salaId}
-                    onValueChange={(val) => handleChange('salaId', val)}
+                    onValueChange={(val) => {
+                      if (val === '__create__') {
+                        openGlobalSalaDialog();
+                        return;
+                      }
+                      handleChange('salaId', val);
+                    }}
                   >
                     <SelectTrigger className={selectTriggerClass}>
                       <SelectValue placeholder={loadingLookups ? 'Carregando...' : 'Selecione'} />
@@ -392,6 +365,10 @@ export default function TurmaDialog({
                           {s.nome}
                         </SelectItem>
                       ))}
+                      <div className="my-1 h-px bg-slate-200" />
+                      <SelectItem value="__create__" className="!text-violet-600 !font-medium">
+                        + Criar nova sala
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.salaId ? <p className={errorClass}>{errors.salaId}</p> : null}
@@ -582,65 +559,7 @@ export default function TurmaDialog({
           </div>
         </DialogContent>
       </Dialog>
-      {creatingModalidade && (
-        <InnerDialog
-          open={creatingModalidade}
-          onOpenChange={(o) => !savingModalidade && setCreatingModalidade(o)}
-        >
-          <InnerDialogContent className="w-full max-w-sm p-0 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-200">
-              <InnerDialogTitle className="text-sm font-semibold text-slate-900">
-                Nova modalidade
-              </InnerDialogTitle>
-            </div>
-            <div className="px-5 py-4 flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-xs font-medium text-slate-600"
-                  htmlFor="nova-modalidade-nome"
-                >
-                  Nome
-                </label>
-                <Input
-                  id="nova-modalidade-nome"
-                  autoFocus
-                  value={newModalidadeNome}
-                  onChange={(e) => {
-                    setNewModalidadeNome(e.target.value);
-                    if (newModalidadeErro) setNewModalidadeErro(null);
-                  }}
-                  placeholder="Ex.: Ballet Clássico"
-                  className={cn(
-                    inputClass,
-                    newModalidadeErro &&
-                      'border-[#DC2626] focus:border-[#DC2626] focus:ring-[#DC2626]/20',
-                  )}
-                />
-                {newModalidadeErro && <p className={errorClass}>{newModalidadeErro}</p>}
-              </div>
-            </div>
-            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={savingModalidade}
-                onClick={() => setCreatingModalidade(false)}
-                className="h-9 px-4 text-xs"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                disabled={savingModalidade || !newModalidadeNome.trim()}
-                onClick={() => void handleCreateModalidadeQuick()}
-                className="h-9 px-4 bg-brand-accent hover:bg-brand-accent/90 text-white text-xs"
-              >
-                {savingModalidade ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
-          </InnerDialogContent>
-        </InnerDialog>
-      )}
+      {/* Diálogo interno de criação rápida removido: criação é delegada via eventos globais */}
     </>
   );
 }
