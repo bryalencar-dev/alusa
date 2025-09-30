@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import CardHeader from '@/components/layout/CardHeader';
+import useCurrentUser from '@/hooks/use-current-user';
+import ModalidadeDialog from '@/components/modalidades/ModalidadeDialog';
+import SalaDialog from '@/components/salas/SalaDialog';
+import { toast } from 'sonner';
+import { CustomToast } from '@/components/CustomToast';
+import { createModalidade } from '@/features/cadastro/modalidades/services/modalidades-service';
+import { createSala } from '@/features/cadastro/salas/services/salas-service';
 
 /** Espaçamentos já validados por você */
 const CONTENT_GAP_PX = 12;
@@ -72,9 +79,185 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <CardHeader />
             <div className="mt-6">{children}</div>
+            <GlobalQuickCreatePortals />
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+// Portal global para tratar eventos de criação disparados em selects (ex.: TurmaDialog)
+function GlobalQuickCreatePortals() {
+  const { user } = useCurrentUser();
+  const contaId = user?.contaId ?? null;
+
+  const [openModalidade, setOpenModalidade] = useState(false);
+  const [openSala, setOpenSala] = useState(false);
+
+  // Estados de formulário simplificados
+  const [modalidadeForm, setModalidadeForm] = useState({ nome: '', descricao: '', status: 'ATIVO' });
+  const [salaForm, setSalaForm] = useState({ nome: '', descricao: '', capacidade: '', status: 'ATIVO' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const resetModalidade = useCallback(() => {
+    setModalidadeForm({ nome: '', descricao: '', status: 'ATIVO' });
+  }, []);
+  const resetSala = useCallback(() => {
+    setSalaForm({ nome: '', descricao: '', capacidade: '', status: 'ATIVO' });
+  }, []);
+
+  useEffect(() => {
+    function handleOpenModalidade() {
+      resetModalidade();
+      setOpenModalidade(true);
+    }
+    function handleOpenSala() {
+      resetSala();
+      setOpenSala(true);
+    }
+    window.addEventListener('modalidade:dialog:new', handleOpenModalidade);
+    window.addEventListener('sala:dialog:new', handleOpenSala);
+    return () => {
+      window.removeEventListener('modalidade:dialog:new', handleOpenModalidade);
+      window.removeEventListener('sala:dialog:new', handleOpenSala);
+    };
+  }, [resetModalidade, resetSala]);
+
+  async function handleCreateModalidade() {
+    if (!contaId) {
+      toast.custom((t) => (
+        <CustomToast
+          variant="error"
+          title="Conta não encontrada"
+          description="Não foi possível identificar a conta para salvar a modalidade."
+          onClose={() => toast.dismiss(t)}
+        />
+      ));
+      return;
+    }
+    if (submitting) return;
+    try {
+      setSubmitting(true);
+      const created = await createModalidade({
+        contaId,
+        nome: modalidadeForm.nome.trim(),
+        descricao: modalidadeForm.descricao.trim() || undefined,
+        status: modalidadeForm.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
+      });
+      toast.custom((t) => (
+        <CustomToast
+          variant="success"
+          title="Modalidade criada"
+          description="A modalidade foi cadastrada."
+          onClose={() => toast.dismiss(t)}
+        />
+      ));
+      setOpenModalidade(false);
+      window.dispatchEvent(new CustomEvent('modalidades:changed'));
+      // Evento específico para selects que aguardam auto-seleção
+      window.dispatchEvent(
+        new CustomEvent('modalidade:created', { detail: { id: created.id, nome: created.nome } }),
+      );
+    } catch (e) {
+      toast.custom((t) => (
+        <CustomToast
+          variant="error"
+          title="Erro ao criar"
+            description={(e as Error).message}
+          onClose={() => toast.dismiss(t)}
+        />
+      ));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleCreateSala() {
+    if (!contaId) {
+      toast.custom((t) => (
+        <CustomToast
+          variant="error"
+          title="Conta não encontrada"
+          description="Não foi possível identificar a conta para salvar a sala."
+          onClose={() => toast.dismiss(t)}
+        />
+      ));
+      return;
+    }
+    if (submitting) return;
+    try {
+      setSubmitting(true);
+      const created = await createSala({
+        contaId,
+        nome: salaForm.nome.trim(),
+        descricao: salaForm.descricao.trim() || undefined,
+        capacidade: Number(salaForm.capacidade) || 0,
+        status: salaForm.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
+      });
+      toast.custom((t) => (
+        <CustomToast
+          variant="success"
+          title="Sala criada"
+          description="A sala foi cadastrada."
+          onClose={() => toast.dismiss(t)}
+        />
+      ));
+      setOpenSala(false);
+      window.dispatchEvent(new CustomEvent('salas:changed'));
+      window.dispatchEvent(
+        new CustomEvent('sala:created', { detail: { id: created.id, nome: created.nome } }),
+      );
+    } catch (e) {
+      toast.custom((t) => (
+        <CustomToast
+          variant="error"
+          title="Erro ao criar"
+          description={(e as Error).message}
+          onClose={() => toast.dismiss(t)}
+        />
+      ));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Reaproveita componentes existentes para consistência visual
+  return (
+    <>
+      <ModalidadeDialog
+        open={openModalidade}
+        creating
+        modalidade={null}
+        onOpenChange={(open) => {
+          if (!open) setOpenModalidade(false);
+        }}
+        onSubmit={async (vals: { nome: string; descricao: string; status: string }) => {
+          setModalidadeForm({
+            nome: vals.nome,
+            descricao: vals.descricao,
+            status: vals.status,
+          });
+          await handleCreateModalidade();
+        }}
+      />
+      <SalaDialog
+        open={openSala}
+        creating
+        sala={null}
+        onOpenChange={(open) => {
+          if (!open) setOpenSala(false);
+        }}
+        onSubmit={async (vals) => {
+          setSalaForm({
+            nome: vals.nome,
+            descricao: vals.descricao,
+            capacidade: vals.capacidade,
+            status: vals.status,
+          });
+          await handleCreateSala();
+        }}
+      />
+    </>
   );
 }
