@@ -17,6 +17,8 @@ enum Status {
 }
 
 enum PeriodicidadePlano {
+  SEMANAL
+  QUINZENAL
   MENSAL
   TRIMESTRAL
   ANUAL
