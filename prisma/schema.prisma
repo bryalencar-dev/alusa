@@ -469,13 +469,21 @@ model DescontoMatricula {
 }
 
 model Combo {
-  id        String   @id @default(cuid())
-  contaId   String
-  nome      String
-  descricao String?
-  status    String   @default("ATIVO")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  contaId         String
+  nome            String
+  descricao       String?
+  valorMensal     Decimal  @db.Decimal(12, 2)
+  taxaMatricula   Decimal? @db.Decimal(12, 2)
+  categoriaMensal String?
+  categoriaTaxa   String?
+  status          String   @default("ATIVO")
+  modoMatricula   String   @default("RESERVADA")
+  vigenciaIni     DateTime?
+  vigenciaFim     DateTime?
+  vagasLimite     Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   conta  Conta        @relation(fields: [contaId], references: [id])
   turmas ComboTurma[]
