@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-  // Refs para controle de debounce (evita múltiplas aberturas em cliques rápidos)
-  const lastOpenModalidadeRef = useRef<number>(0);
-  const lastOpenSalaRef = useRef<number>(0);
-  const DEBOUNCE_MS = 500;
+// Constante de debounce pode ficar em nível de módulo (não é hook)
+const DEBOUNCE_MS = 500;
 import { useSession } from 'next-auth/react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import CardHeader from '@/components/layout/CardHeader';
@@ -95,6 +93,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function GlobalQuickCreatePortals() {
   const { user } = useCurrentUser();
   const contaId = user?.contaId ?? null;
+
+  // Refs de controle de debounce DEVEM estar dentro do componente (hooks não podem ser usados no módulo)
+  const lastOpenModalidadeRef = useRef(0);
+  const lastOpenSalaRef = useRef(0);
 
   const [openModalidade, setOpenModalidade] = useState(false);
   const [openSala, setOpenSala] = useState(false);
