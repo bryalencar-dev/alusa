@@ -1,6 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+  // Refs para controle de debounce (evita múltiplas aberturas em cliques rápidos)
+  const lastOpenModalidadeRef = useRef<number>(0);
+  const lastOpenSalaRef = useRef<number>(0);
+  const DEBOUNCE_MS = 500;
 import { useSession } from 'next-auth/react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import CardHeader from '@/components/layout/CardHeader';
@@ -96,8 +100,17 @@ function GlobalQuickCreatePortals() {
   const [openSala, setOpenSala] = useState(false);
 
   // Estados de formulário simplificados
-  const [modalidadeForm, setModalidadeForm] = useState({ nome: '', descricao: '', status: 'ATIVO' });
-  const [salaForm, setSalaForm] = useState({ nome: '', descricao: '', capacidade: '', status: 'ATIVO' });
+  const [modalidadeForm, setModalidadeForm] = useState({
+    nome: '',
+    descricao: '',
+    status: 'ATIVO',
+  });
+  const [salaForm, setSalaForm] = useState({
+    nome: '',
+    descricao: '',
+    capacidade: '',
+    status: 'ATIVO',
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const resetModalidade = useCallback(() => {
@@ -109,10 +122,16 @@ function GlobalQuickCreatePortals() {
 
   useEffect(() => {
     function handleOpenModalidade() {
+      const now = Date.now();
+      if (openModalidade || now - lastOpenModalidadeRef.current < DEBOUNCE_MS) return;
+      lastOpenModalidadeRef.current = now;
       resetModalidade();
       setOpenModalidade(true);
     }
     function handleOpenSala() {
+      const now = Date.now();
+      if (openSala || now - lastOpenSalaRef.current < DEBOUNCE_MS) return;
+      lastOpenSalaRef.current = now;
       resetSala();
       setOpenSala(true);
     }
@@ -122,7 +141,7 @@ function GlobalQuickCreatePortals() {
       window.removeEventListener('modalidade:dialog:new', handleOpenModalidade);
       window.removeEventListener('sala:dialog:new', handleOpenSala);
     };
-  }, [resetModalidade, resetSala]);
+  }, [resetModalidade, resetSala, openModalidade, openSala]);
 
   async function handleCreateModalidade() {
     if (!contaId) {
@@ -164,7 +183,7 @@ function GlobalQuickCreatePortals() {
         <CustomToast
           variant="error"
           title="Erro ao criar"
-            description={(e as Error).message}
+          description={(e as Error).message}
           onClose={() => toast.dismiss(t)}
         />
       ));
