@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -30,11 +30,20 @@ export default function MatriculaWizardDialog({
   onOpenChange,
 }: MatriculaWizardDialogProps) {
   const wizard = useMatriculaWizard(contaId);
+  const { reset } = wizard;
+  const prevOpenRef = useRef<boolean>(open);
+  const prevContaRef = useRef<string | undefined>(contaId);
 
-  // Reset do estado sempre que o diálogo abre (garante limpeza ao abrir novamente)
+  // Reset somente quando o modal é ABERTO (transição false->true) ou quando a conta muda enquanto aberto.
   useEffect(() => {
-    if (open) wizard.reset({ contaId: contaId ?? '' });
-  }, [open, contaId, wizard]);
+    const abriuAgora = open && !prevOpenRef.current;
+    const contaMudouEnquantoAberto = open && prevContaRef.current !== contaId;
+    if (abriuAgora || contaMudouEnquantoAberto) {
+      reset({ contaId: contaId ?? '' });
+    }
+    prevOpenRef.current = open;
+    prevContaRef.current = contaId;
+  }, [open, contaId, reset]);
 
   const renderStep = () => {
     switch (wizard.step) {

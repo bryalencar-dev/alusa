@@ -1,17 +1,30 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { WizardContextValue } from '../types';
 
-interface PlanoOption { id: string; nome: string; valor?: number }
+interface PlanoOption {
+  id: string;
+  nome: string;
+  valor?: number;
+}
 
-interface StepPlanoProps { ctx: WizardContextValue; contaId?: string }
+interface StepPlanoProps {
+  ctx: WizardContextValue;
+  contaId?: string;
+}
 
 export function StepPlano({ ctx, contaId }: StepPlanoProps) {
   const { state, update, goNext, goBack } = ctx;
   const [planos, setPlanos] = useState<PlanoOption[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string|null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!contaId) return;
@@ -21,16 +34,28 @@ export function StepPlano({ ctx, contaId }: StepPlanoProps) {
       try {
         const r = await fetch(`/api/planos?contaId=${contaId}`, { signal: controller.signal });
         const j = await r.json();
-        const data: any[] = j?.data ?? [];
-        setPlanos(data.map(p => ({ id: p.id, nome: p.nome ?? 'Plano', valor: p.valor != null ? Number(p.valor) : undefined })));
-      } catch(e) {
-        if ((e as any).name !== 'AbortError') setError('Falha ao carregar planos');
-      } finally { setLoading(false); }
+        const data: unknown[] = j?.data ?? [];
+        setPlanos(
+          data.map((raw) => {
+            const p = raw as Record<string, unknown>;
+            return {
+              id: String(p.id ?? ''),
+              nome: String(p.nome ?? 'Plano'),
+              valor: typeof p.valor === 'number' ? p.valor : undefined,
+            } as PlanoOption;
+          }),
+        );
+      } catch (e) {
+        const name = (e as { name?: string } | null)?.name;
+        if (name !== 'AbortError') setError('Falha ao carregar planos');
+      } finally {
+        setLoading(false);
+      }
     })();
     return () => controller.abort();
   }, [contaId]);
 
-  const planoSelecionado = planos.find(p => p.id === state.planoId);
+  const planoSelecionado = planos.find((p) => p.id === state.planoId);
 
   const canContinue = !!planoSelecionado;
 
@@ -42,7 +67,7 @@ export function StepPlano({ ctx, contaId }: StepPlanoProps) {
           value={state.planoId ?? ''}
           disabled={loading}
           onValueChange={(val) => {
-            const found = planos.find(p => p.id === val);
+            const found = planos.find((p) => p.id === val);
             update({ planoId: val, planoLabel: found?.nome, planoValor: found?.valor });
           }}
         >
@@ -50,8 +75,11 @@ export function StepPlano({ ctx, contaId }: StepPlanoProps) {
             <SelectValue placeholder={loading ? 'Carregando...' : 'Selecione'} />
           </SelectTrigger>
           <SelectContent>
-            {planos.map(p => (
-              <SelectItem key={p.id} value={p.id}>{p.nome}{p.valor != null && ` - R$ ${p.valor}`}</SelectItem>
+            {planos.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.nome}
+                {p.valor != null && ` - R$ ${p.valor}`}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -59,8 +87,12 @@ export function StepPlano({ ctx, contaId }: StepPlanoProps) {
       </div>
 
       <div className="flex justify-between pt-2">
-        <Button type="button" variant="outline" onClick={goBack}>Voltar</Button>
-        <Button type="button" disabled={!canContinue} onClick={goNext}>Próximo</Button>
+        <Button type="button" variant="outline" onClick={goBack}>
+          Voltar
+        </Button>
+        <Button type="button" disabled={!canContinue} onClick={goNext}>
+          Próximo
+        </Button>
       </div>
     </div>
   );
