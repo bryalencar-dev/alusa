@@ -12,12 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  planoFormSchema,
-  type PlanoFormOutput,
-  type PlanoPeriodicidade,
-  type PlanoStatus,
-} from '@alusa/lib';
+import { planoFormSchema, type PlanoFormOutput, type PlanoStatus } from '@alusa/lib/client';
 import {
   createPlanoRequest,
   updatePlanoRequest,
@@ -38,7 +33,7 @@ export interface PlanoDialogProps {
 type FormState = {
   nome: string;
   descricao: string;
-  periodicidade: PlanoPeriodicidade;
+  periodicidade: string; // usaremos lista controlada; alinhar com enum runtime atualizado
   valor: string; // string para facilitar digitação; converter ao salvar
   status?: PlanoStatus; // somente usado em modo edição
 };
@@ -180,7 +175,7 @@ export function PlanoDialog({
     }
   }
 
-  const periodicidadeOptions: PlanoPeriodicidade[] = ['MENSAL', 'TRIMESTRAL', 'ANUAL'];
+  const periodicidadeOptions = ['SEMANAL', 'QUINZENAL', 'MENSAL', 'TRIMESTRAL', 'ANUAL'];
 
   return (
     <Dialog open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>
@@ -245,7 +240,7 @@ export function PlanoDialog({
                 <label className="text-xs font-medium text-slate-600">Periodicidade</label>
                 <Select
                   value={values.periodicidade}
-                  onValueChange={(val) => handleChange('periodicidade', val as PlanoPeriodicidade)}
+                  onValueChange={(val) => handleChange('periodicidade', val)}
                 >
                   <SelectTrigger className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm data-[placeholder]:text-slate-400 focus:border-[#A94DFF] focus:outline-none focus:ring-2 focus:ring-[#A94DFF]/30">
                     <SelectValue placeholder="Selecione" />
@@ -326,14 +321,20 @@ export function PlanoDialog({
   );
 }
 
-function formatPeriodicidade(value: PlanoPeriodicidade) {
+function formatPeriodicidade(value: string) {
   switch (value) {
-    case 'ANUAL':
-      return 'Anual';
+    case 'SEMANAL':
+      return 'Semanal';
+    case 'QUINZENAL':
+      return 'Quinzenal';
+    case 'MENSAL':
+      return 'Mensal';
     case 'TRIMESTRAL':
       return 'Trimestral';
+    case 'ANUAL':
+      return 'Anual';
     default:
-      return 'Mensal';
+      return value;
   }
 }
 
