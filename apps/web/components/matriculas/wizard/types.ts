@@ -6,6 +6,8 @@ export interface WizardAluno {
   dataNasc?: string;
   responsavel?: { id: string; nome: string } | null;
   ativo?: boolean;
+  cpf?: string;
+  foto?: string;
 }
 
 export interface WizardState {
@@ -36,6 +38,6 @@ export interface WizardContextValue {
   canGoBack: boolean;
   goNext: () => void;
   goBack: () => void;
-  update: (patch: Partial<WizardState>) => void;
-  reset: (opts?: Partial<WizardState>) => void;
+  update: (_patch: Partial<WizardState>) => void;
+  reset: (_opts?: Partial<WizardState>) => void;
 }
