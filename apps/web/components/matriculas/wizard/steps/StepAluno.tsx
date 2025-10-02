@@ -217,9 +217,17 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
                     className="cursor-pointer w-full rounded-md px-3 py-2 text-left text-sm text-gray-900 transition focus:outline-none hover:bg-gray-50 data-[selected]:!bg-[#4f2298] data-[selected]:!text-white data-[selected]:hover:!bg-[#4f2298] data-[state=active]:!bg-[#6b35cc] data-[state=active]:!text-white"
                   >
                     <div className="flex flex-col">
-                      <span className="font-medium">{o.label}</span>
+                      <span
+                        data-selected={isSelected || undefined}
+                        className="font-medium data-[selected]:text-white"
+                      >
+                        {o.label}
+                      </span>
                       {o.description && (
-                        <span className="text-xs text-gray-500 data-[selected]:!text-white">
+                        <span
+                          data-selected={isSelected || undefined}
+                          className="text-xs text-gray-500 data-[selected]:text-white"
+                        >
                           {maskCpf(o.description)}
                         </span>
                       )}
