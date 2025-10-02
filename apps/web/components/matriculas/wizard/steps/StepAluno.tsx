@@ -219,7 +219,7 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
                     <div className="flex flex-col">
                       <span className="font-medium">{o.label}</span>
                       {o.description && (
-                        <span className="text-xs text-gray-500 data-[selected]:text-white/80">
+                        <span className="text-xs text-gray-500 data-[selected]:!text-white">
                           {maskCpf(o.description)}
                         </span>
                       )}
