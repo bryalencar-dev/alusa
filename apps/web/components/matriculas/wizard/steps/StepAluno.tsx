@@ -142,7 +142,7 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
   return (
     <SectionCard>
       <StepHeader
-        title="Selecionar Aluno"
+        title="Selecione o Aluno"
         hint="Busque pelo nome ou CPF para localizar alguém já cadastrado na escola."
       />
       <div className="space-y-6">
@@ -230,36 +230,36 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
         </div>
 
         {state.aluno && (
-          <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 relative">
+          <div className="flex items-start gap-4 rounded-lg border border-[#4f2298] bg-[#4f2298] p-4 relative text-white">
             {state.aluno.foto ? (
               <img
                 src={state.aluno.foto}
                 alt={state.aluno.nome}
-                className="h-12 w-12 rounded-full object-cover ring-2 ring-[#4f2298]/30"
+                className="h-12 w-12 rounded-full object-cover ring-2 ring-white/30"
               />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#4f2298]/15 text-sm font-semibold text-[#4f2298]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-white">
                 {initials || 'A'}
               </div>
             )}
-            <div className="flex-1 space-y-1 text-sm text-gray-700">
-              <p className="text-base font-semibold text-gray-900">{state.aluno.nome}</p>
+            <div className="flex-1 space-y-1 text-sm text-white/80">
+              <p className="text-base font-semibold text-white">{state.aluno.nome}</p>
               {state.aluno.cpf && (
-                <p className="text-xs font-medium text-gray-600 tracking-wide">
+                <p className="text-xs font-medium tracking-wide text-white/70">
                   CPF: {maskCpf(state.aluno.cpf)}
                 </p>
               )}
               {state.aluno.responsavel && (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-white/80">
                   Responsável:{' '}
-                  <span className="font-medium text-gray-800">{state.aluno.responsavel.nome}</span>
+                  <span className="font-medium text-white">{state.aluno.responsavel.nome}</span>
                 </p>
               )}
               {state.aluno.ativo === false && (
-                <p className="text-xs font-semibold text-red-600">Aluno inativo</p>
+                <p className="text-xs font-semibold text-red-300">Aluno inativo</p>
               )}
               {!state.aluno.responsavel && menorIdade && (
-                <p className="text-xs font-semibold text-red-600">
+                <p className="text-xs font-semibold text-amber-200">
                   Necessário responsável (menor de idade)
                 </p>
               )}
@@ -267,7 +267,7 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
             <button
               type="button"
               onClick={() => update({ aluno: undefined })}
-              className="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:text-gray-600 hover:bg-white/60"
+              className="absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-white/70 hover:text-white hover:bg-white/20 transition"
               aria-label="Remover aluno selecionado"
             >
               <span className="text-lg leading-none">×</span>
