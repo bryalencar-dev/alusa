@@ -200,7 +200,7 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
               )}
               {filtered.map((o, idx) => {
                 const isSelected = o.value === selectValue;
-                const isActive = idx === highlight; // navegação por teclado
+                const isActive = idx === highlight;
                 return (
                   <button
                     key={o.value}
@@ -214,14 +214,16 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
                       selectAluno(o);
                       setFocused(false);
                     }}
-                    className="group w-full rounded-md px-4 py-2 text-left text-sm transition focus:outline-none hover:bg-gray-50 data-[selected]:bg-[#4f2298] data-[selected]:text-white data-[selected]:font-medium data-[state=active]:bg-[#6b35cc] data-[state=active]:text-white"
+                    className="cursor-pointer w-full rounded-md px-3 py-2 text-left text-sm text-gray-900 transition focus:outline-none hover:bg-gray-50 data-[selected]:bg-[#4f2298] data-[selected]:text-white data-[state=active]:bg-[#6b35cc] data-[state=active]:text-white"
                   >
-                    <span className="block">{o.label}</span>
-                    {o.description && (
-                      <span className={`block text-xs ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
-                        {maskCpf(o.description)}
-                      </span>
-                    )}
+                    <div className="flex flex-col">
+                      <span className="font-medium">{o.label}</span>
+                      {o.description && (
+                        <span className="text-xs text-gray-500 data-[selected]:text-white/80">
+                          {maskCpf(o.description)}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
