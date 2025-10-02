@@ -131,16 +131,14 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
       .join('');
   }, [state.aluno?.nome]);
 
-  const idade = useMemo(() => {
-    if (!state.aluno?.dataNasc) return null;
-    const nasc = new Date(state.aluno.dataNasc);
-    if (Number.isNaN(nasc.getTime())) return null;
-    const hoje = new Date();
-    let age = hoje.getFullYear() - nasc.getFullYear();
-    const monthDiff = hoje.getMonth() - nasc.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && hoje.getDate() < nasc.getDate())) age -= 1;
-    return age;
-  }, [state.aluno?.dataNasc]);
+  // Utilitário para mascarar CPF (somente se 11 dígitos)
+  const maskCpf = useCallback((raw?: string) => {
+    if (!raw) return undefined;
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length === 11)
+      return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    return raw; // fallback caso já venha formatado ou incompleto
+  }, []);
 
   return (
     <SectionCard>
@@ -215,11 +213,15 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
                       selectAluno(o);
                       setFocused(false);
                     }}
-                    className={`w-full rounded-md px-4 py-2 text-left text-sm transition focus:outline-none ${active ? 'bg-violet-600 text-white hover:bg-violet-600' : highlighted ? 'bg-violet-50' : 'hover:bg-gray-50'} ${active ? 'font-medium' : ''}`}
+                    className={`w-full rounded-md px-4 py-2 text-left text-sm transition focus:outline-none ${active ? 'bg-[#4f2298] text-white hover:bg-[#4f2298]' : highlighted ? 'bg-violet-50' : 'hover:bg-gray-50'} ${active ? 'font-medium' : ''}`}
                   >
                     <span className="block">{o.label}</span>
                     {o.description && (
-                      <span className={`block text-xs ${active ? 'text-violet-100' : 'text-gray-500'}`}>{o.description}</span>
+                      <span
+                        className={`block text-xs ${active ? 'text-white/70' : 'text-gray-500'}`}
+                      >
+                        {maskCpf(o.description)}
+                      </span>
                     )}
                   </button>
                 );
@@ -244,10 +246,9 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
             <div className="flex-1 space-y-1 text-sm text-gray-700">
               <p className="text-base font-semibold text-gray-900">{state.aluno.nome}</p>
               {state.aluno.cpf && (
-                <p className="text-xs font-medium text-gray-600 tracking-wide">{state.aluno.cpf}</p>
-              )}
-              {idade != null && (
-                <p className="text-xs text-gray-500">{idade} anos</p>
+                <p className="text-xs font-medium text-gray-600 tracking-wide">
+                  CPF: {maskCpf(state.aluno.cpf)}
+                </p>
               )}
               {state.aluno.responsavel && (
                 <p className="text-xs text-gray-600">
