@@ -135,15 +135,14 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
   const maskCpf = useCallback((raw?: string) => {
     if (!raw) return undefined;
     const digits = raw.replace(/\D/g, '');
-    if (digits.length === 11)
-      return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    if (digits.length === 11) return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
     return raw; // fallback caso já venha formatado ou incompleto
   }, []);
 
   return (
     <SectionCard>
       <StepHeader
-        title="Aluno"
+        title="Selecionar Aluno"
         hint="Busque pelo nome ou CPF para localizar alguém já cadastrado na escola."
       />
       <div className="space-y-6">
@@ -213,7 +212,7 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
                       selectAluno(o);
                       setFocused(false);
                     }}
-                    className={`w-full rounded-md px-4 py-2 text-left text-sm transition focus:outline-none ${active ? 'bg-[#4f2298] text-white hover:bg-[#4f2298]' : highlighted ? 'bg-violet-50' : 'hover:bg-gray-50'} ${active ? 'font-medium' : ''}`}
+                    className={`w-full rounded-md px-4 py-2 text-left text-sm transition focus:outline-none ${active ? 'bg-[#4f2298] text-white hover:bg-[#4f2298]' : highlighted ? 'bg-[#4f2298]/10' : 'hover:bg-gray-50'} ${active ? 'font-medium' : ''}`}
                   >
                     <span className="block">{o.label}</span>
                     {o.description && (
@@ -236,10 +235,10 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
               <img
                 src={state.aluno.foto}
                 alt={state.aluno.nome}
-                className="h-12 w-12 rounded-full object-cover ring-2 ring-violet-100"
+                className="h-12 w-12 rounded-full object-cover ring-2 ring-[#4f2298]/30"
               />
             ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#4f2298]/15 text-sm font-semibold text-[#4f2298]">
                 {initials || 'A'}
               </div>
             )}
