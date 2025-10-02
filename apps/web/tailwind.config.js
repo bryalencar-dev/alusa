@@ -28,6 +28,10 @@ module.exports = {
           stroke: '#E2E2E8',
           muted: '#828282'
         },
+        primary: {
+          DEFAULT: '#4f2298',
+          foreground: '#ffffff'
+        },
         violet: {
           600: '#7c3aed',
           700: '#6d28d9'
