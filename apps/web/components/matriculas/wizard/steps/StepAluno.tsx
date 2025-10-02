@@ -199,26 +199,26 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
                 <div className="select-none px-4 py-3 text-sm text-gray-500">Carregando...</div>
               )}
               {filtered.map((o, idx) => {
-                const active = o.value === selectValue;
-                const highlighted = idx === highlight;
+                const isSelected = o.value === selectValue;
+                const isActive = idx === highlight; // navegação por teclado
                 return (
                   <button
                     key={o.value}
                     role="option"
-                    aria-selected={highlighted}
+                    aria-selected={isActive}
                     type="button"
+                    data-selected={isSelected || undefined}
+                    data-state={isActive ? 'active' : undefined}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       selectAluno(o);
                       setFocused(false);
                     }}
-                    className={`w-full rounded-md px-4 py-2 text-left text-sm transition focus:outline-none ${active ? 'bg-[#4f2298] text-white hover:bg-[#4f2298]' : highlighted ? 'bg-[#4f2298]/10' : 'hover:bg-gray-50'} ${active ? 'font-medium' : ''}`}
+                    className="group w-full rounded-md px-4 py-2 text-left text-sm transition focus:outline-none hover:bg-gray-50 data-[selected]:bg-[#4f2298] data-[selected]:text-white data-[selected]:font-medium data-[state=active]:bg-[#6b35cc] data-[state=active]:text-white"
                   >
                     <span className="block">{o.label}</span>
                     {o.description && (
-                      <span
-                        className={`block text-xs ${active ? 'text-white/70' : 'text-gray-500'}`}
-                      >
+                      <span className={`block text-xs ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
                         {maskCpf(o.description)}
                       </span>
                     )}
