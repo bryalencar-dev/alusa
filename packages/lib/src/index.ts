@@ -18,6 +18,9 @@ export * from './prisma';
 // Planos
 export * from './planos/planos-schema';
 export * from './planos/planos-service';
+// Combos
+export * from './combos/combo.schema';
+export * from './combos/combo.service';
 // Professores
 export * from './validators/professor';
 export * from './schemas/professor';
@@ -34,3 +37,7 @@ export { buildInviteUrl } from './invite/build-invite-url';
 // Utils
 export * from './utils/format-name';
 export * from './utils/mask';
+// Asaas (Pagamentos)
+export * from './asaas';
+// Integrações / Credenciais
+export * from './services/integracoes/asaas-credentials-service';

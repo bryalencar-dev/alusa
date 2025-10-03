@@ -16,6 +16,49 @@ enum Status {
   INATIVO
 }
 
+enum FormaPagamento {
+  DINHEIRO
+  PIX
+  CARTAO
+  BOLETO
+}
+
+enum StatusMatricula {
+  PENDENTE_TAXA
+  AGUARDANDO_CONFIRMACAO
+  ATIVA
+  RECUSADA
+  CANCELADA
+}
+
+enum StatusTaxaMatricula {
+  PENDENTE
+  PAGO
+  EXPIRADO
+  ISENTO
+}
+
+enum TipoCobranca {
+  TAXA_MATRICULA
+  MENSALIDADE
+  EXTRA
+  AVULSA
+}
+
+enum StatusCobranca {
+  PENDENTE
+  PAGO
+  ATRASADO
+  CANCELADO
+  ESTORNADO
+}
+
+enum StatusFinanceiro {
+  ADIMPLENTE
+  PENDENTE_TAXA
+  INADIMPLENTE
+}
+
 enum PeriodicidadePlano {
   SEMANAL
   QUINZENAL
@@ -112,27 +155,31 @@ model Colaborador {
 }
 
 model Conta {
-  id            String         @id @default(cuid())
-  nome          String
-  cpfCnpj       String
-  status        Status         @default(ATIVO)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                          String         @id @default(cuid())
+  nome                        String
+  cpfCnpj                     String
+  status                      Status         @default(ATIVO)
+  createdAt                   DateTime       @default(now())
+  updatedAt                   DateTime       @updatedAt
   // Dono (owner) da conta — imutável na lógica de negócio
-  ownerUserId   String?
-  ownerUser     Usuario?       @relation("ContaOwner", fields: [ownerUserId], references: [id])
-  usuarios      Usuario[]      @relation("ContaUsuarios")
-  invites       Invite[]
-  alunos        Aluno[]
-  turmas        Turma[]
-  planos        Plano[]
-  combos        Combo[]
-  descontos     Desconto[]
-  webhooks      WebhookAsaas[]
-  professores   Professor[]
-  colaboradores Colaborador[]
-  modalidades   Modalidade[]
-  salas         Sala[]
+  ownerUserId                 String?
+  ownerUser                   Usuario?       @relation("ContaOwner", fields: [ownerUserId], references: [id])
+  usuarios                    Usuario[]      @relation("ContaUsuarios")
+  invites                     Invite[]
+  alunos                      Aluno[]
+  turmas                      Turma[]
+  planos                      Plano[]
+  combos                      Combo[]
+  descontos                   Desconto[]
+  webhooks                    WebhookAsaas[]
+  professores                 Professor[]
+  colaboradores               Colaborador[]
+  modalidades                 Modalidade[]
+  salas                       Sala[]
+  // Credenciais de integração (criptografadas em repouso). Armazenamos separadamente para permitir rotação.
+  asaasApiKeyEncrypted        String?
+  asaasWebhookSecretEncrypted String?
+  asaasCredsUpdatedAt         DateTime?
 
   @@index([cpfCnpj])
   @@index([ownerUserId])
@@ -213,11 +260,13 @@ model Usuario {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  colaborador Colaborador?
+  colaborador          Colaborador?
   // Backrelation para vínculo opcional com Responsavel (1-1)
-  responsavel Responsavel?
+  responsavel          Responsavel?
   // Backrelation para vínculo opcional com Aluno (1-1)
-  aluno       Aluno?
+  aluno                Aluno?
+  checkoutLinksCriados CheckoutLink[]
+  matriculaLogs        MatriculaLog[]
 
   @@index([contaId])
 }
@@ -296,11 +345,13 @@ model Responsavel {
   enderecoUf          String?
   financeiro          Boolean  @default(false)
   asaasId             String?  @unique
+  asaasCustomerId     String?  @unique
   // Vinculação opcional com um usuário do sistema (para acesso via portal)
   usuarioId           String?  @unique
   usuario             Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
-  alunos AlunoResponsavel[]
+  alunos                AlunoResponsavel[]
+  matriculasFinanceiras Matricula[]        @relation("MatriculaResponsavelFinanceiro")
 }
 
 model AlunoResponsavel {
@@ -412,27 +463,42 @@ model Plano {
 }
 
 model Matricula {
-  id            String    @id @default(cuid())
-  alunoId       String
-  turmaId       String
-  planoId       String?
-  dataInicio    DateTime
-  dataFim       DateTime?
-  status        String    @default("ATIVA")
-  taxaMatricula Decimal?  @db.Decimal(12, 2)
-  asaasId       String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                      String              @id @default(cuid())
+  alunoId                 String
+  responsavelFinanceiroId String?
+  turmaId                 String?
+  planoId                 String
+  comboId                 String?
+  dataInicio              DateTime
+  dataFim                 DateTime?
+  status                  StatusMatricula     @default(ATIVA)
+  statusFinanceiro        StatusFinanceiro    @default(PENDENTE_TAXA)
+  taxaMatricula           Decimal             @db.Decimal(12, 2)
+  taxaStatus              StatusTaxaMatricula @default(PENDENTE)
+  taxaIsenta              Boolean             @default(false)
+  taxaJustificativa       String?
+  vencimentoDia           Int                 @default(5)
+  asaasId                 String?             @unique
+  asaasSubscriptionId     String?             @unique
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 
-  aluno     Aluno               @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  turma     Turma               @relation(fields: [turmaId], references: [id])
-  plano     Plano?              @relation(fields: [planoId], references: [id], onDelete: SetNull)
-  descontos DescontoMatricula[]
-  cobrancas Cobranca[]
+  aluno                 Aluno               @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  responsavelFinanceiro Responsavel?        @relation("MatriculaResponsavelFinanceiro", fields: [responsavelFinanceiroId], references: [id])
+  turma                 Turma?              @relation(fields: [turmaId], references: [id])
+  plano                 Plano               @relation(fields: [planoId], references: [id])
+  combo                 Combo?              @relation(fields: [comboId], references: [id])
+  descontos             DescontoMatricula[]
+  cobrancas             Cobranca[]
+  checkoutLinks         CheckoutLink[]
+  logs                  MatriculaLog[]
 
   @@index([alunoId], name: "idx_matricula_aluno")
+  @@index([responsavelFinanceiroId], name: "idx_matricula_responsavel")
   @@index([turmaId], name: "idx_matricula_turma")
   @@index([planoId], name: "idx_matricula_plano")
+  @@index([comboId], name: "idx_matricula_combo")
+  @@index([status], name: "idx_matricula_status")
 }
 
 model Desconto {
@@ -469,24 +535,25 @@ model DescontoMatricula {
 }
 
 model Combo {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   contaId         String
   nome            String
   descricao       String?
-  valorMensal     Decimal  @db.Decimal(12, 2)
-  taxaMatricula   Decimal? @db.Decimal(12, 2)
+  valorMensal     Decimal   @db.Decimal(12, 2)
+  taxaMatricula   Decimal?  @db.Decimal(12, 2)
   categoriaMensal String?
   categoriaTaxa   String?
-  status          String   @default("ATIVO")
-  modoMatricula   String   @default("RESERVADA")
+  status          String    @default("ATIVO")
+  modoMatricula   String    @default("RESERVADA")
   vigenciaIni     DateTime?
   vigenciaFim     DateTime?
   vagasLimite     Int?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  conta  Conta        @relation(fields: [contaId], references: [id])
-  turmas ComboTurma[]
+  conta      Conta        @relation(fields: [contaId], references: [id])
+  turmas     ComboTurma[]
+  matriculas Matricula[]
 
   @@unique([contaId, nome], name: "uq_combo_conta_nome")
   @@index([contaId], name: "idx_combo_conta")
@@ -505,25 +572,60 @@ model ComboTurma {
 }
 
 model Cobranca {
-  id                String    @id @default(cuid())
+  id                String         @id @default(cuid())
   matriculaId       String
+  tipo              TipoCobranca   @default(MENSALIDADE)
+  descricao         String?
   competenciaInicio DateTime
-  competenciaFim    DateTime?
-  valor             Decimal   @db.Decimal(12, 2)
+  competenciaFim    DateTime
+  valor             Decimal        @db.Decimal(12, 2)
   vencimento        DateTime
-  status            String    @default("PENDENTE")
-  multa             Decimal?  @db.Decimal(12, 2)
-  juros             Decimal?  @db.Decimal(12, 2)
-  tipo              String
-  asaasId           String?   @unique
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  dataPagamento     DateTime?
+  formaPagamento    FormaPagamento @default(BOLETO)
+  status            StatusCobranca @default(PENDENTE)
+  asaasId           String?        @unique
+  asaasPaymentId    String?        @unique
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   matricula  Matricula   @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
   pagamentos Pagamento[]
 
   @@index([matriculaId], name: "idx_cobranca_matricula")
   @@index([status], name: "idx_cobranca_status")
+  @@index([tipo], name: "idx_cobranca_tipo")
+}
+
+model CheckoutLink {
+  id          String    @id @default(cuid())
+  matriculaId String
+  token       String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdById String
+  channel     String    @default("PORTAL")
+  createdAt   DateTime  @default(now())
+
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  createdBy Usuario   @relation(fields: [createdById], references: [id])
+
+  @@index([matriculaId], name: "idx_checkoutlink_matricula")
+  @@index([expiresAt], name: "idx_checkoutlink_expiration")
+}
+
+model MatriculaLog {
+  id          String   @id @default(cuid())
+  matriculaId String
+  action      String
+  actorId     String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  actor     Usuario?  @relation(fields: [actorId], references: [id])
+
+  @@index([matriculaId], name: "idx_matriculalog_matricula")
+  @@index([action], name: "idx_matriculalog_action")
 }
 
 model Pagamento {
@@ -534,6 +636,7 @@ model Pagamento {
   valorPago      Decimal   @db.Decimal(12, 2)
   status         String    @default("CONFIRMADO")
   comprovante    String?
+  asaasPaymentId String?   @unique
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
