@@ -179,7 +179,8 @@ export function ModalidadesFeature() {
               const created = await createModalidade({
                 contaId,
                 nome: formValues.nome.trim(),
-                descricao: formValues.descricao.trim() || null,
+                // Enviar undefined para compatibilidade com schema (evita 422)
+                descricao: formValues.descricao.trim() || undefined,
                 status: formValues.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
               });
               setItems((prev) => [created, ...prev]);
@@ -247,14 +248,14 @@ export function ModalidadesFeature() {
         title="Excluir modalidade"
         description={(() => {
           if (!deleteDialog.entity) {
-            return 'Tem certeza que deseja excluir esta modalidade? Esta ação não pode ser desfeita.';
+            return 'Tem certeza que deseja excluir esta modalidade? Esta ação é permanente.';
           }
           const rawName = deleteDialog.entity.nome ?? '';
           const shortName = formatFirstLast(rawName) || rawName || 'esta modalidade';
           return (
             <span>
-              Tem certeza que deseja excluir a modalidade <strong>{shortName}</strong>? Esta ação
-              não pode ser desfeita.
+              Tem certeza que deseja excluir a modalidade <strong>{shortName}</strong>? Esta ação é
+              permanente e não poderá ser desfeita.
             </span>
           );
         })()}
@@ -269,12 +270,11 @@ export function ModalidadesFeature() {
               <CustomToast
                 variant="success"
                 title="Modalidade excluída"
-                description="A modalidade foi removida."
+                description="A modalidade foi removida do sistema."
                 onClose={() => toast.dismiss(t)}
               />
             ));
             window.dispatchEvent(new CustomEvent('modalidades:changed'));
-            void reload({ search: searchTerm, status: statusFilter });
           } catch (error) {
             toast.custom((t) => (
               <CustomToast

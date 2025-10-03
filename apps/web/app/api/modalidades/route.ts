@@ -61,7 +61,8 @@ export async function POST(req: Request) {
     }
     const parsed = modalidadeSchema.safeParse({
       nome: body.nome,
-      descricao: body.descricao,
+      // Normaliza null -> undefined para não quebrar validação
+      descricao: body.descricao === null ? undefined : body.descricao,
       status: body.status,
     });
     if (!parsed.success)

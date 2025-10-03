@@ -22,6 +22,8 @@ const DialogOverlay = React.forwardRef<
     className={cn(
       // Fullscreen backdrop + flex para centralizar o conteúdo sem depender de translate
       'fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 md:p-6',
+      // Blur suave (fallback para navegadores sem suporte)
+      'backdrop-blur-sm supports-[backdrop-filter]:backdrop-blur-md',
       // Fade animations
       'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
       className,

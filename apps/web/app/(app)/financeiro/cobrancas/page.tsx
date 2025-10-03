@@ -1,4 +1,5 @@
-import ChargesTable from '../../../features/financeiro/cobrancas/ChargesTable';
+import ChargesTable from '@/features/financeiro/cobrancas/ChargesTable';
+import { FinanceSummary } from '@/features/financeiro/components/FinanceSummary';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -12,6 +13,7 @@ export default function FinanceiroCobrancasPage() {
           Acompanhe o status das cobranças geradas (mensalidades, taxa de matrícula, extras).
         </p>
       </div>
+      <FinanceSummary />
       <ChargesTable />
     </div>
   );

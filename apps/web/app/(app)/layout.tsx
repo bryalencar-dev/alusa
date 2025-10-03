@@ -102,24 +102,13 @@ function GlobalQuickCreatePortals() {
   const [openSala, setOpenSala] = useState(false);
 
   // Estados de formulário simplificados
-  const [modalidadeForm, setModalidadeForm] = useState({
-    nome: '',
-    descricao: '',
-    status: 'ATIVO',
-  });
-  const [salaForm, setSalaForm] = useState({
-    nome: '',
-    descricao: '',
-    capacidade: '',
-    status: 'ATIVO',
-  });
   const [submitting, setSubmitting] = useState(false);
 
   const resetModalidade = useCallback(() => {
-    setModalidadeForm({ nome: '', descricao: '', status: 'ATIVO' });
+    /* estados removidos - função mantida para compatibilidade futura */
   }, []);
   const resetSala = useCallback(() => {
-    setSalaForm({ nome: '', descricao: '', capacidade: '', status: 'ATIVO' });
+    /* estados removidos - função mantida para compatibilidade futura */
   }, []);
 
   useEffect(() => {
@@ -145,7 +134,11 @@ function GlobalQuickCreatePortals() {
     };
   }, [resetModalidade, resetSala, openModalidade, openSala]);
 
-  async function handleCreateModalidade() {
+  async function handleCreateModalidadeDirect(vals: {
+    nome: string;
+    descricao: string;
+    status: string;
+  }) {
     if (!contaId) {
       toast.custom((t) => (
         <CustomToast
@@ -162,9 +155,9 @@ function GlobalQuickCreatePortals() {
       setSubmitting(true);
       const created = await createModalidade({
         contaId,
-        nome: modalidadeForm.nome.trim(),
-        descricao: modalidadeForm.descricao.trim() || undefined,
-        status: modalidadeForm.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
+        nome: vals.nome.trim(),
+        descricao: vals.descricao.trim() || undefined,
+        status: vals.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
       });
       toast.custom((t) => (
         <CustomToast
@@ -176,7 +169,6 @@ function GlobalQuickCreatePortals() {
       ));
       setOpenModalidade(false);
       window.dispatchEvent(new CustomEvent('modalidades:changed'));
-      // Evento específico para selects que aguardam auto-seleção
       window.dispatchEvent(
         new CustomEvent('modalidade:created', { detail: { id: created.id, nome: created.nome } }),
       );
@@ -194,7 +186,12 @@ function GlobalQuickCreatePortals() {
     }
   }
 
-  async function handleCreateSala() {
+  async function handleCreateSalaDirect(vals: {
+    nome: string;
+    descricao: string;
+    capacidade: string;
+    status: string;
+  }) {
     if (!contaId) {
       toast.custom((t) => (
         <CustomToast
@@ -211,10 +208,10 @@ function GlobalQuickCreatePortals() {
       setSubmitting(true);
       const created = await createSala({
         contaId,
-        nome: salaForm.nome.trim(),
-        descricao: salaForm.descricao.trim() || undefined,
-        capacidade: Number(salaForm.capacidade) || 0,
-        status: salaForm.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
+        nome: vals.nome.trim(),
+        descricao: vals.descricao.trim() || undefined,
+        capacidade: Number(vals.capacidade) || 0,
+        status: vals.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
       });
       toast.custom((t) => (
         <CustomToast
@@ -254,12 +251,7 @@ function GlobalQuickCreatePortals() {
           if (!open) setOpenModalidade(false);
         }}
         onSubmit={async (vals: { nome: string; descricao: string; status: string }) => {
-          setModalidadeForm({
-            nome: vals.nome,
-            descricao: vals.descricao,
-            status: vals.status,
-          });
-          await handleCreateModalidade();
+          await handleCreateModalidadeDirect(vals);
         }}
       />
       <SalaDialog
@@ -270,13 +262,7 @@ function GlobalQuickCreatePortals() {
           if (!open) setOpenSala(false);
         }}
         onSubmit={async (vals) => {
-          setSalaForm({
-            nome: vals.nome,
-            descricao: vals.descricao,
-            capacidade: vals.capacidade,
-            status: vals.status,
-          });
-          await handleCreateSala();
+          await handleCreateSalaDirect(vals);
         }}
       />
     </>

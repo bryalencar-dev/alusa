@@ -20,7 +20,8 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
         nome: body.nome,
         capacidade: body.capacidade,
         status: body.status,
-        descricao: body.descricao,
+        // Normaliza null -> undefined
+        descricao: body.descricao === null ? undefined : body.descricao,
       });
       if (!parsed.success)
         return jsonError(422, 'ERRO_VALIDACAO', 'Falha de validação', parsed.error.flatten());

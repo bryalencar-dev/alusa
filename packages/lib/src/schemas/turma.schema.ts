@@ -11,11 +11,12 @@ export const turmaSchema = z
     diasSemana: z.array(diasEnum).min(1),
     horaInicio: z.string().regex(/^\d{2}:\d{2}$/),
     horaFim: z.string().regex(/^\d{2}:\d{2}$/),
-    idadeMin: z.number().int().optional(),
-    idadeMax: z.number().int().optional(),
+    // Campos podem estar null no banco, então aceitamos nullish
+    idadeMin: z.number().int().nullish(),
+    idadeMax: z.number().int().nullish(),
     capacidade: z.number().int().positive(),
     status: z.enum(['ATIVO', 'INATIVO']).default('ATIVO'),
-    observacao: z.string().optional(),
+    observacao: z.string().nullish(),
     professoresIds: z.array(z.string().cuid()).optional(),
   })
   .refine((data) => data.horaInicio < data.horaFim, {

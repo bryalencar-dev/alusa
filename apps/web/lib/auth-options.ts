@@ -5,7 +5,13 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { z } from 'zod';
 import { verifyCredentials } from './auth-service';
 
-declare module 'next-auth/jwt' { interface JWT { id?: string; role?: string; contaId?: string } }
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id?: string;
+    role?: string;
+    contaId?: string;
+  }
+}
 
 const creds = z.object({ email: z.string().email(), password: z.string().min(6) });
 const secret = process.env.NEXTAUTH_SECRET;
@@ -15,23 +21,30 @@ export const authOptions: NextAuthOptions = {
   secret,
   pages: { signIn: '/auth/login' },
   session: { strategy: 'jwt', maxAge: 60 * 60 * 24 * 7, updateAge: 60 * 60 },
-  providers: [CredentialsProvider({
-    name: 'Credentials',
-    credentials: { email: { label: 'Email', type: 'text' }, password: { label: 'Senha', type: 'password' } },
-    async authorize(raw) {
-      const parsed = creds.safeParse(raw);
-      if (!parsed.success) {
-        if (process.env.AUTH_DEBUG === 'true') console.debug('[auth] authorize zod fail', parsed.error.flatten());
-        return null;
-      }
-      const u = await verifyCredentials(parsed.data.email, parsed.data.password);
-      if (!u) {
-        if (process.env.AUTH_DEBUG === 'true') console.debug('[auth] authorize invalid credentials', { email: parsed.data.email });
-        return null;
-      }
-  return { id: u.id, name: u.nome, email: u.email, role: u.role, contaId: u.contaId } as any;
-    }
-  }) as any],
+  providers: [
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        email: { label: 'Email', type: 'text' },
+        password: { label: 'Senha', type: 'password' },
+      },
+      async authorize(raw) {
+        const parsed = creds.safeParse(raw);
+        if (!parsed.success) {
+          if (process.env.AUTH_DEBUG === 'true')
+            console.debug('[auth] authorize zod fail', parsed.error.flatten());
+          return null;
+        }
+        const u = await verifyCredentials(parsed.data.email, parsed.data.password);
+        if (!u) {
+          if (process.env.AUTH_DEBUG === 'true')
+            console.debug('[auth] authorize invalid credentials', { email: parsed.data.email });
+          return null;
+        }
+        return { id: u.id, name: u.nome, email: u.email, role: u.role, contaId: u.contaId } as any;
+      },
+    }) as any,
+  ],
   callbacks: {
     jwt({ token, user }) {
       // Quando há user (login), garanta que os campos essenciais sejam copiados para o token
@@ -41,7 +54,10 @@ export const authOptions: NextAuthOptions = {
         // Propagar também email e name com defaults não-undefined
         (token as any).email = (user as any).email ?? '';
         (token as any).name = (user as any).name ?? '';
-        (token as any).contaId = (user as any).contaId ?? '';
+        // IMPORTANTE: não converter contaId inexistente em string vazia – manter null/undefined
+        // para que o frontend consiga diferenciar “não carregado” de “valor válido”.
+        const rawContaId = (user as any).contaId;
+        (token as any).contaId = rawContaId == null || rawContaId === '' ? null : rawContaId;
       }
       return token;
     },
@@ -52,7 +68,10 @@ export const authOptions: NextAuthOptions = {
       (session.user as any).email = (token as any).email ?? '';
       (session.user as any).name = (token as any).name ?? '';
       (session.user as any).role = (token as any).role ?? 'USER';
-      (session.user as any).contaId = (token as any).contaId ?? '';
+      // Mesma lógica de preservação; se vier string vazia, converte para null
+      const tokenContaId = (token as any).contaId;
+      (session.user as any).contaId =
+        tokenContaId == null || tokenContaId === '' ? null : tokenContaId;
       return session;
     },
     async redirect({ url, baseUrl }) {
@@ -65,10 +84,10 @@ export const authOptions: NextAuthOptions = {
         // Normalizar barra final opcional
         const norm = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
 
-        // Casos que devem cair no dashboard
-        if (!norm || norm === '/' || norm === '/auth' || norm.startsWith('/auth/')) {
-          return baseUrl + '/dashboard';
-        }
+        // Permitir retorno à raiz explicitamente (logout)
+        if (norm === '/') return baseUrl + '/';
+        // Paths auth -> após login direcionar ao dashboard
+        if (!norm || norm === '/auth' || norm.startsWith('/auth/')) return baseUrl + '/dashboard';
 
         // Permitir caminhos relativos existentes (heurística simples: começam com '/')
         if (norm.startsWith('/')) {
@@ -82,6 +101,6 @@ export const authOptions: NextAuthOptions = {
       } catch {
         return baseUrl + '/dashboard';
       }
-    }
-  }
+    },
+  },
 };

@@ -22,18 +22,21 @@ export async function createSala(input: {
     capacidade: input.capacidade,
     status: input.status,
   });
-
-  if (input.contaId === 'conta-default') {
-    await prisma.conta.upsert({
-      where: { id: 'conta-default' },
-      update: {},
-      create: {
-        id: 'conta-default',
-        nome: 'Alusa Demo',
-        cpfCnpj: '00000000000000',
-        status: 'ATIVO',
-      },
-    });
+  // Garantir existência da conta para qualquer contaId, não só conta-default
+  const existingConta = await prisma.conta.findUnique({ where: { id: input.contaId } });
+  if (!existingConta) {
+    if (process.env.NODE_ENV !== 'production') {
+      await prisma.conta.create({
+        data: {
+          id: input.contaId,
+          nome: 'Conta Auto (Dev) ' + input.contaId.substring(0, 6),
+          cpfCnpj: '00000000000000',
+          status: 'ATIVO',
+        },
+      });
+    } else {
+      throw new Error('Conta não encontrada para criar sala');
+    }
   }
 
   const exists = await prisma.sala.findFirst({
@@ -50,9 +53,13 @@ export async function createSala(input: {
         status: parsed.status ?? 'ATIVO',
       },
     });
-  } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.error('[createSala] erro', e);
-    throw e;
+  } catch (err: unknown) {
+    const code =
+      typeof err === 'object' && err && 'code' in err ? (err as { code?: string }).code : undefined;
+    if (process.env.NODE_ENV !== 'production') console.error('[createSala] erro', err);
+    if (code === 'P2002') throw new Error('Já existe uma sala com este nome nesta conta');
+    if (code === 'P2003') throw new Error('Falha de integridade: conta vinculada não existe');
+    throw err;
   }
 }
 
@@ -111,6 +118,7 @@ export async function listSalas(contaId: string, opts: SalaListOptions = {}) {
 export async function deleteSala(id: string, contaId: string): Promise<Sala> {
   const current = await prisma.sala.findFirst({ where: { id, contaId } });
   if (!current) throw new Error('Sala não encontrada');
-  if (current.status === 'INATIVO') return current;
-  return prisma.sala.update({ where: { id }, data: { status: 'INATIVO' } });
+  // Hard delete: remove definitivamente a sala.
+  await prisma.sala.delete({ where: { id } });
+  return current; // retorna registro anterior para logging se necessário
 }

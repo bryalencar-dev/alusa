@@ -15,29 +15,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'contaId é obrigatório' }, { status: 400 });
     }
 
+    const q = (searchParams.get('q') || '').trim().toLowerCase();
     const alunos = await listAlunos(contaId);
-    const items = alunos.map((aluno) => {
-      const bolsaRaw = aluno.bolsaDescontoPercent;
-      const bolsaDescontoPercent =
-        bolsaRaw === null || bolsaRaw === undefined ? null : Number(bolsaRaw);
+    const items = alunos
+      .filter((aluno) => {
+        if (!q) return true;
+        const nome = (aluno.nome || '').toLowerCase();
+        const cpf = (aluno.cpf || '').replace(/\D/g, '');
+        const qDigits = q.replace(/\D/g, '');
+        return nome.includes(q) || (qDigits && cpf.includes(qDigits));
+      })
+      .map((aluno) => {
+        const bolsaRaw = aluno.bolsaDescontoPercent;
+        const bolsaDescontoPercent =
+          bolsaRaw === null || bolsaRaw === undefined ? null : Number(bolsaRaw);
 
-      return {
-        id: aluno.id,
-        nome: aluno.nome ?? '',
-        email: aluno.email ?? null,
-        telefone: aluno.telefone ?? null,
-        status: aluno.status ?? 'ATIVO',
-        foto: aluno.foto ?? null,
-        cpf: aluno.cpf ?? null,
-        consentimentoImagem: aluno.consentimentoImagem ?? null,
-        dataConsentimentoImagem: aluno.dataConsentimentoImagem
-          ? aluno.dataConsentimentoImagem.toISOString()
-          : null,
-        isentoTaxaMatricula: aluno.isentoTaxaMatricula ?? null,
-        bolsaDescontoPercent,
-        tags: Array.isArray(aluno.tags) ? aluno.tags : null,
-      };
-    });
+        return {
+          id: aluno.id,
+          nome: aluno.nome ?? '',
+          email: aluno.email ?? null,
+          telefone: aluno.telefone ?? null,
+          status: aluno.status ?? 'ATIVO',
+          foto: aluno.foto ?? null,
+          cpf: aluno.cpf ?? null,
+          consentimentoImagem: aluno.consentimentoImagem ?? null,
+          dataConsentimentoImagem: aluno.dataConsentimentoImagem
+            ? aluno.dataConsentimentoImagem.toISOString()
+            : null,
+          isentoTaxaMatricula: aluno.isentoTaxaMatricula ?? null,
+          bolsaDescontoPercent,
+          tags: Array.isArray(aluno.tags) ? aluno.tags : null,
+        };
+      });
     return NextResponse.json({ items });
   } catch (error) {
     console.error('Erro ao listar alunos:', error);

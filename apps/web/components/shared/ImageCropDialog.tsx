@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import Cropper, { Area } from 'react-easy-crop';
+import Cropper from 'react-easy-crop';
+import type { Area } from 'react-easy-crop';
 import { Button } from '@/components/ui/button';
 
 export interface ImageCropDialogProps {
@@ -9,7 +10,7 @@ export interface ImageCropDialogProps {
   open: boolean;
   aspect?: number;
   onClose: () => void;
-  onApply: (dataUrl: string) => void;
+  onApply: (_dataUrl: string) => void;
   title?: string;
   maxZoom?: number;
   mimeType?: string;

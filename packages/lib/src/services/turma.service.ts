@@ -318,14 +318,26 @@ export async function listTurmas(
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: { _count: { select: { professores: true } } },
+      include: {
+        _count: {
+          select: {
+            professores: true,
+            matriculas: {
+              where: {
+                status: 'ATIVA',
+              },
+            },
+          },
+        },
+      },
     }),
     prisma.turma.count({ where }),
   ]);
   const data = items.map((t) => {
-    const count = (t as { _count?: { professores?: number } })._count?.professores || 0;
+    const professoresCount = (t as { _count?: { professores?: number } })._count?.professores || 0;
+    const vagasOcupadas = (t as { _count?: { matriculas?: number } })._count?.matriculas || 0;
     const rest = t as unknown as Turma;
-    return { ...rest, professoresCount: count };
+    return { ...rest, professoresCount, vagasOcupadas };
   });
   return { data, page, pageSize, total };
 }

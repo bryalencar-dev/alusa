@@ -53,8 +53,15 @@ function normalizeTurma(input: Partial<TurmaListItem> & { id?: unknown }) {
     salaId: String(input.salaId ?? ''),
     professores,
     professoresCount,
-    descricao:
-      input.descricao === null || input.descricao === undefined ? null : String(input.descricao),
+    // Backend usa campo `observacao`; frontend vinha tratando `descricao`.
+    // Aceitamos ambas por compatibilidade até refactor global.
+    descricao: ((): string | null => {
+      type WithDescricaoObservacao = { descricao?: unknown; observacao?: unknown };
+      const candidate = input as unknown as WithDescricaoObservacao;
+      const raw = candidate.descricao !== undefined ? candidate.descricao : candidate.observacao;
+      if (raw === null || raw === undefined) return null;
+      return String(raw);
+    })(),
   } satisfies TurmaListItem;
 }
 

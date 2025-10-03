@@ -62,7 +62,7 @@ export function useModalidades({ contaId }: UseModalidadesOptions) {
       const targetContaId = contaIdOverride ?? (typeof contaId === 'string' ? contaId : undefined);
       if (!targetContaId) throw new Error('Conta não informada para exclusão.');
       await deleteModalidade({ id, contaId: targetContaId });
-      setItems((prev) => prev.filter((modalidade) => modalidade.id !== id));
+      setItems((prev) => prev.filter((m) => m.id !== id));
     },
     [contaId],
   );

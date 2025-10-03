@@ -234,22 +234,33 @@ export default function TurmaDialog({
 
       let saved: TurmaListItem;
       if (mode === 'edit' && turma) {
-        const res = await fetch('/api/turmas', {
+        const patchPayload: Omit<typeof payloadBase, 'descricao'> & { observacao?: string } = {
+          ...payloadBase,
+          ...(payloadBase.descricao ? { observacao: payloadBase.descricao } : {}),
+        };
+        // Removemos descricao explicitamente não incluindo na construção acima.
+        const res = await fetch(`/api/turmas/${turma.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: turma.id, ...payloadBase }),
+          body: JSON.stringify(patchPayload),
         });
         const json = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(json?.error?.message || 'Erro ao atualizar turma.');
+        if (!res.ok)
+          throw new Error(json?.error?.message || json?.detail || 'Erro ao atualizar turma.');
         saved = json?.data as TurmaListItem;
       } else {
+        const createPayload = {
+          ...payloadBase,
+          ...(payloadBase.descricao ? { observacao: payloadBase.descricao } : {}),
+        };
         const res = await fetch('/api/turmas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadBase),
+          body: JSON.stringify(createPayload),
         });
         const json = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(json?.error?.message || 'Erro ao criar turma.');
+        if (!res.ok)
+          throw new Error(json?.error?.message || json?.detail || 'Erro ao criar turma.');
         saved = json?.data as TurmaListItem;
       }
       onSaved?.(saved);

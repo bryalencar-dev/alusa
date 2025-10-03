@@ -86,6 +86,12 @@ const GROUPS: Group[] = [
         iconSolid: <RectangleStackSolid className="h-5 w-5" />,
       },
       {
+        label: 'Combos',
+        href: '/combos',
+        icon: <RectangleStackIcon className="h-5 w-5" />,
+        iconSolid: <RectangleStackSolid className="h-5 w-5" />,
+      },
+      {
         label: 'Modalidades',
         href: '/modalidades',
         icon: <BookOpenIcon className="h-5 w-5" />,
@@ -114,18 +120,6 @@ const GROUPS: Group[] = [
       {
         label: 'Minhas Matrículas',
         href: '/matriculas',
-        icon: <ClipboardDocumentCheckIcon className="h-5 w-5" />,
-        iconSolid: <ClipboardDocumentCheckSolid className="h-5 w-5" />,
-      },
-      {
-        label: 'Nova Matrícula',
-        href: '/matriculas/nova',
-        icon: <ClipboardDocumentCheckIcon className="h-5 w-5" />,
-        iconSolid: <ClipboardDocumentCheckSolid className="h-5 w-5" />,
-      },
-      {
-        label: 'Situação',
-        href: '/matriculas/situacao',
         icon: <ClipboardDocumentCheckIcon className="h-5 w-5" />,
         iconSolid: <ClipboardDocumentCheckSolid className="h-5 w-5" />,
       },

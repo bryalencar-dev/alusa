@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getAsaasCredentials, saveAsaasCredentials, type AsaasCredentialsInput } from '@alusa/lib';
+import { getAsaasCredentials, saveAsaasTokenOnly } from '@alusa/lib';
 
 // RBAC permitido para gestão de integrações
 const allowedRoles = new Set(['ADMIN', 'FINANCEIRO']);
@@ -39,15 +39,11 @@ export async function POST(req: Request) {
     if (!user.role || !allowedRoles.has(user.role.toUpperCase()))
       return json(403, { error: 'SEM_PERMISSAO' });
 
-    const body = (await req.json().catch(() => null)) as Partial<AsaasCredentialsInput> | null;
+    const body = (await req.json().catch(() => null)) as { token?: string } | null;
     if (!body || typeof body !== 'object') return json(400, { error: 'PAYLOAD_INVALIDO' });
-    if (!body.apiKey || !body.webhookSecret)
-      return json(422, { error: 'CAMPOS_OBRIGATORIOS', missing: ['apiKey', 'webhookSecret'] });
+    if (!body.token) return json(422, { error: 'CAMPOS_OBRIGATORIOS', missing: ['token'] });
 
-    await saveAsaasCredentials(user.contaId, {
-      apiKey: String(body.apiKey),
-      webhookSecret: String(body.webhookSecret),
-    });
+    await saveAsaasTokenOnly(user.contaId, String(body.token));
 
     const creds = await getAsaasCredentials(user.contaId);
     return json(200, { saved: true, credentials: creds });

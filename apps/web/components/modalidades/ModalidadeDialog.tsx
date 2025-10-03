@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -124,7 +124,9 @@ export default function ModalidadeDialog({
       <DialogContent className="w-full max-w-xl overflow-hidden p-0">
         <div className="border-b border-slate-200 px-6 py-5">
           <DialogTitle className="text-lg font-semibold text-slate-900">{title}</DialogTitle>
-          <p className="mt-1 text-sm text-slate-600">{description}</p>
+          <DialogDescription className="mt-1 text-sm text-slate-600">
+            {description}
+          </DialogDescription>
         </div>
         <div className="flex flex-col gap-6 px-6 py-6 max-h-[70vh] overflow-y-auto">
           <section className={sectionClass}>

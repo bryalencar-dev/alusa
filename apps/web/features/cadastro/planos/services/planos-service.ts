@@ -1,5 +1,5 @@
 export type PlanoStatus = 'ATIVO' | 'INATIVO';
-export type PlanoPeriodicidade = 'MENSAL' | 'TRIMESTRAL' | 'ANUAL';
+export type PlanoPeriodicidade = 'SEMANAL' | 'QUINZENAL' | 'MENSAL' | 'TRIMESTRAL' | 'ANUAL';
 
 export interface PlanoListItem {
   id: string;
@@ -41,10 +41,12 @@ export function normalizePlano(input: Partial<PlanoListItem> & { id?: unknown })
   const nome = typeof input.nome === 'string' ? input.nome : '';
   const descricao =
     input.descricao === null || input.descricao === undefined ? null : String(input.descricao);
-  const periodicidade: PlanoPeriodicidade =
-    input.periodicidade === 'TRIMESTRAL' || input.periodicidade === 'ANUAL'
-      ? input.periodicidade
-      : 'MENSAL';
+  const allowed: PlanoPeriodicidade[] = ['SEMANAL', 'QUINZENAL', 'MENSAL', 'TRIMESTRAL', 'ANUAL'];
+  const periodicidade: PlanoPeriodicidade = allowed.includes(
+    input.periodicidade as PlanoPeriodicidade,
+  )
+    ? (input.periodicidade as PlanoPeriodicidade)
+    : 'MENSAL';
   const valor = coerceNumber(input.valor);
   const status: PlanoStatus = input.status === 'INATIVO' ? 'INATIVO' : 'ATIVO';
 

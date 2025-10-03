@@ -3,7 +3,13 @@ import { z } from 'zod';
 export const planoStatusEnum = z.enum(['ATIVO', 'INATIVO']);
 export type PlanoStatus = z.infer<typeof planoStatusEnum>;
 
-export const planoPeriodicidadeEnum = z.enum(['MENSAL', 'TRIMESTRAL', 'ANUAL']);
+export const planoPeriodicidadeEnum = z.enum([
+  'SEMANAL',
+  'QUINZENAL',
+  'MENSAL',
+  'TRIMESTRAL',
+  'ANUAL',
+]);
 export type PlanoPeriodicidade = z.infer<typeof planoPeriodicidadeEnum>;
 
 function normalizeValorInput(value: unknown): number {

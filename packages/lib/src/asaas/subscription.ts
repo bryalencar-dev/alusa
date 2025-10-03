@@ -152,7 +152,10 @@ export async function createSubscription(
  * @param subscriptionId - ID da subscription no Asaas
  * @returns Subscription encontrada
  */
-export async function getSubscription(subscriptionId: string, opts?: { contaId?: string }): Promise<AsaasSubscription> {
+export async function getSubscription(
+  subscriptionId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasSubscription> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.get<AsaasSubscription>(`/subscriptions/${subscriptionId}`);
@@ -185,7 +188,10 @@ export async function updateSubscription(
  * @param subscriptionId - ID da subscription no Asaas
  * @returns Subscription cancelada
  */
-export async function deleteSubscription(subscriptionId: string, opts?: { contaId?: string }): Promise<AsaasSubscription> {
+export async function deleteSubscription(
+  subscriptionId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasSubscription> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.delete<AsaasSubscription>(`/subscriptions/${subscriptionId}`);

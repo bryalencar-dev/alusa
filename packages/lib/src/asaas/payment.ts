@@ -147,7 +147,10 @@ export async function createPayment(
  * @param paymentId - ID do pagamento no Asaas
  * @returns Pagamento encontrado
  */
-export async function getPayment(paymentId: string, opts?: { contaId?: string }): Promise<AsaasPayment> {
+export async function getPayment(
+  paymentId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasPayment> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.get<AsaasPayment>(`/payments/${paymentId}`);
@@ -180,7 +183,10 @@ export async function updatePayment(
  * @param paymentId - ID do pagamento no Asaas
  * @returns Pagamento cancelado
  */
-export async function deletePayment(paymentId: string, opts?: { contaId?: string }): Promise<AsaasPayment> {
+export async function deletePayment(
+  paymentId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasPayment> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.delete<AsaasPayment>(`/payments/${paymentId}`);
@@ -244,7 +250,10 @@ export async function listPayments(filters?: {
  * @param paymentId - ID do pagamento no Asaas
  * @returns Pagamento restaurado
  */
-export async function restorePayment(paymentId: string, opts?: { contaId?: string }): Promise<AsaasPayment> {
+export async function restorePayment(
+  paymentId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasPayment> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.post<AsaasPayment>(`/payments/${paymentId}/restore`);
@@ -282,7 +291,10 @@ export async function confirmCashPayment(
  * @param paymentId - ID do pagamento no Asaas
  * @returns Pagamento com confirmação desfeita
  */
-export async function undoCashPayment(paymentId: string, opts?: { contaId?: string }): Promise<AsaasPayment> {
+export async function undoCashPayment(
+  paymentId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasPayment> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.post<AsaasPayment>(`/payments/${paymentId}/undoReceivedInCash`);

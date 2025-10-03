@@ -1,16 +1,14 @@
-"use client";
+'use client';
 import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useSession } from 'next-auth/react';
 
 const schema = z.object({
-  apiKey: z.string().min(10, 'Informe a API Key'),
-  webhookSecret: z.string().min(10, 'Informe o Webhook Secret'),
+  token: z.string().min(10, 'Informe o token da API'),
 });
 
 type FormState = {
-  apiKey: string;
-  webhookSecret: string;
+  token: string;
 };
 
 interface FetchState {
@@ -18,20 +16,20 @@ interface FetchState {
   saving: boolean;
   error: string | null;
   updatedAt: string | null;
-  maskedApiKey: string | null;
-  maskedWebhookSecret: string | null;
+  maskedToken: string | null;
+  success: string | null;
 }
 
 export function AsaasCredentialsForm() {
   const { data: session } = useSession();
-  const [form, setForm] = useState<FormState>({ apiKey: '', webhookSecret: '' });
+  const [form, setForm] = useState<FormState>({ token: '' });
   const [state, setState] = useState<FetchState>({
     loading: true,
     saving: false,
     error: null,
     updatedAt: null,
-    maskedApiKey: null,
-    maskedWebhookSecret: null,
+    maskedToken: null,
+    success: null,
   });
 
   const load = async () => {
@@ -43,8 +41,7 @@ export function AsaasCredentialsForm() {
       setState((s) => ({
         ...s,
         loading: false,
-        maskedApiKey: json.credentials?.apiKeyMasked ?? null,
-        maskedWebhookSecret: json.credentials?.webhookSecretMasked ?? null,
+        maskedToken: json.credentials?.apiKeyMasked ?? null,
         updatedAt: json.credentials?.updatedAt ?? null,
       }));
     } catch (e) {
@@ -73,20 +70,20 @@ export function AsaasCredentialsForm() {
       const res = await fetch('/api/integracoes/asaas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parse.data),
+        body: JSON.stringify({ token: parse.data.token }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Falha ao salvar');
-      setForm({ apiKey: '', webhookSecret: '' });
+      setForm({ token: '' });
       setState((s) => ({
         ...s,
         saving: false,
-        maskedApiKey: json.credentials?.apiKeyMasked ?? null,
-        maskedWebhookSecret: json.credentials?.webhookSecretMasked ?? null,
+        maskedToken: json.credentials?.apiKeyMasked ?? null,
         updatedAt: json.credentials?.updatedAt ?? null,
+        success: 'Token salvo com sucesso',
       }));
-    } catch (e) {
-      setState((s) => ({ ...s, saving: false, error: (e as Error).message }));
+    } catch {
+      setState((s) => ({ ...s, saving: false, error: 'Erro ao salvar token' }));
     }
   };
 
@@ -102,48 +99,35 @@ export function AsaasCredentialsForm() {
           {state.error}
         </div>
       )}
+      {state.success && (
+        <div className="rounded bg-green-50 border border-green-200 p-2 text-sm text-green-700">
+          {state.success}
+        </div>
+      )}
       <div className="text-sm text-gray-600">
         <p>Status: {state.loading ? 'Carregando...' : 'Pronto'}</p>
-        {state.maskedApiKey && (
+        {state.maskedToken && (
           <p>
-            API Key atual: <code>{state.maskedApiKey}</code>
-          </p>
-        )}
-        {state.maskedWebhookSecret && (
-          <p>
-            Webhook Secret atual: <code>{state.maskedWebhookSecret}</code>
+            Token atual: <code>{state.maskedToken}</code>
           </p>
         )}
         {state.updatedAt && <p>Atualizado em: {new Date(state.updatedAt).toLocaleString()}</p>}
       </div>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor="apiKey">
-            Nova API Key
+          <label className="text-sm font-medium" htmlFor="token">
+            Token da API do Asaas
           </label>
-            <input
-              id="apiKey"
-              name="apiKey"
-              value={form.apiKey}
-              onChange={onChange}
-              placeholder="sk_prod_..."
-              className="rounded border px-3 py-2 text-sm"
-              autoComplete="off"
-            />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor="webhookSecret">
-            Novo Webhook Secret
-          </label>
-            <input
-              id="webhookSecret"
-              name="webhookSecret"
-              value={form.webhookSecret}
-              onChange={onChange}
-              placeholder="whsec_..."
-              className="rounded border px-3 py-2 text-sm"
-              autoComplete="off"
-            />
+          <input
+            id="token"
+            name="token"
+            type="password"
+            value={form.token}
+            onChange={onChange}
+            placeholder="cole aqui seu token..."
+            className="rounded border px-3 py-2 text-sm"
+            autoComplete="off"
+          />
         </div>
         <div className="flex gap-2">
           <button
@@ -153,20 +137,29 @@ export function AsaasCredentialsForm() {
           >
             {state.saving ? 'Salvando...' : 'Salvar'}
           </button>
+          {/* Opcional: Testar conexão */}
           <button
             type="button"
-            onClick={load}
+            onClick={async () => {
+              setState((s) => ({ ...s, error: null, success: null }));
+              try {
+                const res = await fetch('/api/integracoes/asaas/testar', { method: 'POST' });
+                if (!res.ok) throw new Error('Falha ao testar conexão');
+                setState((s) => ({ ...s, success: 'Conexão ok com Asaas' }));
+              } catch {
+                setState((s) => ({ ...s, error: 'Falha ao testar conexão' }));
+              }
+            }}
             className="text-sm px-3 py-2 rounded border"
             disabled={state.loading}
           >
-            Recarregar
+            Testar conexão
           </button>
         </div>
       </form>
       <p className="text-xs text-gray-500 leading-relaxed">
-        Ao salvar, as credenciais são armazenadas de forma ofuscada e podem ser rotacionadas a
-        qualquer momento. A implementação de criptografia forte será adicionada (TODO) antes de ir
-        para produção.
+        Ao salvar, o token é armazenado de forma ofuscada e pode ser rotacionado a qualquer momento.
+        A implementação de criptografia forte será adicionada (TODO) antes de ir para produção.
       </p>
     </div>
   );

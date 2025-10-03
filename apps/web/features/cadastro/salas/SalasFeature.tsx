@@ -52,11 +52,21 @@ export function SalasFeature() {
   const editDialog = useEditDialog<SalaListItem>();
   const deleteDialog = useDeleteDialog<SalaListItem>({
     onDelete: async (sala) => {
-      if (!contaId) throw new Error('Conta não informada para inativação.');
-      const updated = await updateSala({ id: sala.id, payload: { contaId, status: 'INATIVO' } });
-      setItems((prev) =>
-        prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
-      );
+      if (!contaId) throw new Error('Conta não informada para exclusão.');
+      // Hard delete: simplesmente dispara remoção; hook remove irá filtrar.
+      await fetch(`/api/salas/${sala.id}?contaId=${encodeURIComponent(contaId)}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      }).then(async (res) => {
+        if (!res.ok) {
+          const json = await res.json().catch(() => null);
+          throw new Error(
+            (json as { error?: { message?: string } } | null)?.error?.message ||
+              'Não foi possível excluir a sala.',
+          );
+        }
+      });
+      setItems((prev) => prev.filter((item) => item.id !== sala.id));
     },
   });
 
@@ -191,7 +201,8 @@ export function SalasFeature() {
           const basePayload = {
             contaId,
             nome: formValues.nome.trim(),
-            descricao: formValues.descricao.trim() || null,
+            // Enviar undefined em vez de null para compatibilidade com zod schema (evita 422)
+            descricao: formValues.descricao.trim() || undefined,
             capacidade: Number(formValues.capacidade),
             status: (formValues.status === 'INATIVO' ? 'INATIVO' : 'ATIVO') as SalaStatus,
           };
@@ -232,6 +243,7 @@ export function SalasFeature() {
             const updatePayload: UpdateSalaPayload = {
               contaId,
               nome: basePayload.nome,
+              // Mantém mesma regra de create
               descricao: basePayload.descricao,
               capacidade: basePayload.capacidade,
               status: basePayload.status,
@@ -264,23 +276,23 @@ export function SalasFeature() {
 
       <ConfirmDeleteDialog
         open={deleteDialog.open}
-        title="Inativar sala"
+        title="Excluir sala"
         description={(() => {
           if (!deleteDialog.entity) {
-            return 'Tem certeza que deseja inativar esta sala? Você poderá reativá-la futuramente.';
+            return 'Tem certeza que deseja excluir esta sala? Esta ação é permanente.';
           }
           const rawName = deleteDialog.entity.nome ?? '';
           const shortName = formatFirstLast(rawName) || rawName || 'esta sala';
           return (
             <span>
-              Tem certeza que deseja inativar a sala <strong>{shortName}</strong>? Você poderá
-              reativá-la editando o cadastro.
+              Tem certeza que deseja excluir a sala <strong>{shortName}</strong>? Esta ação é
+              permanente e não poderá ser desfeita.
             </span>
           );
         })()}
         onOpenChange={deleteDialog.onOpenChange}
-        confirmLabel={deleteDialog.loading ? 'Inativando...' : 'Inativar'}
-        loadingLabel="Inativando..."
+        confirmLabel={deleteDialog.loading ? 'Excluindo...' : 'Excluir'}
+        loadingLabel="Excluindo..."
         cancelLabel="Cancelar"
         onConfirm={async () => {
           try {
@@ -288,13 +300,12 @@ export function SalasFeature() {
             toast.custom((t) => (
               <CustomToast
                 variant="success"
-                title="Sala inativada"
-                description="A sala foi marcada como inativa."
+                title="Sala excluída"
+                description="A sala foi removida do sistema."
                 onClose={() => toast.dismiss(t)}
               />
             ));
             window.dispatchEvent(new CustomEvent('salas:changed'));
-            void reload();
           } catch (error) {
             toast.custom((t) => (
               <CustomToast

@@ -23,9 +23,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
       );
     }
     if (body.nome !== undefined || body.descricao !== undefined) {
-      const parsed = modalidadeSchema
-        .pick({ nome: true, descricao: true })
-        .safeParse({ nome: body.nome, descricao: body.descricao });
+      const parsed = modalidadeSchema.pick({ nome: true, descricao: true }).safeParse({
+        nome: body.nome,
+        descricao: body.descricao === null ? undefined : body.descricao,
+      });
       if (!parsed.success)
         return jsonError(422, 'ERRO_VALIDACAO', 'Falha de validação', parsed.error.flatten());
     }

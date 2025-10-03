@@ -53,7 +53,8 @@ export async function POST(req: Request) {
         : body.capacidade;
     const parsed = salaSchema.safeParse({
       nome: body.nome,
-      descricao: body.descricao,
+      // Normaliza null -> undefined para schema (evita 422 de clientes antigos)
+      descricao: body.descricao === null ? undefined : body.descricao,
       capacidade: capacidadeValue,
       status: body.status,
     });

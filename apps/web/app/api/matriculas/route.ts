@@ -1,45 +1,412 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { listarMatriculas, criarMatricula } from '@alusa/lib';
+import {
+  StatusMatricula,
+  StatusCobranca,
+  StatusTaxaMatricula,
+  FormaPagamento,
+  TipoCobranca,
+} from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+function jsonError(status: number, code: string, message: string, details?: unknown) {
+  return NextResponse.json(
+    { error: { code, message, details } },
+    { status, headers: { 'cache-control': 'no-store' } },
+  );
+}
+
+type SessionUser = {
+  id?: string;
+  role?: string;
+  contaId?: string;
+};
+
+async function resolveAuthContext(explicit?: string | null) {
+  const session = await getServerSession(authOptions).catch(() => null);
+  const user = (session as { user?: SessionUser } | null)?.user ?? null;
+  const sessionContaId = user?.contaId?.trim() || null;
+  const requested = explicit?.trim() || null;
+  if (requested && sessionContaId && requested !== sessionContaId) {
+    return { contaId: null, mismatch: true, sessionContaId, session, user };
+  }
+  return {
+    contaId: requested || sessionContaId,
+    mismatch: false,
+    sessionContaId,
+    session,
+    user,
+  };
+}
+
+const statusValues = new Set(Object.values(StatusMatricula));
+const allowedRoles = new Set(['ADMIN', 'FINANCEIRO', 'RECEPCAO']);
+
+export async function GET(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const url = new URL(req.url);
+    console.log('[API GET Matrículas] Requisição recebida:', {
+      url: url.href,
+      contaIdParam: url.searchParams.get('contaId'),
+      statusParam: url.searchParams.get('status'),
+      searchParam: url.searchParams.get('q'),
+    });
+
+    const auth = await resolveAuthContext(url.searchParams.get('contaId'));
+
+    console.log('[API GET Matrículas] Auth resolvido:', {
+      contaId: auth.contaId,
+      userId: auth.user?.id,
+    });
+
+    if (auth.mismatch) {
+      return jsonError(403, 'CONTA_INVALIDA', 'Conta informada não pertence ao usuário.');
+    }
+    if (!auth.contaId) {
+      return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
+    }
+    if (
+      !auth.user?.id ||
+      !auth.user.role ||
+      !allowedRoles.has(String(auth.user.role).toUpperCase())
+    ) {
+      return jsonError(
+        403,
+        'PERMISSAO_NEGADA',
+        'Usuário não tem permissão para acessar matrículas.',
+      );
     }
 
-    // TODO: Implementar listagem de matrículas
-    // - Buscar matrículas no banco de dados
-    // - Aplicar filtros por escola se necessário
-    // - Retornar lista paginada
-    
-    return NextResponse.json({ matriculas: [] }, { status: 200 });
+    const statusParams = url.searchParams.getAll('status');
+    const statusFilter = statusParams
+      .flatMap((value) =>
+        value
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean),
+      )
+      .filter((value): value is StatusMatricula => statusValues.has(value as StatusMatricula));
+
+    const page = Number(url.searchParams.get('page') ?? '1');
+    const pageSize = Number(url.searchParams.get('pageSize') ?? '20');
+
+    const comboParam = url.searchParams.get('comboId');
+    let comboFilter: string | null | undefined = undefined;
+    if (comboParam === 'null') comboFilter = null;
+    else if (comboParam === null) comboFilter = undefined;
+    else if (comboParam.trim().length > 0) comboFilter = comboParam.trim();
+
+    const statusToSend = statusFilter.length === 0 ? undefined : statusFilter;
+
+    console.log('[API GET Matrículas] Parâmetros para listarMatriculas:', {
+      contaId: auth.contaId,
+      statusFilter: statusParams,
+      statusToSend,
+      page,
+      pageSize,
+    });
+
+    const {
+      data,
+      total,
+      page: currentPage,
+      pageSize: currentPageSize,
+    } = await listarMatriculas({
+      contaId: auth.contaId,
+      alunoId: url.searchParams.get('alunoId') ?? undefined,
+      planoId: url.searchParams.get('planoId') ?? undefined,
+      turmaId: url.searchParams.get('turmaId') ?? undefined,
+      comboId: comboFilter,
+      status: statusToSend,
+      search: url.searchParams.get('q') ?? url.searchParams.get('search') ?? undefined,
+      page: Number.isFinite(page) ? page : 1,
+      pageSize: Number.isFinite(pageSize) ? pageSize : 20,
+    });
+
+    console.log('[API GET Matrículas] Resultado:', {
+      total,
+      dataLength: data.length,
+      currentPage,
+    });
+
+    const items = data.map((item) => ({
+      id: item.id,
+      status: item.status,
+      statusFinanceiro: item.statusFinanceiro,
+      dataInicio: item.dataInicio.toISOString(),
+      dataFim: item.dataFim ? item.dataFim.toISOString() : null,
+      taxaMatricula: Number(item.taxaMatricula),
+      taxaStatus: item.taxaStatus,
+      aluno: {
+        id: item.aluno.id,
+        nome: item.aluno.nome,
+        cpf: item.aluno.cpf,
+      },
+      plano: {
+        id: item.plano.id,
+        nome: item.plano.nome,
+        valor: Number(item.plano.valor),
+      },
+      turma: item.turma
+        ? {
+            id: item.turma.id,
+            nome: item.turma.nome,
+            diasSemana: item.turma.diasSemana,
+            horaInicio: item.turma.horaInicio,
+            horaFim: item.turma.horaFim,
+          }
+        : null,
+      combo: item.combo ? { id: item.combo.id, nome: item.combo.nome } : null,
+      cobrancas: item.cobrancas.map((cobranca) => ({
+        id: cobranca.id,
+        valor: Number(cobranca.valor),
+        status: cobranca.status,
+        formaPagamento: cobranca.formaPagamento,
+        tipo: cobranca.tipo,
+        vencimento: cobranca.vencimento.toISOString(),
+      })),
+      taxaIsenta: item.taxaIsenta,
+      vencimentoDia: item.vencimentoDia,
+      responsavelFinanceiro: item.responsavelFinanceiro,
+    }));
+
+    return NextResponse.json(
+      {
+        // Novo formato principal
+        matriculas: items,
+        total,
+        page: currentPage,
+        perPage: currentPageSize,
+        totalPages: Math.ceil(total / currentPageSize),
+        // Retrocompatibilidade com cliente antigo que aguardava { data, pageSize }
+        data: items,
+        pageSize: currentPageSize,
+      },
+      { headers: { 'cache-control': 'no-store' } },
+    );
   } catch (error) {
-    console.error('Error fetching matriculas:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Erro ao listar matrículas:', error);
+    return jsonError(500, 'ERRO_LISTAR_MATRICULAS', (error as Error).message);
   }
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return jsonError(400, 'PAYLOAD_INVALIDO', 'Payload inválido');
     }
 
-    // const body = await req.json();
-    
-    // TODO: Implementar criação de matrícula
-    // - Validar dados com schema Zod
-    // - Criar matrícula no banco de dados
-    // - Retornar matrícula criada
-    
-    return NextResponse.json({ message: 'Matrícula criada com sucesso' }, { status: 201 });
+    const auth = await resolveAuthContext((body as { contaId?: string }).contaId ?? null);
+
+    console.log('[API Matrícula] Dados de autenticação:', {
+      mismatch: auth.mismatch,
+      contaId: auth.contaId,
+      userId: auth.user?.id,
+      userRole: auth.user?.role,
+      sessionContaId: auth.sessionContaId,
+      session: !!auth.session,
+    });
+
+    if (auth.mismatch) {
+      return jsonError(403, 'CONTA_INVALIDA', 'Conta informada não pertence ao usuário.');
+    }
+    if (!auth.contaId) {
+      return jsonError(400, 'CONTA_OBRIGATORIA', 'contaId é obrigatório');
+    }
+    if (!auth.user?.id) {
+      return jsonError(
+        403,
+        'USUARIO_NAO_AUTENTICADO',
+        'Usuário não autenticado ou ID não encontrado.',
+      );
+    }
+    if (!auth.user.role) {
+      return jsonError(403, 'PAPEL_USUARIO_NAO_DEFINIDO', 'Papel do usuário não está definido.');
+    }
+    if (!allowedRoles.has(String(auth.user.role).toUpperCase())) {
+      return jsonError(
+        403,
+        'PERMISSAO_NEGADA',
+        `Usuário com papel "${auth.user.role}" não tem permissão para criar matrículas.`,
+      );
+    }
+
+    const parseNumber = (value: unknown) => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string' && value.trim().length) {
+        const n = Number(value.replace(',', '.'));
+        if (Number.isFinite(n)) return n;
+      }
+      return undefined;
+    };
+
+    const parseBoolean = (value: unknown) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (['true', '1', 'yes', 'sim'].includes(normalized)) return true;
+        if (['false', '0', 'no', 'nao', 'não'].includes(normalized)) return false;
+      }
+      return false;
+    };
+
+    const toDate = (value: unknown) => {
+      if (value instanceof Date) return value;
+      if (typeof value === 'string' && value.trim().length) {
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) return date;
+      }
+      return undefined;
+    };
+
+    const formaPagamentoRaw = (body as { formaPagamento?: unknown }).formaPagamento;
+    const formaPagamento =
+      typeof formaPagamentoRaw === 'string'
+        ? (formaPagamentoRaw.trim().toUpperCase() as FormaPagamento)
+        : undefined;
+    const formaPagamentoValida =
+      formaPagamento && Object.values(FormaPagamento).includes(formaPagamento)
+        ? formaPagamento
+        : undefined;
+
+    const taxaMatriculaValue = parseNumber((body as { taxaMatricula?: unknown }).taxaMatricula);
+    const taxaIsentaValue = parseBoolean((body as { taxaIsenta?: unknown }).taxaIsenta);
+    const pagarTaxaAgoraValue = parseBoolean((body as { pagarTaxaAgora?: unknown }).pagarTaxaAgora);
+    const gerarCobrancaTaxaValue = parseBoolean(
+      (body as { gerarCobrancaTaxa?: unknown }).gerarCobrancaTaxa,
+    );
+
+    const payload = {
+      ...body,
+      contaId: auth.contaId,
+      taxaMatricula: taxaMatriculaValue !== undefined ? taxaMatriculaValue : 0,
+      taxaIsenta: taxaIsentaValue,
+      pagarTaxaAgora: pagarTaxaAgoraValue ?? false,
+      gerarCobrancaTaxa: gerarCobrancaTaxaValue ?? false,
+      dataInicio: toDate((body as { dataInicio?: unknown }).dataInicio),
+      vencimento: toDate((body as { vencimento?: unknown }).vencimento),
+      formaPagamento: formaPagamentoValida,
+      createdById: auth.user.id,
+    };
+
+    console.log('[API Matrícula] Payload estruturado:', {
+      hasAlunoId: !!payload.alunoId,
+      hasPlanoId: !!payload.planoId,
+      hasTurmaId: !!payload.turmaId,
+      hasComboId: !!payload.comboId,
+      hasCreatedById: !!payload.createdById,
+      hasContaId: !!payload.contaId,
+      taxaMatricula: payload.taxaMatricula,
+      taxaIsenta: payload.taxaIsenta,
+      pagarTaxaAgora: payload.pagarTaxaAgora,
+      formaPagamento: payload.formaPagamento,
+      dataInicio: payload.dataInicio,
+      vencimentoDia: payload.vencimentoDia,
+    });
+
+    console.log(
+      '[API Matrícula] Payload completo antes de criar:',
+      JSON.stringify(payload, null, 2),
+    );
+
+    const result = await criarMatricula(payload);
+    const matricula = result.matricula;
+    const json = {
+      matricula: {
+        id: matricula.id,
+        alunoId: matricula.alunoId,
+        responsavelFinanceiroId: matricula.responsavelFinanceiroId,
+        planoId: matricula.planoId,
+        turmaId: matricula.turmaId,
+        comboId: matricula.comboId,
+        status: matricula.status,
+        statusFinanceiro: matricula.statusFinanceiro,
+        dataInicio: matricula.dataInicio.toISOString(),
+        dataFim: matricula.dataFim ? matricula.dataFim.toISOString() : null,
+        taxaMatricula: Number(matricula.taxaMatricula),
+        taxaStatus: matricula.taxaStatus as StatusTaxaMatricula,
+        taxaIsenta: matricula.taxaIsenta,
+        taxaJustificativa: matricula.taxaJustificativa,
+        vencimentoDia: matricula.vencimentoDia,
+        asaasId: matricula.asaasId,
+        createdAt: matricula.createdAt.toISOString(),
+        updatedAt: matricula.updatedAt.toISOString(),
+      },
+      cobrancas: {
+        taxa: result.cobrancas.taxa
+          ? {
+              id: result.cobrancas.taxa.id,
+              tipo: result.cobrancas.taxa.tipo as TipoCobranca,
+              competenciaInicio: result.cobrancas.taxa.competenciaInicio.toISOString(),
+              competenciaFim: result.cobrancas.taxa.competenciaFim.toISOString(),
+              valor: Number(result.cobrancas.taxa.valor),
+              vencimento: result.cobrancas.taxa.vencimento.toISOString(),
+              formaPagamento: result.cobrancas.taxa.formaPagamento as FormaPagamento,
+              status: result.cobrancas.taxa.status as StatusCobranca,
+              asaasId: result.cobrancas.taxa.asaasId,
+            }
+          : null,
+        mensalidade: result.cobrancas.mensalidade
+          ? {
+              id: result.cobrancas.mensalidade.id,
+              tipo: result.cobrancas.mensalidade.tipo as TipoCobranca,
+              competenciaInicio: result.cobrancas.mensalidade.competenciaInicio.toISOString(),
+              competenciaFim: result.cobrancas.mensalidade.competenciaFim.toISOString(),
+              valor: Number(result.cobrancas.mensalidade.valor),
+              vencimento: result.cobrancas.mensalidade.vencimento.toISOString(),
+              formaPagamento: result.cobrancas.mensalidade.formaPagamento as FormaPagamento,
+              status: result.cobrancas.mensalidade.status as StatusCobranca,
+              asaasId: result.cobrancas.mensalidade.asaasId,
+            }
+          : null,
+      },
+      preco: result.preco,
+      checkoutLink: result.checkoutLink
+        ? {
+            id: result.checkoutLink.id,
+            token: result.checkoutLink.token,
+            expiresAt: result.checkoutLink.expiresAt.toISOString(),
+            usedAt: result.checkoutLink.usedAt ? result.checkoutLink.usedAt.toISOString() : null,
+            channel: result.checkoutLink.channel,
+          }
+        : null,
+      checkoutToken: result.checkoutToken,
+      responsavelFinanceiro: result.responsavelFinanceiro,
+      primeiroVencimento: result.primeiroVencimento.toISOString(),
+    };
+
+    return NextResponse.json(json, {
+      status: 201,
+      headers: { 'cache-control': 'no-store' },
+    });
   } catch (error) {
-    console.error('Error creating matricula:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[API Matrícula] Erro ao criar matrícula:', error);
+
+    if ((error as { name?: string }).name === 'ZodError') {
+      const zodError = error as { issues?: Array<{ path: string[]; message: string }> };
+      const issues = zodError.issues || [];
+      const firstIssue = issues[0];
+      const errorMessage = firstIssue
+        ? `${firstIssue.path.join('.')}: ${firstIssue.message}`
+        : 'Erro de validação';
+
+      console.error('[API Matrícula] Erro de validação Zod:', JSON.stringify(issues, null, 2));
+      return jsonError(422, 'ERRO_VALIDACAO', errorMessage, { issues });
+    }
+
+    const message = (error as Error).message || 'Erro interno do servidor';
+    const status = message.includes('já existe') ? 409 : 500;
+
+    console.error('[API Matrícula] Erro final:', {
+      message,
+      status,
+      stack: (error as Error).stack,
+    });
+    return jsonError(status, 'ERRO_CRIAR_MATRICULA', message);
   }
 }

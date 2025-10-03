@@ -101,7 +101,10 @@ export async function createCustomer(
  * @param customerId - ID do customer no Asaas
  * @returns Customer encontrado
  */
-export async function getCustomer(customerId: string, opts?: { contaId?: string }): Promise<AsaasCustomer> {
+export async function getCustomer(
+  customerId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasCustomer> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.get<AsaasCustomer>(`/customers/${customerId}`);
@@ -134,7 +137,10 @@ export async function updateCustomer(
  * @param customerId - ID do customer no Asaas
  * @returns Customer deletado
  */
-export async function deleteCustomer(customerId: string, opts?: { contaId?: string }): Promise<AsaasCustomer> {
+export async function deleteCustomer(
+  customerId: string,
+  opts?: { contaId?: string },
+): Promise<AsaasCustomer> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.delete<AsaasCustomer>(`/customers/${customerId}`);

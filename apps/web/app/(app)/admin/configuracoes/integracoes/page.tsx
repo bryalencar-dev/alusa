@@ -4,8 +4,11 @@ import { authOptions } from '@/lib/auth-options';
 import { redirect } from 'next/navigation';
 
 const AsaasCredentialsForm = nextDynamic(
-  () => import('../../../../../features/integracoes/asaas/AsaasCredentialsForm').then(m => m.AsaasCredentialsForm),
-  { ssr: false }
+  () =>
+    import('../../../../../features/integracoes/asaas/AsaasCredentialsForm').then(
+      (m) => m.AsaasCredentialsForm,
+    ),
+  { ssr: false },
 );
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +19,7 @@ export default async function ConfigIntegracoesPage() {
   type SessUser = { role?: string; contaId?: string };
   const role = (session as { user?: SessUser } | null)?.user?.role;
   const contaId = (session as { user?: SessUser } | null)?.user?.contaId;
-  if (!role || !contaId || !['ADMIN','FINANCEIRO'].includes(role.toUpperCase())) {
+  if (!role || !contaId || !['ADMIN', 'FINANCEIRO'].includes(role.toUpperCase())) {
     redirect('/admin/configuracoes');
   }
   return (
@@ -30,9 +33,7 @@ export default async function ConfigIntegracoesPage() {
       <section className="space-y-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <h3 className="font-medium mb-2">Asaas</h3>
-          <p className="text-xs text-gray-500 mb-4">
-            Armazene API Key e Webhook Secret por conta. Valores são mascarados após salvar.
-          </p>
+          <p className="text-xs text-gray-500 mb-4">Armazene o Token da API do Asaas por conta. O valor é mascarado após salvar.</p>
           <AsaasCredentialsForm />
         </div>
       </section>

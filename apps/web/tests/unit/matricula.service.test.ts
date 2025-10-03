@@ -5,14 +5,19 @@ import { prisma } from '@alusa/lib';
 // Precisa mockar o alias '@/prisma/client' antes de importar o serviço
 vi.mock('@/prisma/client', async () => await import('../../prisma/client'));
 
-import type { CalcularPrecoOutput, CalcularPrecoInput, CriarMatriculaInput } from '@alusa/lib';
+process.env.NEXTAUTH_SECRET ??= 'test-secret-32-bytes-sign-key-alusa!';
+
+import type { CalcularPrecoOutput, CalcularPrecoInput } from '@alusa/lib';
 let calcularPrecoMatricula: (_: CalcularPrecoInput) => CalcularPrecoOutput;
-let criarMatricula: (
-  _: CriarMatriculaInput,
-) => Promise<{ matricula: unknown; cobranca: unknown; preco: CalcularPrecoOutput }>;
-let listarMatriculas: (_alunoId: string) => Promise<unknown[]>;
+let criarMatricula: (typeof import('@alusa/lib'))['criarMatricula'];
+let listarMatriculas: (typeof import('@alusa/lib'))['listarMatriculas'];
 beforeAll(async () => {
   const mod = await import('@alusa/lib');
+  const checkoutMod = await import('../../../../packages/lib/src/services/checkout-token');
+  vi.spyOn(checkoutMod, 'generateCheckoutToken').mockResolvedValue({
+    token: 'fake-token',
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
   calcularPrecoMatricula = mod.calcularPrecoMatricula;
   criarMatricula = mod.criarMatricula;
   listarMatriculas = mod.listarMatriculas;
@@ -72,9 +77,11 @@ describe('serviço de matrícula', () => {
 
   const hasDb = !!process.env.DATABASE_URL;
   (hasDb ? describe : describe.skip)('integração com Prisma', () => {
+    let contaId: string;
     let alunoId: string;
     let turmaId: string;
     let planoId: string;
+    let ownerId: string;
 
     async function ensureData() {
       // Garante a existência de uma conta com owner usando o fluxo oficial
@@ -91,7 +98,9 @@ describe('serviço de matrícula', () => {
       } catch {
         /* noop */
       }
+
       const conta = await prisma.conta.findFirstOrThrow({ where: { cpfCnpj: '00000000000191' } });
+      const owner = await prisma.usuario.findFirstOrThrow({ where: { contaId: conta.id } });
 
       // Modalidade & Sala compatíveis com novo modelo
       const modalidade = await prisma.modalidade.upsert({
@@ -175,41 +184,75 @@ describe('serviço de matrícula', () => {
         },
       });
 
-      return { aluno, turma, plano };
+      return { conta, aluno, turma, plano, owner };
     }
 
     beforeAll(async () => {
-      const { aluno, turma, plano } = await ensureData();
+      const { conta, aluno, turma, plano, owner } = await ensureData();
+      contaId = conta.id;
       alunoId = aluno.id;
       turmaId = turma.id;
       planoId = plano.id;
+      ownerId = owner.id;
     });
 
-    it('criarMatricula cria matrícula e cobrança inicial', async () => {
-      const { matricula, cobranca, preco } = await criarMatricula({
+    it('criarMatricula mantém taxa pendente sem gerar cobrança imediata por padrão', async () => {
+      const { matricula, cobrancas, preco, checkoutLink, primeiroVencimento } =
+        await criarMatricula({
+          contaId,
+          alunoId,
+          turmaId,
+          planoId,
+          taxaMatricula: 15,
+          taxaIsenta: false,
+          formaPagamento: 'BOLETO',
+          criarCobranca: true,
+          gerarCobrancaTaxa: false,
+          dataInicio: new Date(),
+          vencimentoDia: 5,
+          createdById: ownerId,
+        });
+      const m = matricula as { id: string; taxaStatus?: string };
+      expect(m.id).toBeTruthy();
+      expect(cobrancas.taxa).toBeNull();
+      expect(checkoutLink).toBeNull();
+      expect(preco.total).toBeGreaterThan(0);
+      expect(primeiroVencimento instanceof Date).toBe(true);
+    });
+
+    it('criarMatricula gera cobrança da taxa quando explicitamente habilitado', async () => {
+      const { cobrancas, checkoutLink } = await criarMatricula({
+        contaId,
         alunoId,
         turmaId,
         planoId,
         taxaMatricula: 15,
+        taxaIsenta: false,
+        formaPagamento: 'BOLETO',
+        criarCobranca: true,
+        gerarCobrancaTaxa: true,
+        dataInicio: new Date(),
+        vencimentoDia: 5,
+        createdById: ownerId,
       });
-      const m = matricula as { id: string };
-      const c = cobranca as { id: string; status: string };
-      expect(m.id).toBeTruthy();
-      expect(c.id).toBeTruthy();
-      expect(c.status).toBe('PENDENTE');
-      expect(preco.total).toBeGreaterThan(0);
+
+      const taxa = cobrancas.taxa as { id: string; status: string } | null;
+      expect(taxa?.id).toBeTruthy();
+      expect(taxa?.status).toBe('PENDENTE');
+      expect(checkoutLink?.token).toBeTruthy();
     });
 
     it('listarMatriculas retorna matrículas do aluno', async () => {
-      const list = (await listarMatriculas(alunoId)) as Array<{
+      const { data: list } = await listarMatriculas({ contaId, alunoId });
+      const typed = list as Array<{
         turma?: { nome: string };
         plano?: { nome?: string | null } | null;
         cobrancas: Array<{ valor: unknown; status: string }>;
       }>;
-      expect(Array.isArray(list)).toBe(true);
-      expect(list.length).toBeGreaterThan(0);
+      expect(Array.isArray(typed)).toBe(true);
+      expect(typed.length).toBeGreaterThan(0);
       // conferir shape mínimo
-      const m = list[0];
+      const m = typed[0];
       expect(m.turma?.nome).toBeTruthy();
       expect(m.plano?.nome).toBeTruthy();
       expect(Array.isArray(m.cobrancas)).toBe(true);

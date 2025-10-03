@@ -65,5 +65,17 @@ export const table = {
         acoes: 'col-span-1',
       },
     },
+    combos: {
+      spans: {
+        // Alinhado ao padrão Alunos (status em col 11, ações em col 12)
+        // Soma anterior às colunas status/ações deve ser 10
+        nome: 'col-span-3', // mesma largura da primeira coluna de Alunos
+        valor: 'col-span-2', // equivalente a CPF em largura
+        qtd: 'col-span-2', // equivalente a TELEFONE (2) ou parte de EMAIL
+        filler: 'col-span-3', // ocupa espaço onde outras entidades têm mais colunas (ex: email + telefone)
+        status: 'col-span-1',
+        acoes: 'col-span-1',
+      },
+    },
   },
 };

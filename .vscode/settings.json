@@ -44,5 +44,6 @@
     "**/coverage": true,
     "**/storybook-static": true,
     "**/prisma/migrations": true
-  }
+  },
+  "chat.mcp.serverSampling": {}
 }

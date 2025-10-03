@@ -72,10 +72,12 @@ describe('sala.service', () => {
     expect(upd.status).toBe('INATIVO');
   });
 
-  it('soft delete (status INATIVO)', async () => {
+  it('hard delete remove registro', async () => {
     const s = await createSala({ contaId, nome: 'Sala Delete ' + Date.now(), capacidade: 5 });
-    const del = await deleteSala(s.id, contaId);
-    expect(del.status).toBe('INATIVO');
+    const previous = await deleteSala(s.id, contaId);
+    expect(previous.id).toBe(s.id);
+    const check = await prisma.sala.findUnique({ where: { id: s.id } });
+    expect(check).toBeNull();
   });
 
   it('lista com paginação', async () => {

@@ -315,14 +315,14 @@ function PlanosTable({ data, accountMissing, loading, onEdit, onDelete }: Planos
 }
 
 function formatPeriodicidade(value: PlanoPeriodicidade) {
-  switch (value) {
-    case 'ANUAL':
-      return 'Anual';
-    case 'TRIMESTRAL':
-      return 'Trimestral';
-    default:
-      return 'Mensal';
-  }
+  const map: Record<string, string> = {
+    SEMANAL: 'Semanal',
+    QUINZENAL: 'Quinzenal',
+    MENSAL: 'Mensal',
+    TRIMESTRAL: 'Trimestral',
+    ANUAL: 'Anual',
+  };
+  return map[value] || value;
 }
 
 export default PlanosFeature;

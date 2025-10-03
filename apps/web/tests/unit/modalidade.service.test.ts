@@ -67,10 +67,11 @@ describe('modalidade.service', () => {
     expect(up.nome).toBe('Ballet Test 2');
   });
 
-  it('soft delete', async () => {
-    const list = await listModalidades(contaId, { page: 1, pageSize: 10 });
-    const first = list.data[0];
-    const del = await deleteModalidade(first.id, contaId);
-    expect(del.status).toBe('INATIVO');
+  it('hard delete', async () => {
+    const created = await createModalidade({ contaId, nome: 'Temp Delete ' + Date.now() });
+    const previous = await deleteModalidade(created.id, contaId);
+    expect(previous.id).toBe(created.id);
+    const check = await prisma.modalidade.findUnique({ where: { id: created.id } });
+    expect(check).toBeNull();
   });
 });

@@ -8,7 +8,7 @@ export interface AsaasCredentialsInput {
 
 export interface AsaasCredentials {
   apiKeyMasked: string | null;
-  webhookSecretMasked: string | null;
+  webhookSecretMasked?: string | null;
   updatedAt: Date | null;
 }
 
@@ -53,6 +53,20 @@ export async function getAsaasCredentials(contaId: string): Promise<AsaasCredent
     webhookSecretMasked: mask(decryptSecret(conta.asaasWebhookSecretEncrypted)),
     updatedAt: conta.asaasCredsUpdatedAt,
   };
+}
+
+// Novo: salvar apenas o token (API Key) sem webhook secret
+export async function saveAsaasTokenOnly(contaId: string, token: string): Promise<void> {
+  if (!token || token.trim().length < 10) throw new Error('Token inválido');
+  const apiKeyEncrypted = encryptSecret(token.trim());
+
+  await prisma.conta.update({
+    where: { id: contaId },
+    data: {
+      asaasApiKeyEncrypted: apiKeyEncrypted,
+      asaasCredsUpdatedAt: new Date(),
+    },
+  });
 }
 
 export async function loadDecryptedAsaasCredentials(

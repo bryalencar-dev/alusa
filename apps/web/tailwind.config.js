@@ -22,11 +22,16 @@ module.exports = {
         'brand-stroke': '#DDDDDD',
         // pixel-perfect login
         brand: {
+          // Segmented control / principal (DEFAULT/light)
+          DEFAULT: '#4f2298',
+          light: '#6b35cc',
+          selected: '#5b28af',
+          // Paleta existente mantida para não quebrar classes atuais
           bg: '#0F0C26',
-          primary: '#19143A',
-          accent: '#4F2298',
-          stroke: '#E2E2E8',
-          muted: '#828282'
+            primary: '#19143A',
+            accent: '#4F2298',
+            stroke: '#E2E2E8',
+            muted: '#828282'
         },
         primary: {
           DEFAULT: '#4f2298',

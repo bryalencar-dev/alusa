@@ -1,6 +1,10 @@
 import { describe, it } from 'vitest';
 
-describe('POST /api/turmas debug', () => {
+const runDebugTests = process.env.DEBUG_TURMAS_API === 'true';
+const describeDebug = runDebugTests ? describe : describe.skip;
+const baseUrl = process.env.DEBUG_TURMAS_BASE_URL ?? 'http://localhost:3000';
+
+describeDebug('POST /api/turmas debug', () => {
   it('should create turma with valid payload', async () => {
     // Simular payload que vem do wizard
     const payload = {
@@ -17,7 +21,7 @@ describe('POST /api/turmas debug', () => {
 
     console.log('Testing payload:', JSON.stringify(payload, null, 2));
 
-    const response = await fetch('http://localhost:3000/api/turmas', {
+    const response = await fetch(`${baseUrl}/api/turmas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -32,13 +36,13 @@ describe('POST /api/turmas debug', () => {
   });
 
   it('should list modalidades for debugging', async () => {
-    const response = await fetch('http://localhost:3000/api/modalidades?contaId=conta-default');
+    const response = await fetch(`${baseUrl}/api/modalidades?contaId=conta-default`);
     const data = await response.json();
     console.log('Modalidades:', JSON.stringify(data, null, 2));
   });
 
   it('should list salas for debugging', async () => {
-    const response = await fetch('http://localhost:3000/api/salas?contaId=conta-default');
+    const response = await fetch(`${baseUrl}/api/salas?contaId=conta-default`);
     const data = await response.json();
     console.log('Salas:', JSON.stringify(data, null, 2));
   });

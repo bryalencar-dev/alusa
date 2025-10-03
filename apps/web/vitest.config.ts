@@ -5,6 +5,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // ⚠️ IMPORTANTE: Define NODE_ENV=test para garantir uso do banco de teste
+    env: {
+      NODE_ENV: 'test',
+    },
     // Coverage habilitado somente em CI para evitar crashes intermitentes no Windows local
     coverage: { enabled: process.env.CI === 'true', provider: 'v8' },
     sequence: { concurrent: false },

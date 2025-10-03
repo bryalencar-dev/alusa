@@ -1,5 +1,6 @@
-"use client";
+'use client';
 import { useEffect, useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface ChargeRow {
   id: string;
@@ -10,6 +11,7 @@ interface ChargeRow {
   aluno: { id: string; nome: string };
   matriculaId: string;
   asaasPaymentId?: string | null;
+  atrasado?: boolean;
 }
 
 interface ApiResponse {
@@ -29,6 +31,21 @@ export default function ChargesTable() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [tipoFilters, setTipoFilters] = useState<string[]>([]);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Inicializa filtros da URL
+  useEffect(() => {
+    const s = searchParams?.getAll('status') || [];
+    const t = searchParams?.getAll('tipo') || [];
+    const q = searchParams?.get('q') || '';
+    if (s.length) setStatusFilters(s);
+    if (t.length) setTipoFilters(t);
+    if (q) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 400);
@@ -43,6 +60,11 @@ export default function ChargesTable() {
       try {
         const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
         if (debounced) params.set('q', debounced);
+        statusFilters.forEach((s) => params.append('status', s));
+        tipoFilters.forEach((t) => params.append('tipo', t));
+        // Sync URL (shallow)
+        const url = `/financeiro/cobrancas?${params.toString()}`;
+        router.replace(url);
         const res = await fetch(`/api/financeiro/cobrancas?${params.toString()}`, {
           cache: 'no-store',
         });
@@ -61,19 +83,58 @@ export default function ChargesTable() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize, debounced]);
+  }, [page, pageSize, debounced, statusFilters, tipoFilters, router]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  function toggle(list: string[], value: string, setter: (_v: string[]) => void) {
+    if (list.includes(value)) setter(list.filter((x) => x !== value));
+    else setter([...list, value]);
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex gap-3 items-center">
+      <div className="flex flex-wrap gap-3 items-center">
         <input
           placeholder="Buscar aluno ou descrição..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border rounded px-3 py-2 text-sm w-72"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border rounded px-3 py-2 text-sm w-72"
         />
+        <div className="flex gap-2 items-center text-xs">
+          <span className="text-gray-500">Status:</span>
+          {['PENDENTE', 'PAGO', 'ATRASADO', 'CANCELADO'].map((s) => (
+            <button
+              key={s}
+              onClick={() => toggle(statusFilters, s, setStatusFilters)}
+              className={
+                'px-2 py-1 rounded border text-xs ' +
+                (statusFilters.includes(s)
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'bg-white hover:bg-gray-50')
+              }
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 items-center text-xs">
+          <span className="text-gray-500">Tipo:</span>
+          {['MENSALIDADE', 'TAXA_MATRICULA', 'EXTRA', 'AVULSA'].map((t) => (
+            <button
+              key={t}
+              onClick={() => toggle(tipoFilters, t, setTipoFilters)}
+              className={
+                'px-2 py-1 rounded border text-xs ' +
+                (tipoFilters.includes(t)
+                  ? 'bg-indigo-600 border-indigo-600 text-white'
+                  : 'bg-white hover:bg-gray-50')
+              }
+            >
+              {t}
+            </button>
+          ))}
+        </div>
         <div className="text-xs text-gray-500">{total} registros</div>
       </div>
       <div className="overflow-auto border rounded-lg">
@@ -86,31 +147,33 @@ export default function ChargesTable() {
               <th className="px-3 py-2 text-left font-medium">Valor</th>
               <th className="px-3 py-2 text-left font-medium">Vencimento</th>
               <th className="px-3 py-2 text-left font-medium">Pagamento Asaas</th>
+              <th className="px-3 py-2 text-left font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
+                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
                   Carregando...
                 </td>
               </tr>
             )}
             {!loading && error && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-red-600">
+                <td colSpan={7} className="px-3 py-6 text-center text-red-600">
                   {error}
                 </td>
               </tr>
             )}
             {!loading && !error && rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
+                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
                   Nenhuma cobrança encontrada.
                 </td>
               </tr>
             )}
-            {!loading && !error &&
+            {!loading &&
+              !error &&
               rows.map((r) => (
                 <tr key={r.id} className="border-t">
                   <td className="px-3 py-2 whitespace-nowrap">{r.aluno.nome}</td>
@@ -124,7 +187,9 @@ export default function ChargesTable() {
                     {r.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
-                    {new Date(r.vencimento).toLocaleDateString('pt-BR')}
+                    <span className={r.atrasado ? 'text-red-600 font-medium' : ''}>
+                      {new Date(r.vencimento).toLocaleDateString('pt-BR')}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-500">
                     {r.asaasPaymentId ? (
@@ -132,6 +197,26 @@ export default function ChargesTable() {
                     ) : (
                       <span className="text-gray-400">—</span>
                     )}
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-xs">
+                    <div className="flex gap-2">
+                      <a
+                        href={`/matriculas/${r.matriculaId}`}
+                        className="underline text-blue-600 hover:text-blue-800"
+                      >
+                        Ver Matrícula
+                      </a>
+                      {r.asaasPaymentId && (
+                        <a
+                          href={`https://www.asaas.com/pay/${r.asaasPaymentId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-indigo-600 hover:text-indigo-800"
+                        >
+                          Segunda Via
+                        </a>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

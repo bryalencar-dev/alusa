@@ -21,19 +21,23 @@ export async function createModalidade(input: {
     descricao: input.descricao?.trim() || undefined,
     status: input.status,
   });
-
-  // Garante conta-default em ambiente de dev (pattern usado em outros serviços)
-  if (input.contaId === 'conta-default') {
-    await prisma.conta.upsert({
-      where: { id: 'conta-default' },
-      update: {},
-      create: {
-        id: 'conta-default',
-        nome: 'Alusa Demo',
-        cpfCnpj: '00000000000000',
-        status: 'ATIVO',
-      },
-    });
+  // Garante existência da conta (antes só tratava conta-default). Se a conta não existir:
+  // - Em desenvolvimento criamos automaticamente (facilita fluxos de teste rápidos / seeds parciais)
+  // - Em produção retornamos erro explícito
+  const existingConta = await prisma.conta.findUnique({ where: { id: input.contaId } });
+  if (!existingConta) {
+    if (process.env.NODE_ENV !== 'production') {
+      await prisma.conta.create({
+        data: {
+          id: input.contaId,
+          nome: 'Conta Auto (Dev) ' + input.contaId.substring(0, 6),
+          cpfCnpj: '00000000000000',
+          status: 'ATIVO',
+        },
+      });
+    } else {
+      throw new Error('Conta não encontrada para criar modalidade');
+    }
   }
 
   // Verifica duplicidade (case sensitive por enquanto)
@@ -51,12 +55,19 @@ export async function createModalidade(input: {
         status: parsed.status ?? 'ATIVO',
       },
     });
-  } catch (e) {
-    // Erros de FK ou constraint caem aqui
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[createModalidade] erro', e);
+  } catch (err: unknown) {
+    const code =
+      typeof err === 'object' && err && 'code' in err ? (err as { code?: string }).code : undefined;
+    if (process.env.NODE_ENV !== 'production') console.error('[createModalidade] erro', err);
+    if (code === 'P2002') {
+      // unique constraint (duplicidade)
+      throw new Error('Já existe uma modalidade com este nome nesta conta');
     }
-    throw e;
+    if (code === 'P2003') {
+      // FK
+      throw new Error('Falha de integridade: conta vinculada não existe');
+    }
+    throw err;
   }
 }
 
@@ -114,6 +125,7 @@ export async function listModalidades(contaId: string, opts: ModalidadeListOptio
 export async function deleteModalidade(id: string, contaId: string): Promise<Modalidade> {
   const current = await prisma.modalidade.findFirst({ where: { id, contaId } });
   if (!current) throw new Error('Modalidade não encontrada');
-  if (current.status === 'INATIVO') return current;
-  return prisma.modalidade.update({ where: { id }, data: { status: 'INATIVO' } });
+  // Hard delete: remove definitivamente
+  await prisma.modalidade.delete({ where: { id } });
+  return current; // retorna estado anterior para fins de auditoria/log se necessário
 }

@@ -1,4 +1,4 @@
-export type StepId = 'aluno' | 'turmasCombo' | 'plano' | 'financeiro' | 'resumo';
+export type StepId = 'aluno' | 'turmasCombo' | 'taxa' | 'plano' | 'financeiro' | 'resumo';
 
 export interface WizardAluno {
   id: string;
@@ -25,6 +25,10 @@ export interface WizardState {
   descontoTipo?: 'FIXO' | 'PERCENTUAL';
   descontoValor?: number;
   taxaMatricula?: number;
+  taxaIsenta?: boolean;
+  taxaJustificativa?: string;
+  pagarTaxaAgora?: boolean; // Flag para pagar taxa imediatamente
+  gerarCobrancaTaxa?: boolean;
   formaPagamento?: 'DINHEIRO' | 'PIX' | 'CARTAO' | 'BOLETO';
   criarCobranca: boolean;
   dataInicio?: string; // ISO ou yyyy-mm-dd

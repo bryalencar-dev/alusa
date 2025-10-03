@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { SectionCard, StepHeader } from '@/components/alunos/wizard/ui';
-import { XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import {
+  XMarkIcon,
+  MagnifyingGlassIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
 import type { WizardContextValue } from '../types';
+import {
+  validarFaixaEtaria,
+  validarCapacidadeTurma,
+  formatarHorario,
+  formatarDiasSemana,
+} from '@/lib/validations/turma-plano.schema';
 
 interface Option {
   value: string;
@@ -12,6 +22,8 @@ interface Option {
   idadeMax?: number;
   horaInicio?: string;
   horaFim?: string;
+  diasSemana?: string[];
+  vagasOcupadas?: number;
 }
 
 interface StepTurmasComboProps {
@@ -27,7 +39,6 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
-  const [highlight, setHighlight] = useState(0);
 
   useEffect(() => {
     if (!contaId) return;
@@ -92,10 +103,38 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
       update({ turmaIds: [], turmaLabel: undefined });
     } else {
       const turma = turmas.find((t) => t.value === id);
-      update({ turmaIds: [id], comboId: undefined, modoTurmas: 'TURMAS', turmaLabel: turma?.label });
+      update({
+        turmaIds: [id],
+        comboId: undefined,
+        modoTurmas: 'TURMAS',
+        turmaLabel: turma?.label,
+      });
       setQuery('');
     }
   };
+
+  // Validar turma selecionada
+  const turmaValidacao = useMemo(() => {
+    if (!state.turmaIds[0] || !state.aluno?.dataNasc) return null;
+
+    const turma = turmas.find((t) => t.value === state.turmaIds[0]);
+    if (!turma) return null;
+
+    // Validar faixa etária
+    const faixaEtaria = validarFaixaEtaria(state.aluno.dataNasc, turma.idadeMin, turma.idadeMax);
+
+    // Validar capacidade
+    let capacidade = null;
+    if (turma.capacidade !== undefined) {
+      capacidade = validarCapacidadeTurma(turma.capacidade, turma.vagasOcupadas ?? 0);
+    }
+
+    return {
+      faixaEtaria,
+      capacidade,
+      turma,
+    };
+  }, [state.turmaIds, state.aluno, turmas]);
 
   const filteredTurmas = useMemo(() => {
     if (!query.trim()) return turmas.slice(0, 30);
@@ -105,8 +144,21 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
 
   const canContinue = useMemo(() => {
     if (modo === 'COMBO') return !!state.comboId;
-    return state.turmaIds.length === 1;
-  }, [modo, state.comboId, state.turmaIds]);
+
+    // Modo turmas: precisa ter turma selecionada E passar nas validações
+    if (state.turmaIds.length !== 1) return false;
+
+    // Se não há validação (aluno sem data nasc), permite
+    if (!turmaValidacao) return true;
+
+    // Bloqueia se faixa etária inválida
+    if (!turmaValidacao.faixaEtaria.valido) return false;
+
+    // Bloqueia se sem capacidade
+    if (turmaValidacao.capacidade && !turmaValidacao.capacidade.valido) return false;
+
+    return true;
+  }, [modo, state.comboId, state.turmaIds, turmaValidacao]);
 
   return (
     <SectionCard>
@@ -115,26 +167,28 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
         hint="Escolha uma turma individual ou matricule através de um combo para acelerar a jornada."
       />
       <div className="space-y-6">
-        <div className="flex items-center gap-2 text-xs font-medium">
+        <div
+          className="inline-flex gap-1 rounded-md border border-gray-200 bg-white p-1"
+          role="tablist"
+          aria-label="Alternar tipo de matrícula"
+        >
           <button
-            type="button"
-            onClick={() => update({ modoTurmas: 'TURMAS', comboId: undefined })}
-            className={`h-8 rounded-md border px-3 transition text-[11px] tracking-wide ${
-              modo === 'TURMAS'
-                ? 'bg-[#4f2298] border-[#4f2298] text-white'
-                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+            role="tab"
+            aria-selected={modo === 'TURMAS'}
+            className={`rounded-md px-4 h-9 text-sm transition-colors ${
+              modo === 'TURMAS' ? 'bg-violet-600 text-white' : 'hover:bg-violet-50 text-gray-900'
             }`}
+            onClick={() => update({ modoTurmas: 'TURMAS', comboId: undefined })}
           >
             Selecionar turma
           </button>
           <button
-            type="button"
-            onClick={() => update({ modoTurmas: 'COMBO', turmaIds: [] })}
-            className={`h-8 rounded-md border px-3 transition text-[11px] tracking-wide ${
-              modo === 'COMBO'
-                ? 'bg-[#4f2298] border-[#4f2298] text-white'
-                : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+            role="tab"
+            aria-selected={modo === 'COMBO'}
+            className={`rounded-md px-4 h-9 text-sm transition-colors ${
+              modo === 'COMBO' ? 'bg-violet-600 text-white' : 'hover:bg-violet-50 text-gray-900'
             }`}
+            onClick={() => update({ modoTurmas: 'COMBO', turmaIds: [] })}
           >
             Selecionar Combo
           </button>
@@ -151,13 +205,15 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setTimeout(() => setFocused(false), 120)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setFocused(false);
+                  }
+                }}
               />
               <MagnifyingGlassIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              {focused && (
+              {focused && combos.length > 0 && (
                 <div className="absolute z-40 mt-2 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                  {combos.length === 0 && !loading && (
-                    <div className="px-4 py-3 text-sm text-gray-500">Nenhum combo</div>
-                  )}
                   {combos
                     .filter((c) => c.label.toLowerCase().includes(query.toLowerCase()))
                     .slice(0, 30)
@@ -165,17 +221,19 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
                       <button
                         key={c.value}
                         type="button"
-                        data-selected={c.value === state.comboId || undefined}
                         onMouseDown={(e) => {
                           e.preventDefault();
                           update({ comboId: c.value, turmaIds: [], comboLabel: c.label });
-                          setQuery(c.label);
+                          setQuery('');
                           setFocused(false);
                         }}
-                        className="w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 data-[selected]:bg-[#4f2298] data-[selected]:text-white data-[selected]:font-medium"
+                        className="w-full cursor-pointer px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50"
                       >
                         <div className="flex flex-col">
                           <span className="font-medium">{c.label}</span>
+                          {c.descricao && (
+                            <span className="text-xs text-gray-500">{c.descricao}</span>
+                          )}
                         </div>
                       </button>
                     ))}
@@ -184,12 +242,12 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
             </div>
             {state.comboId && (
               <div className="flex flex-wrap gap-2 pt-1">
-                <span className="inline-flex items-center gap-1 rounded-full border border-[#4f2298] bg-[#4f2298]/10 px-3 py-1 text-xs font-medium text-[#4f2298]">
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-600 bg-violet-600/10 px-3 py-1 text-xs font-medium text-violet-600">
                   {state.comboLabel}
                   <button
                     type="button"
                     onClick={() => update({ comboId: undefined, comboLabel: undefined })}
-                    className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-[#4f2298] hover:bg-[#4f2298]/20"
+                    className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-violet-600 hover:bg-violet-600/20"
                     aria-label="Remover combo"
                   >
                     <XMarkIcon className="h-3 w-3" />
@@ -201,88 +259,147 @@ export function StepTurmasCombo({ ctx, contaId }: StepTurmasComboProps) {
         )}
 
         {modo === 'TURMAS' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <p className="text-sm font-medium text-gray-700">Digite o nome da turma abaixo:</p>
             <div className="relative">
-              <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5">
-                {state.turmaIds.map((id) => {
-                  const t = turmas.find((x) => x.value === id);
-                  if (!t) return null;
-                  return (
-                    <span
-                      key={id}
-                      className="inline-flex items-center gap-1 rounded-full border border-[#4f2298] bg-[#4f2298]/10 px-3 py-1 text-xs font-medium text-[#4f2298]"
-                    >
-                      {t.label}
-                      <button
-                        type="button"
-                        onClick={() => toggleTurma(id)}
-                        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-[#4f2298]/20"
-                        aria-label="Remover turma"
-                      >
-                        <XMarkIcon className="h-3 w-3" />
-                      </button>
-                    </span>
-                  );
-                })}
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setTimeout(() => setFocused(false), 120)}
-                  onKeyDown={(e) => {
-                    if (!focused) return;
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      setHighlight((h) => Math.min(h + 1, filteredTurmas.length - 1));
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      setHighlight((h) => Math.max(h - 1, 0));
-                    } else if (e.key === 'Enter') {
-                      const opt = filteredTurmas[highlight];
-                      if (opt) {
-                        e.preventDefault();
-                        toggleTurma(opt.value);
-                        setFocused(false);
-                      }
-                    } else if (e.key === 'Escape') {
-                      setFocused(false);
-                    }
-                  }}
-                  placeholder="Ex.: Ballet, Jazz..."
-                  className="flex-1 min-w-[160px] bg-transparent px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
-                />
-              </div>
+              <input
+                className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 pr-10 text-sm text-gray-900 placeholder:text-gray-400"
+                placeholder="Ex.: Ballet, Jazz..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setTimeout(() => setFocused(false), 120)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setFocused(false);
+                  }
+                }}
+              />
+              <MagnifyingGlassIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               {focused && filteredTurmas.length > 0 && (
                 <div className="absolute z-40 mt-2 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                  {filteredTurmas.map((t, idx) => {
-                    const active = state.turmaIds.includes(t.value);
-                    const highlighted = idx === highlight;
-                    return (
-                      <button
-                        key={t.value}
-                        type="button"
-                        data-selected={active || undefined}
-                        data-state={highlighted ? 'active' : undefined}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          toggleTurma(t.value);
-                          setFocused(false);
-                        }}
-                        className="w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 data-[selected]:!bg-[#4f2298] data-[selected]:!text-white data-[state=active]:!bg-[#6b35cc] data-[state=active]:!text-white"
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium data-[selected]:text-white">{t.label}</span>
-                          <span className="text-xs text-gray-500 data-[selected]:text-white/80">
-                            {t.horaInicio ?? '--'} - {t.horaFim ?? '--'}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {filteredTurmas.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        toggleTurma(t.value);
+                        setQuery('');
+                        setFocused(false);
+                      }}
+                      className="w-full cursor-pointer px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50"
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium">{t.label}</span>
+                        <span className="text-xs text-gray-500">
+                          {t.horaInicio ?? '--'} - {t.horaFim ?? '--'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
+            {state.turmaIds.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {state.turmaIds.map((id) => {
+                    const t = turmas.find((x) => x.value === id);
+                    if (!t) return null;
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1 rounded-full border border-violet-600 bg-violet-600/10 px-3 py-1 text-xs font-medium text-violet-600"
+                      >
+                        {t.label}
+                        <button
+                          type="button"
+                          onClick={() => toggleTurma(id)}
+                          className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-violet-600 hover:bg-violet-600/20"
+                          aria-label="Remover turma"
+                        >
+                          <XMarkIcon className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Validações */}
+                {turmaValidacao && (
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 space-y-2">
+                        <p className="text-sm font-medium text-gray-900">
+                          {turmaValidacao.turma.label}
+                        </p>
+
+                        {/* Horário e dias */}
+                        <div className="flex items-center gap-4 text-xs text-gray-600">
+                          <span>
+                            {formatarHorario(turmaValidacao.turma.horaInicio)} -{' '}
+                            {formatarHorario(turmaValidacao.turma.horaFim)}
+                          </span>
+                          {turmaValidacao.turma.diasSemana &&
+                            turmaValidacao.turma.diasSemana.length > 0 && (
+                              <span>{formatarDiasSemana(turmaValidacao.turma.diasSemana)}</span>
+                            )}
+                        </div>
+
+                        {/* Validação faixa etária */}
+                        {!turmaValidacao.faixaEtaria.valido && (
+                          <div className="flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                            <ExclamationTriangleIcon className="h-4 w-4" />
+                            {turmaValidacao.faixaEtaria.mensagem}
+                          </div>
+                        )}
+
+                        {/* Validação capacidade */}
+                        {turmaValidacao.capacidade && !turmaValidacao.capacidade.valido && (
+                          <div className="flex items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                            <ExclamationTriangleIcon className="h-4 w-4" />
+                            {turmaValidacao.capacidade.mensagem}
+                          </div>
+                        )}
+
+                        {/* Aviso de poucas vagas */}
+                        {turmaValidacao.capacidade &&
+                          turmaValidacao.capacidade.valido &&
+                          turmaValidacao.capacidade.mensagem && (
+                            <div className="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                              <ExclamationTriangleIcon className="h-4 w-4" />
+                              {turmaValidacao.capacidade.mensagem}
+                            </div>
+                          )}
+
+                        {/* Sucesso */}
+                        {turmaValidacao.faixaEtaria.valido &&
+                          (!turmaValidacao.capacidade || turmaValidacao.capacidade.valido) &&
+                          !turmaValidacao.capacidade?.mensagem && (
+                            <div className="flex items-center gap-2 text-xs font-medium text-green-700">
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              Turma compatível com o aluno
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {turmas.length === 0 && !loading && (
               <p className="text-sm text-gray-500">Nenhuma turma disponível no momento.</p>
             )}

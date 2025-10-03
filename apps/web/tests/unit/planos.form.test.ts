@@ -32,6 +32,31 @@ describe('planoFormSchema', () => {
     expect(result.data.descricao).toBeNull();
   });
 
+  it('valida plano semanal', () => {
+    const result = planoFormSchema.safeParse({
+      nome: 'Plano Semanal',
+      descricao: 'Treinos toda semana',
+      periodicidade: 'SEMANAL',
+      valor: '59,90',
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.periodicidade).toBe('SEMANAL');
+    expect(result.data.valor).toBeCloseTo(59.9, 2);
+  });
+
+  it('valida plano quinzenal', () => {
+    const result = planoFormSchema.safeParse({
+      nome: 'Plano Quinzenal',
+      descricao: 'Treinos a cada quinze dias',
+      periodicidade: 'QUINZENAL',
+      valor: '109.00',
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.periodicidade).toBe('QUINZENAL');
+  });
+
   it('falha quando o nome é muito curto', () => {
     const result = planoFormSchema.safeParse({
       nome: 'A',
