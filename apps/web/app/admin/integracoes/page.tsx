@@ -4,7 +4,10 @@ import { authOptions } from '@/lib/auth-options';
 import nextDynamic from 'next/dynamic';
 
 const AsaasCredentialsForm = nextDynamic(
-  () => import('../../../features/integracoes/asaas/AsaasCredentialsForm').then((m) => m.AsaasCredentialsForm),
+  () =>
+    import('../../../features/integracoes/asaas/AsaasCredentialsForm').then(
+      (m) => m.AsaasCredentialsForm,
+    ),
   { ssr: false },
 );
 
