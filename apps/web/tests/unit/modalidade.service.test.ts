@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { prisma } from '@alusa/lib';
-vi.mock('@/prisma/client', async () => await import('../../prisma/client'));
+vi.mock('@/prisma/client', async () => await import('../../src/prisma'));
 
 import type { Modalidade } from '@prisma/client';
 let createModalidade: (_: {

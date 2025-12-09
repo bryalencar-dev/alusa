@@ -24,13 +24,13 @@ export default defineConfig({
       'tests/**/*password-policy.test.ts',
     ],
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
-    setupFiles: [path.resolve(__dirname, 'test', 'setup.ts')],
+    setupFiles: [path.resolve(__dirname, 'tests', 'setup.ts')],
   },
   css: { postcss: { plugins: [] } },
   resolve: {
     alias: [
       { find: './app/globals.css', replacement: path.resolve(__dirname, 'vitest-empty.css') },
-      { find: '@/prisma/client', replacement: path.resolve(__dirname, 'prisma', 'client.ts') },
+      { find: '@/prisma/client', replacement: path.resolve(__dirname, 'src', 'prisma.ts') },
       {
         find: /^@alusa\/lib(.*)$/,
         replacement: path.resolve(__dirname, '..', '..', 'packages', 'lib', 'src') + '$1',

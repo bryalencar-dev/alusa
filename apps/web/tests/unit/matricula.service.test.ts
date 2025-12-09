@@ -3,7 +3,7 @@ import { PeriodicidadePlano, Status } from '@prisma/client';
 import { prisma } from '@alusa/lib';
 
 // Precisa mockar o alias '@/prisma/client' antes de importar o serviço
-vi.mock('@/prisma/client', async () => await import('../../prisma/client'));
+vi.mock('@/prisma/client', async () => await import('../../src/prisma'));
 
 process.env.NEXTAUTH_SECRET ??= 'test-secret-32-bytes-sign-key-alusa!';
 
