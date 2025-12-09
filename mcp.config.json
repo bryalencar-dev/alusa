@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "alusadb": {
+      "command": "npx",
+      "args": ["dotenv", "-e", ".env", "--", "tsx", "mcp/postgres-server.ts"],
+      "metadata": {
+        "name": "AlusaDB",
+        "description": "MCP Server AlusaDB para acesso seguro ao PostgreSQL",
+        "version": "1.0.0",
+        "author": "Alusa Team"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      },
+      "security": {
+        "readOnly": true,
+        "maxQueryRows": 500,
+        "sensitiveFieldsMasked": true
+      }
+    },
+    "asaas7": {
+      "command": "npx",
+      "args": ["dotenv", "-e", ".env", "--", "tsx", "mcp/asaas/server.ts"],
+      "metadata": {
+        "name": "Asaas7",
+        "description": "MCP financeiro com docs oficiais, geração de código e operações completas do Asaas",
+        "version": "1.0.0",
+        "author": "Alusa Team"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      },
+      "security": {
+        "readOnly": true
+      }
+    }
+  }
+}

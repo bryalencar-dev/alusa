@@ -22,8 +22,8 @@ describe('AsaasCredentialsService', () => {
 
   it('salva e recupera credenciais mascaradas', async () => {
     await saveAsaasCredentials(contaId, {
-      apiKey: 'sk_test_1234567890abcdef',
-      webhookSecret: 'whsec_abcdef1234567890',
+      apiKey: 'sk_test_1234567890abcdef123456',
+      webhookSecret: 'whsec_abcdef1234567890abcdef123456',
     });
     const masked = await getAsaasCredentials(contaId);
     expect(masked.apiKeyMasked).toBeTruthy();

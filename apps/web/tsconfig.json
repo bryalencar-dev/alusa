@@ -1,18 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-  "baseUrl": ".",
-    "types": [
-      "node",
-  "next",
-      "@types/react",
-      "@types/react-dom"
-    ],
+    "baseUrl": ".",
+    "types": ["node", "next", "@types/react", "@types/react-dom"],
     "allowJs": false,
     "noEmit": true,
-  "incremental": false,
+    "incremental": false,
     "jsx": "preserve",
-  "paths": {
+    "paths": {
       "@/*": ["./*"],
       "@alusa/ui": ["../../packages/ui/src/index.ts"],
       "@alusa/ui/*": ["../../packages/ui/src/*"],
@@ -37,6 +32,8 @@
     ".next",
     "e2e",
     // TODO(refactor): reativar verificação após estabilizar RHF wizard
-    "components/colaboradores/ColaboradorWizardDialog.tsx"
+    "components/colaboradores/ColaboradorWizardDialog.tsx",
+    "context7",
+    "../../context7"
   ]
 }

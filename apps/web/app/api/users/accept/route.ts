@@ -15,8 +15,11 @@ const acceptSchema = z.object({
   token: z.string().min(1, 'Token é obrigatório'),
   password: z.string().regex(passwordRegex, passwordMessage),
   name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-  // O e-mail será SEMPRE o do convite. Campo permitido no payload será ignorado.
+  // E-mail é obrigatório quando o convite não tem email (RESPONSAVEL)
   email: z.string().email('E-mail inválido').optional(),
+  // Compatibilidade com nomenclatura antiga
+  senha: z.string().optional(),
+  nome: z.string().optional(),
 });
 
 const tokenQuerySchema = z.object({ token: z.string().min(1) });
@@ -64,13 +67,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const { token, password, name } = parsed.data;
+    // Compatibilidade: aceita 'password' ou 'senha', 'name' ou 'nome'
+    const { token, password, name, email, senha, nome } = parsed.data;
+    const finalPassword = senha || password;
+    const finalName = nome || name;
+    const finalEmail = email; // Pode ser undefined
 
     const rounds = Number(process.env.BCRYPT_ROUNDS || 10);
     const pepper = process.env.BCRYPT_PEPPER || '';
-    const senhaHash = await bcrypt.hash(password + pepper, rounds);
+    const senhaHash = await bcrypt.hash(finalPassword + pepper, rounds);
     try {
-      const user = await InviteUserService.acceptInvite(token, name, senhaHash);
+      // Passa o email do usuário (se fornecido) para o acceptInvite
+      const user = await InviteUserService.acceptInvite(token, finalName, senhaHash);
       return NextResponse.json({ message: 'Convite aceito com sucesso', user: { id: user.id, email: user.email, role: user.role } }, { status: 200 });
     } catch (e: unknown) {
       const msg = (e instanceof Error) ? e.message : '';

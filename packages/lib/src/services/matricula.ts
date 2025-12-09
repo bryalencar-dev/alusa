@@ -10,9 +10,11 @@ import {
   StatusTaxaMatricula,
   TipoCobranca,
   StatusFinanceiro,
+  StatusContrato,
 } from '@prisma/client';
 import { prisma } from '@/prisma/client';
 import { generateCheckoutToken } from './checkout-token';
+import { deleteSubscription } from '../asaas';
 
 // ----------------- Tipos -----------------
 export type DescontoInput = {
@@ -79,17 +81,19 @@ const criarMatriculaSchema = z
   .object({
     contaId: z.string().min(1),
     alunoId: z.string().min(1),
-    planoId: z.string().min(1),
+    planoId: z.string().min(1).optional(), // Opcional quando comboId é fornecido (combo define valor/periodicidade)
     turmaId: z.string().min(1).optional(),
     comboId: z.string().min(1).optional(),
     responsavelFinanceiroId: z.string().min(1).optional(),
     dataInicio: z.coerce.date().default(() => new Date()),
+    dataFimContrato: z.coerce.date(),
     vencimento: z.coerce.date().optional(),
     vencimentoDia: z.number().int().min(1).max(28).default(5),
     taxaMatricula: z.number().nonnegative().default(0),
     taxaIsenta: z.boolean().default(false),
     taxaJustificativa: z.string().max(500).optional(),
     pagarTaxaAgora: z.boolean().optional().default(false),
+    formaPagamentoTaxa: z.nativeEnum(FormaPagamento).optional(),
     descontos: z
       .array(z.object({ id: z.string().min(1), cumulativo: z.boolean().optional() }))
       .optional(),
@@ -97,15 +101,19 @@ const criarMatriculaSchema = z
     formaPagamento: z
       .nativeEnum(FormaPagamento)
       .optional()
-      .default(FormaPagamento.BOLETO)
-      .refine((value) => value !== FormaPagamento.DINHEIRO, {
-        message: 'Forma de pagamento dinheiro não é suportada automaticamente.',
-      }),
+      .default(FormaPagamento.BOLETO),
     observacoes: z.string().max(500).optional(),
     criarCobranca: z.boolean().default(true),
     createdById: z.string().min(1),
+    // Regras financeiras para Asaas
+    multaPercentual: z.number().min(0).max(10).optional(),
+    jurosMensal: z.number().min(0).max(5).optional(),
+    diasTolerancia: z.number().int().min(0).max(30).optional(),
+    descontoAntecipado: z.number().min(0).max(100).optional(),
+    prazoDesconto: z.number().int().min(0).max(30).optional(),
   })
   .superRefine((data, ctx) => {
+    // Regra 1: Deve ter turmaId OU comboId
     if (!data.turmaId && !data.comboId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -113,6 +121,7 @@ const criarMatriculaSchema = z
         path: ['turmaId'],
       });
     }
+    // Regra 2: Não pode ter ambos
     if (data.turmaId && data.comboId) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -120,6 +129,15 @@ const criarMatriculaSchema = z
         path: ['comboId'],
       });
     }
+    // Regra 3: planoId obrigatório apenas quando turmaId (matrícula avulsa)
+    if (data.turmaId && !data.planoId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Plano é obrigatório para matrícula em turma avulsa.',
+        path: ['planoId'],
+      });
+    }
+    // Regra 4: Taxa isenta não pode ter valor
     if (data.taxaIsenta && data.taxaMatricula > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -260,13 +278,196 @@ function isFeatureAsaasEnabled() {
   return String(process.env.FEATURE_ASAAS).toLowerCase() === 'true';
 }
 
-async function maybeCreateAsaasRecords(params: {
+/**
+ * Mapeia forma de pagamento Alusa para billingType Asaas
+ */
+function mapFormaPagamentoToBillingType(
+  formaPagamento: FormaPagamento | null | undefined,
+): 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'UNDEFINED' {
+  if (!formaPagamento) return 'BOLETO';
+  const map: Record<FormaPagamento, 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'UNDEFINED'> = {
+    PIX: 'PIX',
+    CARTAO_CREDITO: 'CREDIT_CARD',
+    BOLETO: 'BOLETO',
+    INDEFINIDO: 'UNDEFINED',
+  };
+  return map[formaPagamento] || 'BOLETO';
+}
+
+/**
+ * Mapeia periodicidade do plano para ciclo Asaas
+ */
+function mapPeriodicidadeToCycle(
+  periodicidade: PeriodicidadePlano | null | undefined,
+): 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'SEMIANNUALLY' | 'YEARLY' {
+  if (!periodicidade) return 'MONTHLY';
+  const map: Record<
+    PeriodicidadePlano,
+    'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'SEMIANNUALLY' | 'YEARLY'
+  > = {
+    SEMANAL: 'WEEKLY',
+    QUINZENAL: 'BIWEEKLY',
+    MENSAL: 'MONTHLY',
+    TRIMESTRAL: 'QUARTERLY',
+    ANUAL: 'YEARLY',
+  };
+  return map[periodicidade] || 'MONTHLY';
+}
+
+export function resolveSubscriptionEndDate(
+  nextDueDate: Date,
+  dataFimContrato?: Date | null,
+): string | undefined {
+  if (!dataFimContrato) return undefined;
+  if (dataFimContrato.getTime() < nextDueDate.getTime()) {
+    return undefined;
+  }
+  return dataFimContrato.toISOString().split('T')[0];
+}
+
+interface AsaasRecordParams {
   alunoId: string;
   contaId: string;
   valor: number;
   vencimento: Date;
-}): Promise<{ subscriptionId: string | null; chargeId: string | null }> {
-  if (!isFeatureAsaasEnabled()) return { subscriptionId: null, chargeId: null };
+  formaPagamento?: FormaPagamento | null;
+  periodicidade?: PeriodicidadePlano | null;
+  dataFimContrato?: Date | null;
+  descricao?: string;
+  matriculaId?: string;
+  dueDateLimitDays?: number;
+  desconto?: {
+    value: number;
+    dueDateLimitDays?: number;
+  };
+  multa?: number;
+  juros?: number;
+}
+
+/**
+ * Parâmetros para criar cobrança avulsa (taxa de matrícula) no Asaas
+ */
+interface AsaasTaxaParams {
+  alunoId: string;
+  contaId: string;
+  valor: number;
+  vencimento: Date;
+  formaPagamento?: FormaPagamento | null;
+  descricao?: string;
+  matriculaId?: string;
+}
+
+/**
+ * Cria cobrança avulsa (payment) no Asaas para taxa de matrícula
+ */
+export async function maybeCreateAsaasTaxaPayment(
+  params: AsaasTaxaParams,
+): Promise<{ paymentId: string | null }> {
+  if (!isFeatureAsaasEnabled()) {
+    console.log('[Asaas] Feature desabilitada - pulando criação de taxa');
+    return { paymentId: null };
+  }
+
+  console.log('🔗 [Asaas] Criando cobrança avulsa (taxa)...', {
+    alunoId: params.alunoId,
+    contaId: params.contaId,
+    valor: params.valor,
+  });
+
+  try {
+    // Buscar aluno e responsável financeiro
+    const aluno = await prisma.aluno.findUnique({
+      where: { id: params.alunoId },
+      include: {
+        responsaveis: {
+          where: { tipoVinculo: 'FINANCEIRO' },
+          include: { responsavel: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!aluno) {
+      console.warn('[Asaas Taxa] Aluno não encontrado:', params.alunoId);
+      return { paymentId: null };
+    }
+
+    const responsavel = aluno.responsaveis[0]?.responsavel;
+
+    // Importar dinamicamente
+    const { createCustomer, listCustomers } = await import('../asaas/customer');
+    const { createPayment } = await import('../asaas/payment');
+
+    // Verificar CPF
+    const cpfBusca = responsavel?.cpf || aluno.cpf;
+    if (!cpfBusca) {
+      console.warn('[Asaas Taxa] CPF não encontrado para aluno:', params.alunoId);
+      return { paymentId: null };
+    }
+
+    let customerId: string | null = null;
+
+    // Buscar/criar customer
+    const existingCustomers = await listCustomers({ cpfCnpj: cpfBusca, contaId: params.contaId });
+    if (existingCustomers.data && existingCustomers.data.length > 0) {
+      customerId = existingCustomers.data[0].id;
+    } else {
+      const customerData = {
+        name: responsavel?.nome || aluno.nome || 'Aluno',
+        cpfCnpj: cpfBusca,
+        email: responsavel?.email || aluno.email || undefined,
+        phone: responsavel?.telefone || aluno.telefone || undefined,
+        externalReference: params.alunoId,
+      };
+      const customer = await createCustomer(customerData, { contaId: params.contaId });
+      customerId = customer.id;
+    }
+
+    if (!customerId) {
+      console.warn('[Asaas Taxa] Falha ao obter/criar customer');
+      return { paymentId: null };
+    }
+
+    // Mapear forma de pagamento
+    const billingType = mapFormaPagamentoToBillingType(params.formaPagamento);
+
+    // Criar payment avulso
+    const paymentData = {
+      customer: customerId,
+      billingType,
+      value: params.valor,
+      dueDate: params.vencimento.toISOString().split('T')[0],
+      description: params.descricao || 'Taxa de Matrícula',
+      externalReference: params.matriculaId || params.alunoId,
+    };
+
+    console.log('🔗 [Asaas Taxa] Criando payment com parâmetros:', paymentData);
+
+    const payment = await createPayment(paymentData, { contaId: params.contaId });
+
+    console.log('✅ [Asaas Taxa] Payment criado:', payment.id);
+
+    return { paymentId: payment.id };
+  } catch (error) {
+    console.error('[Asaas Taxa] Erro ao criar payment:', error);
+    return { paymentId: null };
+  }
+}
+
+export async function maybeCreateAsaasRecords(
+  params: AsaasRecordParams,
+): Promise<{ subscriptionId: string | null; chargeId: string | null; endDateIso: string | null | undefined }> {
+  if (!isFeatureAsaasEnabled()) {
+    console.log('[Asaas] Feature FEATURE_ASAAS desabilitada - pulando integração');
+    return { subscriptionId: null, chargeId: null, endDateIso: null };
+  }
+
+  console.log('🔗 [Asaas] Iniciando criação de records...', {
+    alunoId: params.alunoId,
+    contaId: params.contaId,
+    valor: params.valor,
+    formaPagamento: params.formaPagamento,
+  });
 
   try {
     // Buscar aluno e responsável financeiro
@@ -283,7 +484,7 @@ async function maybeCreateAsaasRecords(params: {
 
     if (!aluno) {
       console.warn('[Asaas] Aluno não encontrado:', params.alunoId);
-      return { subscriptionId: null, chargeId: null };
+      return { subscriptionId: null, chargeId: null, endDateIso: null };
     }
 
     const responsavel = aluno.responsaveis[0]?.responsavel;
@@ -296,13 +497,13 @@ async function maybeCreateAsaasRecords(params: {
     const cpfBusca = responsavel?.cpf || aluno.cpf;
     if (!cpfBusca) {
       console.warn('[Asaas] CPF não encontrado para aluno:', params.alunoId);
-      return { subscriptionId: null, chargeId: null };
+      return { subscriptionId: null, chargeId: null, endDateIso: null };
     }
 
     let customerId: string | null = null;
 
-    // Buscar customer existente por CPF
-    const existingCustomers = await listCustomers({ cpfCnpj: cpfBusca });
+    // Buscar customer existente por CPF (passando contaId para usar credenciais corretas)
+    const existingCustomers = await listCustomers({ cpfCnpj: cpfBusca, contaId: params.contaId });
     if (existingCustomers.data && existingCustomers.data.length > 0) {
       customerId = existingCustomers.data[0].id;
       console.log('[Asaas] Customer existente encontrado:', customerId);
@@ -317,41 +518,121 @@ async function maybeCreateAsaasRecords(params: {
         externalReference: params.alunoId,
       };
 
-      const customer = await createCustomer(customerData);
+      // Passando contaId para usar credenciais corretas da conta
+      const customer = await createCustomer(customerData, { contaId: params.contaId });
       customerId = customer.id;
       console.log('[Asaas] Customer criado:', customerId);
     }
 
     if (!customerId) {
       console.warn('[Asaas] Falha ao obter/criar customer');
-      return { subscriptionId: null, chargeId: null };
+      return { subscriptionId: null, chargeId: null, endDateIso: null };
     }
 
-    // Criar subscription (assinatura recorrente)
-    const subscription = await createSubscription({
+    // Mapear parâmetros para o formato Asaas
+    const billingType = mapFormaPagamentoToBillingType(params.formaPagamento);
+    const cycle = mapPeriodicidadeToCycle(params.periodicidade);
+    const descricao =
+      params.descricao || `Mensalidade - Aluno ${aluno.nome || params.alunoId}`;
+    const externalReference = params.matriculaId || params.alunoId;
+    const nextDueDateIso = params.vencimento.toISOString().split('T')[0];
+
+    // Preparar dados da subscription
+    const subscriptionData: Parameters<typeof createSubscription>[0] = {
       customer: customerId,
-      billingType: 'BOLETO',
+      billingType,
       value: params.valor,
-      nextDueDate: params.vencimento.toISOString().split('T')[0],
-      cycle: 'MONTHLY',
-      description: `Mensalidade - Aluno ${aluno.nome || params.alunoId}`,
-      externalReference: params.alunoId,
+      nextDueDate: nextDueDateIso,
+      cycle,
+      description: descricao,
+      externalReference,
+    };
+
+    if (typeof params.dueDateLimitDays === 'number') {
+      subscriptionData.dueDateLimitDays = params.dueDateLimitDays;
+    }
+
+    // Adicionar endDate somente se não estiver antes do próximo vencimento
+    const endDateIso = resolveSubscriptionEndDate(params.vencimento, params.dataFimContrato);
+    if (endDateIso) {
+      subscriptionData.endDate = endDateIso;
+    } else if (params.dataFimContrato) {
+      console.warn('[Asaas] dataFimContrato anterior ao próximo vencimento - endDate ignorado', {
+        matriculaId: params.matriculaId,
+        nextDueDate: nextDueDateIso,
+        dataFimContrato: params.dataFimContrato.toISOString().split('T')[0],
+      });
+    }
+
+    // Adicionar desconto por pagamento antecipado
+    if (params.desconto && params.desconto.value > 0) {
+      subscriptionData.discount = {
+        value: params.desconto.value,
+        dueDateLimitDays: params.desconto.dueDateLimitDays ?? 0,
+      };
+    }
+
+    // Adicionar multa
+    if (params.multa && params.multa > 0) {
+      subscriptionData.fine = { value: params.multa };
+    }
+
+    // Adicionar juros
+    if (params.juros && params.juros > 0) {
+      subscriptionData.interest = { value: params.juros };
+    }
+
+    console.log('🔗 [Asaas] Criando subscription com parâmetros:', {
+      customer: customerId,
+      billingType,
+      cycle,
+      value: params.valor,
+      endDate: params.dataFimContrato?.toISOString().split('T')[0],
+      externalReference,
+      contaId: params.contaId,
     });
 
-    console.log('[Asaas] Subscription criada:', subscription.id);
+    // Criar subscription (assinatura recorrente) - passando contaId para credenciais corretas
+    const subscription = await createSubscription(subscriptionData, { contaId: params.contaId });
+
+    console.log('✅ [Asaas] Subscription criada:', subscription.id);
 
     // O primeiro payment é criado automaticamente pela subscription
-    // O ID do payment virá via webhook e será vinculado automaticamente
-    const chargeId: string | null = null;
+    // Buscar o payment gerado para vincular à cobrança local
+    let chargeId: string | null = null;
+
+    try {
+      const { listSubscriptionPayments } = await import('../asaas/subscription');
+
+      // Aguardar um pouco para o Asaas processar a criação do payment
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Passando contaId para usar credenciais corretas
+      const paymentsResult = await listSubscriptionPayments(subscription.id, { contaId: params.contaId });
+
+      if (paymentsResult.data && paymentsResult.data.length > 0) {
+        // Pegar o primeiro payment (mais recente, correspondente ao nextDueDate)
+        chargeId = paymentsResult.data[0].id;
+        console.log('✅ [Asaas] Payment vinculado:', chargeId);
+      } else {
+        console.log(
+          '⏳ [Asaas] Payment ainda não disponível - será vinculado via webhook',
+        );
+      }
+    } catch (paymentErr) {
+      console.warn('[Asaas] Erro ao buscar payment da subscription:', paymentErr);
+      // Não bloquear - webhook fará a vinculação
+    }
 
     return {
       subscriptionId: subscription.id,
       chargeId,
+      endDateIso,
     };
   } catch (error) {
     console.error('[Asaas] Erro ao criar records:', error);
     // Não bloquear a matrícula em caso de erro do Asaas
-    return { subscriptionId: null, chargeId: null };
+    return { subscriptionId: null, chargeId: null, endDateIso: null };
   }
 }
 
@@ -453,6 +734,8 @@ async function ensureCombo(
 ): Promise<{
   id: string;
   nome: string;
+  valor: number;
+  periodicidade: PeriodicidadePlano;
   vagasLimite: number | null;
   turmas: TurmaLite[];
 }> {
@@ -480,6 +763,7 @@ async function ensureCombo(
   });
   if (!combo) throw new Error('Combo não encontrado');
   if (combo.contaId !== contaId) throw new Error('Combo pertence a outra conta');
+  if (Number(combo.valor) <= 0) throw new Error('Combo deve ter valor maior que zero');
   const turmas: TurmaLite[] = combo.turmas
     .map((ct) => ct.turma)
     .filter((t): t is NonNullable<typeof t> => Boolean(t))
@@ -494,7 +778,14 @@ async function ensureCombo(
       capacidade: t.capacidade,
     }));
   if (!turmas.length) throw new Error('Combo não possui turmas configuradas');
-  return { id: combo.id, nome: combo.nome, vagasLimite: combo.vagasLimite, turmas };
+  return {
+    id: combo.id,
+    nome: combo.nome,
+    valor: Number(combo.valor),
+    periodicidade: combo.periodicidade,
+    vagasLimite: combo.vagasLimite,
+    turmas,
+  };
 }
 
 async function ensurePlano(tx: Prisma.TransactionClient, planoId: string, contaId: string) {
@@ -504,6 +795,7 @@ async function ensurePlano(tx: Prisma.TransactionClient, planoId: string, contaI
   });
   if (!plano) throw new Error('Plano não encontrado');
   if (plano.contaId !== contaId) throw new Error('Plano pertence a outra conta');
+  if (Number(plano.valor) <= 0) throw new Error('Plano deve ter valor maior que zero');
   return plano;
 }
 
@@ -705,12 +997,16 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
 
     const dataInicio = input.dataInicio instanceof Date ? input.dataInicio : new Date();
     const vencimentoDia = clampVencimentoDia(input.vencimentoDia);
+    const taxaFormaPagamento =
+      input.formaPagamentoTaxa ?? input.formaPagamento ?? FormaPagamento.BOLETO;
 
-    return prisma.$transaction(async (tx) => {
+    const transactionResult = await prisma.$transaction(async (tx) => {
       console.log('[Matrícula Service] Iniciando transação');
 
       const aluno = await ensureAluno(tx, input.alunoId, input.contaId);
-      const plano = await ensurePlano(tx, input.planoId, input.contaId);
+      
+      // Plano opcional quando há comboId
+      const plano = input.planoId ? await ensurePlano(tx, input.planoId, input.contaId) : null;
 
       const idadeAluno = aluno.dataNasc ? differenceInYears(dataInicio, aluno.dataNasc) : null;
       const menorDeIdade = typeof idadeAluno === 'number' ? idadeAluno < 18 : false;
@@ -742,11 +1038,18 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
       let combo: {
         id: string;
         nome: string;
+        valor: number;
+        periodicidade: PeriodicidadePlano;
         vagasLimite: number | null;
         turmas: TurmaLite[];
       } | null = null;
       if (input.turmaId) turma = await ensureTurma(tx, input.turmaId, input.contaId);
       if (input.comboId) combo = await ensureCombo(tx, input.comboId, input.contaId);
+
+      // Determinar valor e periodicidade a partir do plano ou combo
+      const valorBase = combo ? combo.valor : (plano ? Number(plano.valor) : 0);
+      const periodicidade = combo ? combo.periodicidade : (plano?.periodicidade ?? PeriodicidadePlano.MENSAL);
+      const nomeProduto = combo ? combo.nome : (plano?.nome ?? 'Matrícula');
 
       const turmasSelecionadas = ([] as TurmaLite[])
         .concat(turma ? [turma] : [])
@@ -758,7 +1061,7 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
 
       const descontos = await ensureDescontos(tx, input.contaId, input.descontos);
       const calc = calcularPrecoMatricula({
-        planoValor: Number(plano.valor),
+        planoValor: valorBase,
         taxaMatricula: input.taxaMatricula,
         descontos: descontos.map((d) => ({
           tipo: d.tipo === 'PERCENTUAL' ? 'PERCENTUAL' : 'FIXO',
@@ -769,9 +1072,9 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
 
       const primeiroVencimento = input.vencimento
         ? input.vencimento
-        : computePrimeiroVencimento(dataInicio, plano.periodicidade, vencimentoDia);
-      const primeiroCicloInicio = computePrimeiroCicloInicio(dataInicio, plano.periodicidade);
-      const primeiroCicloFim = computeCompetenciaFim(primeiroCicloInicio, plano.periodicidade);
+        : computePrimeiroVencimento(dataInicio, periodicidade, vencimentoDia);
+      const primeiroCicloInicio = computePrimeiroCicloInicio(dataInicio, periodicidade);
+      const primeiroCicloFim = computeCompetenciaFim(primeiroCicloInicio, periodicidade);
 
       // Nova lógica: matrícula sempre ativa, status financeiro separado
       const statusFinanceiroInicial = input.taxaIsenta
@@ -786,48 +1089,96 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
         data: {
           alunoId: input.alunoId,
           responsavelFinanceiroId: responsavelFinanceiro?.id ?? null,
-          planoId: plano.id,
+          planoId: plano?.id ?? null,
           turmaId: turma?.id ?? null,
           comboId: combo?.id ?? null,
           dataInicio,
           dataFim: null,
+          dataFimContrato: input.dataFimContrato,
           status: StatusMatricula.ATIVA, // Sempre ATIVA agora!
           statusFinanceiro: statusFinanceiroInicial,
           taxaMatricula: new Prisma.Decimal(calc.taxa),
           taxaStatus,
           taxaIsenta: input.taxaIsenta,
           taxaJustificativa: input.taxaIsenta ? input.taxaJustificativa : null,
+          formaPagamentoTaxa: taxaFormaPagamento,
           vencimentoDia,
         },
       });
 
-      await aplicarDescontos(tx, matricula.id, descontos, Number(plano.valor), calc);
+      const turmaIdsParaVinculo = Array.from(
+        new Set(turmasSelecionadas.map((t) => t.id)),
+      );
+      if (turmaIdsParaVinculo.length) {
+        await tx.matriculaTurma.createMany({
+          data: turmaIdsParaVinculo.map((turmaId) => ({
+            matriculaId: matricula.id,
+            turmaId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      await aplicarDescontos(tx, matricula.id, descontos, valorBase, calc);
+
+      // Criar cobrança de taxa se:
+      // - Não é isenta
+      // - Tem valor > 0
+      // - gerarCobrancaTaxa OU pagarTaxaAgora estiver ativo
+      const deveCriarCobrancaTaxa =
+        !input.taxaIsenta && calc.taxa > 0 && (input.gerarCobrancaTaxa || input.pagarTaxaAgora);
 
       let cobrancaTaxa: Awaited<ReturnType<typeof tx.cobranca.create>> | null = null;
-      if (!input.taxaIsenta && calc.taxa > 0 && input.pagarTaxaAgora) {
+      // Dados para integração Asaas da taxa (será feita FORA da transação)
+      let asaasTaxaIntegrationData: {
+        alunoId: string;
+        contaId: string;
+        valor: number;
+        vencimento: Date;
+        formaPagamento: FormaPagamento;
+        descricao: string;
+        matriculaId: string;
+        cobrancaTaxaId: string;
+        createdById: string;
+      } | null = null;
+
+      if (deveCriarCobrancaTaxa) {
+        console.log('[Matrícula] Criando cobrança de taxa de matrícula...');
         cobrancaTaxa = await tx.cobranca.create({
           data: {
             matriculaId: matricula.id,
-            tipo: TipoCobranca.AVULSA,
+            tipo: TipoCobranca.TAXA_MATRICULA,
             descricao: 'Taxa de matrícula',
             competenciaInicio: dataInicio,
             competenciaFim: dataInicio,
             valor: new Prisma.Decimal(calc.taxa),
             vencimento: dataInicio,
-            formaPagamento: input.formaPagamento,
+            formaPagamento: taxaFormaPagamento,
             status: StatusCobranca.PENDENTE,
           },
         });
-      }
 
-      if (!input.taxaIsenta && calc.taxa > 0 && !input.gerarCobrancaTaxa) {
+        // Preparar dados para integração Asaas (será executada FORA da transação)
+        asaasTaxaIntegrationData = {
+          alunoId: input.alunoId,
+          contaId: input.contaId,
+          valor: calc.taxa,
+          vencimento: dataInicio,
+          formaPagamento: taxaFormaPagamento,
+          descricao: 'Taxa de matrícula',
+          matriculaId: matricula.id,
+          cobrancaTaxaId: cobrancaTaxa.id,
+          createdById: input.createdById,
+        };
+      } else if (!input.taxaIsenta && calc.taxa > 0) {
+        // Taxa existe mas cobrança será criada posteriormente
         await tx.matriculaLog.create({
           data: {
             matriculaId: matricula.id,
             action: 'TAXA_COBRANCA_POSTERGADA',
             actorId: input.createdById,
             metadata: {
-              motivo: 'Cobrança da taxa será criada após validação do cartão',
+              motivo: 'Cobrança da taxa será criada manualmente ou após validação',
               taxaValor: calc.taxa,
             },
           },
@@ -835,6 +1186,12 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
       }
 
       let cobrancaMensalidade: Awaited<ReturnType<typeof tx.cobranca.create>> | null = null;
+      console.log('[Matrícula] Verificando criação de cobrança:', {
+        criarCobranca: input.criarCobranca,
+        planoLiquido: calc.planoLiquido,
+        deveCriarCobranca: input.criarCobranca && calc.planoLiquido > 0,
+      });
+
       if (input.criarCobranca && calc.planoLiquido > 0) {
         cobrancaMensalidade = await tx.cobranca.create({
           data: {
@@ -848,43 +1205,34 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
             status: StatusCobranca.PENDENTE,
           },
         });
+        console.log('[Matrícula] Cobrança mensalidade criada:', cobrancaMensalidade.id);
       }
 
-      if (cobrancaMensalidade) {
-        const { subscriptionId, chargeId } = await maybeCreateAsaasRecords({
-          alunoId: input.alunoId,
-          contaId: input.contaId,
-          valor: calc.planoLiquido,
-          vencimento: primeiroVencimento,
-        });
-
-        if (subscriptionId) {
-          matricula = await tx.matricula.update({
-            where: { id: matricula.id },
-            data: { asaasSubscriptionId: subscriptionId },
-          });
-        }
-        if (chargeId) {
-          cobrancaMensalidade = await tx.cobranca.update({
-            where: { id: cobrancaMensalidade.id },
-            data: { asaasPaymentId: chargeId },
-          });
-        }
-
-        // Log da integração Asaas
-        await tx.matriculaLog.create({
-          data: {
+      // Dados para integração Asaas (será feita FORA da transação para evitar timeout)
+      const asaasIntegrationData = cobrancaMensalidade
+        ? {
+            alunoId: input.alunoId,
+            contaId: input.contaId,
+            valor: calc.planoLiquido,
+            vencimento: primeiroVencimento,
+            formaPagamento: input.formaPagamento,
+            periodicidade,
+            dataFimContrato: input.dataFimContrato,
+            descricao: `Mensalidade ${nomeProduto}`,
             matriculaId: matricula.id,
-            action: 'ASAAS_INTEGRADO',
-            actorId: input.createdById,
-            metadata: {
-              subscriptionId,
-              chargeId,
-              status: subscriptionId ? 'SUCESSO' : 'PENDENTE',
-            },
-          },
-        });
-      }
+            cobrancaMensalidadeId: cobrancaMensalidade.id,
+            createdById: input.createdById,
+            desconto:
+              input.descontoAntecipado && input.descontoAntecipado > 0
+                ? {
+                    value: input.descontoAntecipado,
+                    dueDateLimitDays: input.prazoDesconto ?? 0,
+                  }
+                : undefined,
+            multa: input.multaPercentual ?? undefined,
+            juros: input.jurosMensal ?? undefined,
+          }
+        : null;
 
       await tx.matriculaLog.create({
         data: {
@@ -908,7 +1256,7 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
       });
 
       let checkoutLink: Awaited<ReturnType<typeof tx.checkoutLink.create>> | null = null;
-      if (cobrancaTaxa && input.formaPagamento === FormaPagamento.CARTAO) {
+      if (cobrancaTaxa && input.formaPagamento === FormaPagamento.CARTAO_CREDITO) {
         const placeholderToken = randomUUID();
         const expiresDefault = addHours(new Date(), 24);
         const provisional = await tx.checkoutLink.create({
@@ -973,8 +1321,128 @@ export async function criarMatricula(rawData: CriarMatriculaInput) {
           mensalidade: cobrancaMensalidade,
         },
         primeiroVencimento,
+        asaasIntegrationData,
+        asaasTaxaIntegrationData,
+        periodicidade,
       };
     });
+
+    // Integração Asaas da TAXA FORA da transação para evitar timeout e duplicatas
+    if (transactionResult.asaasTaxaIntegrationData) {
+      console.log('[Matrícula] Sincronizando taxa de matrícula com Asaas (fora da transação)...');
+      try {
+        const { paymentId: taxaPaymentId } = await maybeCreateAsaasTaxaPayment({
+          alunoId: transactionResult.asaasTaxaIntegrationData.alunoId,
+          contaId: transactionResult.asaasTaxaIntegrationData.contaId,
+          valor: transactionResult.asaasTaxaIntegrationData.valor,
+          vencimento: transactionResult.asaasTaxaIntegrationData.vencimento,
+          formaPagamento: transactionResult.asaasTaxaIntegrationData.formaPagamento,
+          descricao: transactionResult.asaasTaxaIntegrationData.descricao,
+          matriculaId: transactionResult.asaasTaxaIntegrationData.matriculaId,
+        });
+
+        if (taxaPaymentId) {
+          await prisma.cobranca.update({
+            where: { id: transactionResult.asaasTaxaIntegrationData.cobrancaTaxaId },
+            data: { asaasPaymentId: taxaPaymentId },
+          });
+          console.log('[Matrícula] Taxa de matrícula sincronizada com Asaas:', {
+            cobrancaId: transactionResult.asaasTaxaIntegrationData.cobrancaTaxaId,
+            asaasPaymentId: taxaPaymentId,
+          });
+
+          // Log da integração Asaas para taxa
+          await prisma.matriculaLog.create({
+            data: {
+              matriculaId: transactionResult.matricula.id,
+              action: 'ASAAS_TAXA_INTEGRADO',
+              actorId: transactionResult.asaasTaxaIntegrationData.createdById,
+              metadata: {
+                paymentId: taxaPaymentId,
+                valor: transactionResult.asaasTaxaIntegrationData.valor,
+                formaPagamento: transactionResult.asaasTaxaIntegrationData.formaPagamento,
+              },
+            },
+          });
+        } else {
+          console.warn('[Matrícula] Falha ao criar payment no Asaas para taxa de matrícula');
+        }
+      } catch (taxaError) {
+        console.error('[Matrícula] Erro ao sincronizar taxa com Asaas:', taxaError);
+      }
+    }
+
+    // Integração Asaas da MENSALIDADE FORA da transação para evitar timeout
+    if (transactionResult.asaasIntegrationData) {
+      console.log('[Matrícula] Iniciando integração com Asaas (fora da transação)...');
+      try {
+        const { subscriptionId, chargeId, endDateIso } = await maybeCreateAsaasRecords({
+          alunoId: transactionResult.asaasIntegrationData.alunoId,
+          contaId: transactionResult.asaasIntegrationData.contaId,
+          valor: transactionResult.asaasIntegrationData.valor,
+          vencimento: transactionResult.asaasIntegrationData.vencimento,
+          formaPagamento: transactionResult.asaasIntegrationData.formaPagamento,
+          periodicidade: transactionResult.asaasIntegrationData.periodicidade,
+          dataFimContrato: transactionResult.asaasIntegrationData.dataFimContrato,
+          descricao: transactionResult.asaasIntegrationData.descricao,
+          matriculaId: transactionResult.asaasIntegrationData.matriculaId,
+          desconto: transactionResult.asaasIntegrationData.desconto,
+          multa: transactionResult.asaasIntegrationData.multa,
+          juros: transactionResult.asaasIntegrationData.juros,
+        });
+
+        // Atualizar registros com IDs do Asaas
+        if (subscriptionId) {
+          await prisma.matricula.update({
+            where: { id: transactionResult.matricula.id },
+            data: { asaasSubscriptionId: subscriptionId },
+          });
+          transactionResult.matricula = { ...transactionResult.matricula, asaasSubscriptionId: subscriptionId };
+        }
+        if (chargeId && transactionResult.cobrancas.mensalidade) {
+          await prisma.cobranca.update({
+            where: { id: transactionResult.cobrancas.mensalidade.id },
+            data: { asaasPaymentId: chargeId },
+          });
+        }
+
+        // Log da integração Asaas
+        await prisma.matriculaLog.create({
+          data: {
+            matriculaId: transactionResult.matricula.id,
+            action: 'ASAAS_INTEGRADO',
+            actorId: transactionResult.asaasIntegrationData.createdById,
+            metadata: {
+              subscriptionId,
+              chargeId,
+              status: subscriptionId ? 'SUCESSO' : 'PENDENTE',
+              endDate: endDateIso ?? null,
+              billingType: mapFormaPagamentoToBillingType(transactionResult.asaasIntegrationData.formaPagamento),
+              cycle: mapPeriodicidadeToCycle(transactionResult.periodicidade),
+            },
+          },
+        });
+        console.log('[Matrícula] Integração Asaas concluída:', { subscriptionId, chargeId });
+      } catch (asaasError) {
+        // Não bloquear a matrícula em caso de erro do Asaas - apenas logar
+        console.error('[Matrícula] Erro na integração Asaas (matrícula criada, integração pendente):', asaasError);
+        await prisma.matriculaLog.create({
+          data: {
+            matriculaId: transactionResult.matricula.id,
+            action: 'ASAAS_INTEGRADO',
+            actorId: transactionResult.asaasIntegrationData.createdById,
+            metadata: {
+              subscriptionId: null,
+              chargeId: null,
+              status: 'ERRO',
+              erro: asaasError instanceof Error ? asaasError.message : String(asaasError),
+            },
+          },
+        });
+      }
+    }
+
+    return transactionResult;
   } catch (error) {
     console.error('[Matrícula Service] Erro ao criar matrícula:', error);
 
@@ -1011,8 +1479,10 @@ export type MatriculaListItem = {
   id: string;
   status: StatusMatricula;
   statusFinanceiro: StatusFinanceiro;
+  statusContrato: StatusContrato;
   dataInicio: Date;
   dataFim: Date | null;
+  dataFimContrato: Date;
   taxaMatricula: number;
   taxaStatus: StatusTaxaMatricula;
   taxaIsenta: boolean;
@@ -1026,7 +1496,7 @@ export type MatriculaListItem = {
     id: string;
     nome: string;
     valor: number;
-  };
+  } | null;
   responsavelFinanceiro: {
     id: string;
     nome: string;
@@ -1040,6 +1510,13 @@ export type MatriculaListItem = {
     horaInicio: string;
     horaFim: string;
   } | null;
+  turmas?: Array<{
+    id: string;
+    nome: string;
+    diasSemana: string[];
+    horaInicio: string;
+    horaFim: string;
+  }>;
   combo?: {
     id: string;
     nome: string;
@@ -1051,6 +1528,13 @@ export type MatriculaListItem = {
     formaPagamento: FormaPagamento;
     tipo: TipoCobranca;
     vencimento: Date;
+    descricao: string | null;
+    asaasPaymentId: string | null;
+    asaasId: string | null;
+    createdAt: Date;
+    competenciaInicio: Date;
+    competenciaFim: Date;
+    dataPagamento: Date | null;
   }>;
 };
 
@@ -1067,10 +1551,19 @@ export async function listarMatriculas(
   const where: Prisma.MatriculaWhereInput = {
     aluno: { contaId: options.contaId },
   };
-  if (options.alunoId) where.alunoId = options.alunoId;
-  if (options.planoId) where.planoId = options.planoId;
-  if (options.turmaId) where.turmaId = options.turmaId;
-  if (options.comboId !== undefined) where.comboId = options.comboId;
+  const andConditions: Prisma.MatriculaWhereInput[] = [];
+
+  if (options.alunoId) andConditions.push({ alunoId: options.alunoId });
+  if (options.planoId) andConditions.push({ planoId: options.planoId });
+  if (options.turmaId) {
+    andConditions.push({
+      OR: [
+        { turmaId: options.turmaId },
+        { matriculaTurmas: { some: { turmaId: options.turmaId } } },
+      ],
+    });
+  }
+  if (options.comboId !== undefined) andConditions.push({ comboId: options.comboId });
   if (options.status) {
     console.log('[Service listarMatriculas] Aplicando filtro de status:', options.status);
     if (Array.isArray(options.status)) where.status = { in: options.status };
@@ -1080,12 +1573,19 @@ export async function listarMatriculas(
   }
   if (options.search?.trim()) {
     const term = options.search.trim();
-    where.OR = [
-      { aluno: { nome: { contains: term, mode: 'insensitive' } } },
-      { plano: { nome: { contains: term, mode: 'insensitive' } } },
-      { turma: { nome: { contains: term, mode: 'insensitive' } } },
-      { combo: { nome: { contains: term, mode: 'insensitive' } } },
-    ];
+    andConditions.push({
+      OR: [
+        { aluno: { nome: { contains: term, mode: 'insensitive' } } },
+        { plano: { nome: { contains: term, mode: 'insensitive' } } },
+        { turma: { nome: { contains: term, mode: 'insensitive' } } },
+        { combo: { nome: { contains: term, mode: 'insensitive' } } },
+        { matriculaTurmas: { some: { turma: { nome: { contains: term, mode: 'insensitive' } } } } },
+      ],
+    });
+  }
+
+  if (andConditions.length) {
+    where.AND = andConditions;
   }
 
   console.log('[Service listarMatriculas] Where clause:', JSON.stringify(where, null, 2));
@@ -1110,6 +1610,19 @@ export async function listarMatriculas(
             horaFim: true,
           },
         },
+        matriculaTurmas: {
+          include: {
+            turma: {
+              select: {
+                id: true,
+                nome: true,
+                diasSemana: true,
+                horaInicio: true,
+                horaFim: true,
+              },
+            },
+          },
+        },
         plano: { select: { id: true, nome: true, valor: true } },
         combo: { select: { id: true, nome: true } },
         cobrancas: {
@@ -1121,6 +1634,13 @@ export async function listarMatriculas(
             formaPagamento: true,
             tipo: true,
             vencimento: true,
+            descricao: true,
+            asaasPaymentId: true,
+            asaasId: true,
+            createdAt: true,
+            competenciaInicio: true,
+            competenciaFim: true,
+            dataPagamento: true,
           },
         },
       },
@@ -1135,35 +1655,19 @@ export async function listarMatriculas(
     pageSize,
   });
 
-  const data: MatriculaListItem[] = items.map((m) => ({
-    id: m.id,
-    status: m.status,
-    statusFinanceiro: m.statusFinanceiro,
-    dataInicio: m.dataInicio,
-    dataFim: m.dataFim,
-    taxaMatricula: Number(m.taxaMatricula),
-    taxaStatus: m.taxaStatus,
-    taxaIsenta: m.taxaIsenta,
-    vencimentoDia: m.vencimentoDia,
-    aluno: {
-      id: m.aluno.id,
-      nome: m.aluno.nome,
-      cpf: m.aluno.cpf,
-    },
-    plano: {
-      id: m.plano.id,
-      nome: m.plano.nome,
-      valor: Number(m.plano.valor),
-    },
-    responsavelFinanceiro: m.responsavelFinanceiro
-      ? {
-          id: m.responsavelFinanceiro.id,
-          nome: m.responsavelFinanceiro.nome,
-          email: m.responsavelFinanceiro.email,
-          telefone: m.responsavelFinanceiro.telefone,
-        }
-      : null,
-    turma: m.turma
+  const data: MatriculaListItem[] = items.map((m) => {
+    const turmasVinculadas = (m.matriculaTurmas || [])
+      .map((mt) => mt.turma)
+      .filter((t): t is NonNullable<typeof t> => Boolean(t))
+      .map((t) => ({
+        id: t.id,
+        nome: t.nome,
+        diasSemana: t.diasSemana,
+        horaInicio: t.horaInicio,
+        horaFim: t.horaFim,
+      }));
+
+    const turmaPrincipal = m.turma
       ? {
           id: m.turma.id,
           nome: m.turma.nome,
@@ -1171,17 +1675,66 @@ export async function listarMatriculas(
           horaInicio: m.turma.horaInicio,
           horaFim: m.turma.horaFim,
         }
-      : null,
-    combo: m.combo ? { id: m.combo.id, nome: m.combo.nome } : null,
-    cobrancas: m.cobrancas.map((c) => ({
-      id: c.id,
-      valor: Number(c.valor),
-      status: c.status,
-      formaPagamento: c.formaPagamento,
-      tipo: c.tipo,
-      vencimento: c.vencimento,
-    })),
-  }));
+      : turmasVinculadas[0] ?? null;
+
+    return {
+      id: m.id,
+      status: m.status,
+      statusFinanceiro: m.statusFinanceiro,
+      statusContrato: m.statusContrato,
+      dataInicio: m.dataInicio,
+      dataFim: m.dataFim,
+      dataFimContrato: m.dataFimContrato,
+      taxaMatricula: Number(m.taxaMatricula),
+      taxaStatus: m.taxaStatus,
+      taxaIsenta: m.taxaIsenta,
+      vencimentoDia: m.vencimentoDia,
+      aluno: {
+        id: m.aluno.id,
+        nome: m.aluno.nome,
+        cpf: m.aluno.cpf,
+      },
+      plano: m.plano
+        ? {
+            id: m.plano.id,
+            nome: m.plano.nome,
+            valor: Number(m.plano.valor),
+          }
+        : null,
+      responsavelFinanceiro: m.responsavelFinanceiro
+        ? {
+            id: m.responsavelFinanceiro.id,
+            nome: m.responsavelFinanceiro.nome,
+            email: m.responsavelFinanceiro.email,
+            telefone: m.responsavelFinanceiro.telefone,
+          }
+        : null,
+      turma: turmaPrincipal,
+      turmas: turmasVinculadas,
+      combo: m.combo ? { id: m.combo.id, nome: m.combo.nome } : null,
+      cobrancas: m.cobrancas.map((c) => {
+        const tipoNormalizado =
+          c.tipo === TipoCobranca.AVULSA && c.descricao === 'Taxa de matrícula'
+            ? TipoCobranca.TAXA_MATRICULA
+            : c.tipo;
+        return {
+          id: c.id,
+          valor: Number(c.valor),
+          status: c.status,
+          formaPagamento: c.formaPagamento,
+          tipo: tipoNormalizado,
+          vencimento: c.vencimento,
+          descricao: c.descricao ?? null,
+          asaasPaymentId: c.asaasPaymentId ?? null,
+          asaasId: c.asaasId ?? null,
+          createdAt: c.createdAt,
+          competenciaInicio: c.competenciaInicio,
+          competenciaFim: c.competenciaFim,
+          dataPagamento: c.dataPagamento ?? null,
+        };
+      }),
+    };
+  });
 
   return { data, total, page, pageSize };
 }
@@ -1209,7 +1762,8 @@ export async function atualizarStatusMatricula(raw: AtualizarStatusMatriculaInpu
 
     const data: Prisma.MatriculaUpdateInput = {
       status: input.status,
-      dataFim: input.status === StatusMatricula.ATIVA ? null : (input.dataFim ?? new Date()),
+      // Quando status não é ATIVA, não alteramos dataFim (mantém null ou valor existente)
+      // dataFimContrato é o campo principal para controle de contrato
     };
 
     const updated = await tx.matricula.update({
@@ -1232,6 +1786,308 @@ export async function cancelarMatricula({ id, contaId }: { id: string; contaId: 
   return atualizarStatusMatricula({ id, contaId, status: StatusMatricula.CANCELADA });
 }
 
+// ----------------- editarMatricula -----------------
+const editarMatriculaSchema = z
+  .object({
+    matriculaId: z.string().min(1),
+    contaId: z.string().min(1),
+    createdById: z.string().min(1),
+    turmaId: z.string().nullable().optional(),
+    comboId: z.string().nullable().optional(),
+    planoId: z.string().nullable().optional(),
+    motivo: z.string().max(500).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const turmaId = data.turmaId ?? undefined;
+    const comboId = data.comboId ?? undefined;
+    if (!turmaId && !comboId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Selecione uma turma ou um combo para editar a matrícula.',
+        path: ['turmaId'],
+      });
+    }
+    if (turmaId && comboId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Escolha apenas turma ou combo, não ambos.',
+        path: ['comboId'],
+      });
+    }
+  });
+
+export type EditarMatriculaInput = z.infer<typeof editarMatriculaSchema>;
+
+export async function editarMatricula(raw: EditarMatriculaInput) {
+  const input = editarMatriculaSchema.parse(raw);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const matriculaAtual = await tx.matricula.findUnique({
+      where: { id: input.matriculaId },
+      include: {
+        aluno: { select: { contaId: true, dataNasc: true } },
+        plano: { select: { id: true, contaId: true, valor: true, periodicidade: true, nome: true } },
+        turma: {
+          select: {
+            id: true,
+            nome: true,
+            diasSemana: true,
+            horaInicio: true,
+            horaFim: true,
+            idadeMin: true,
+            idadeMax: true,
+            capacidade: true,
+            contaId: true,
+            status: true,
+          },
+        },
+        combo: {
+          select: {
+            id: true,
+            nome: true,
+            valor: true,
+            periodicidade: true,
+            vagasLimite: true,
+            contaId: true,
+            status: true,
+            turmas: {
+              include: {
+                turma: {
+                  select: {
+                    id: true,
+                    nome: true,
+                    diasSemana: true,
+                    horaInicio: true,
+                    horaFim: true,
+                    idadeMin: true,
+                    idadeMax: true,
+                    capacidade: true,
+                    contaId: true,
+                    status: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        matriculaTurmas: {
+          include: {
+            turma: {
+              select: {
+                id: true,
+                nome: true,
+                diasSemana: true,
+                horaInicio: true,
+                horaFim: true,
+                idadeMin: true,
+                idadeMax: true,
+                capacidade: true,
+                contaId: true,
+                status: true,
+              },
+            },
+          },
+        },
+        cobrancas: {
+          select: { id: true, status: true, tipo: true },
+        },
+      },
+    });
+
+    if (!matriculaAtual) throw new Error('Matrícula não encontrada');
+    if (matriculaAtual.aluno.contaId !== input.contaId)
+      throw new Error('Matrícula pertence a outra conta');
+    if (matriculaAtual.status === StatusMatricula.CANCELADA)
+      throw new Error('Não é possível editar uma matrícula cancelada');
+
+    const turmaDestino =
+      input.turmaId === undefined
+        ? matriculaAtual.turma
+        : input.turmaId === null
+          ? null
+          : await ensureTurma(tx, input.turmaId, input.contaId);
+
+    const comboDestino =
+      input.comboId === undefined
+        ? matriculaAtual.combo
+        : input.comboId === null
+          ? null
+          : await ensureCombo(tx, input.comboId, input.contaId);
+
+    const planoDestino = comboDestino
+      ? null
+      : input.planoId === undefined
+        ? matriculaAtual.plano
+        : input.planoId === null
+          ? null
+          : await ensurePlano(tx, input.planoId, input.contaId);
+
+    if (!comboDestino && turmaDestino && !planoDestino) {
+      throw new Error('Plano é obrigatório para matrícula em turma avulsa.');
+    }
+
+    const turmasSelecionadas: TurmaLite[] = Array.from(
+      new Map(
+        ([] as TurmaLite[])
+          .concat(turmaDestino ? [turmaDestino] : [])
+          .concat(comboDestino?.turmas?.map((ct) => ct.turma).filter(Boolean) as TurmaLite[] ?? [])
+          .map((t) => [t.id, t]),
+      ).values(),
+    );
+
+    await validarIdade(
+      { dataNasc: matriculaAtual.aluno.dataNasc },
+      turmasSelecionadas,
+      matriculaAtual.dataInicio,
+    );
+    await validarCapacidade(tx, turmasSelecionadas, comboDestino?.id ?? null);
+    await validarConflitos(tx, matriculaAtual.alunoId, turmasSelecionadas, matriculaAtual.dataInicio);
+
+    const turmaIdsParaVinculo = turmasSelecionadas.map((t) => t.id);
+    const snapshotAnterior = {
+      turmaId: matriculaAtual.turma?.id ?? null,
+      comboId: matriculaAtual.combo?.id ?? null,
+      planoId: matriculaAtual.plano?.id ?? null,
+    };
+
+    const valorBaseAnterior =
+      matriculaAtual.combo?.valor !== undefined
+        ? Number(matriculaAtual.combo.valor)
+        : matriculaAtual.plano?.valor !== undefined
+          ? Number(matriculaAtual.plano.valor)
+          : 0;
+
+    const periodicidadeAnterior = matriculaAtual.combo?.periodicidade ?? matriculaAtual.plano?.periodicidade ?? null;
+
+    const valorBaseNovo =
+      comboDestino?.valor !== undefined
+        ? Number(comboDestino.valor)
+        : planoDestino?.valor !== undefined
+          ? Number(planoDestino.valor)
+          : 0;
+
+    const periodicidadeNova = comboDestino?.periodicidade ?? planoDestino?.periodicidade ?? null;
+
+    const mudouPlanoOuCombo =
+      snapshotAnterior.planoId !== (planoDestino?.id ?? null) || snapshotAnterior.comboId !== (comboDestino?.id ?? null);
+
+    const mudouValorOuPeriodicidade = valorBaseAnterior !== valorBaseNovo || periodicidadeAnterior !== periodicidadeNova;
+
+    const precisaRecriarAssinatura = mudouPlanoOuCombo || mudouValorOuPeriodicidade;
+
+    const matriculaAtualizada = await tx.matricula.update({
+      where: { id: input.matriculaId },
+      data: {
+        turmaId: input.turmaId === undefined ? matriculaAtual.turmaId : turmaDestino?.id ?? null,
+        comboId: input.comboId === undefined ? matriculaAtual.comboId : comboDestino?.id ?? null,
+        planoId: comboDestino
+          ? null
+          : input.planoId === undefined
+            ? matriculaAtual.planoId
+            : planoDestino?.id ?? null,
+        status: StatusMatricula.ATIVA,
+        statusContrato: StatusContrato.ATIVO,
+        asaasSubscriptionId: precisaRecriarAssinatura ? null : matriculaAtual.asaasSubscriptionId,
+      },
+    });
+
+    await tx.matriculaTurma.deleteMany({ where: { matriculaId: matriculaAtualizada.id } });
+    if (turmaIdsParaVinculo.length) {
+      await tx.matriculaTurma.createMany({
+        data: turmaIdsParaVinculo.map((turmaId) => ({ matriculaId: matriculaAtualizada.id, turmaId })),
+        skipDuplicates: true,
+      });
+    }
+
+    const cobrancasCancelaveis = precisaRecriarAssinatura
+      ? matriculaAtual.cobrancas.filter((c) =>
+          [StatusCobranca.PENDENTE, StatusCobranca.ATRASADO].includes(c.status),
+        )
+      : [];
+
+    if (precisaRecriarAssinatura && cobrancasCancelaveis.length) {
+      await tx.cobranca.updateMany({
+        where: { id: { in: cobrancasCancelaveis.map((c) => c.id) } },
+        data: { status: StatusCobranca.CANCELADO },
+      });
+    }
+
+    await tx.matriculaLog.create({
+      data: {
+        matriculaId: matriculaAtualizada.id,
+        action: 'MATRICULA_EDITADA',
+        actorId: input.createdById,
+        metadata: {
+          motivo: input.motivo ?? null,
+          antes: snapshotAnterior,
+          depois: {
+            turmaId: matriculaAtualizada.turmaId,
+            comboId: matriculaAtualizada.comboId,
+            planoId: matriculaAtualizada.planoId,
+          },
+          cobrancasCanceladas: cobrancasCancelaveis.map((c) => c.id),
+          mudouPlanoOuCombo,
+          mudouValorOuPeriodicidade,
+        },
+      },
+    });
+
+    return {
+      matriculaAtualizada,
+      turmaIdsParaVinculo,
+      valorBase: valorBaseNovo,
+      periodicidade: periodicidadeNova,
+      asaasSubscriptionIdAnterior: matriculaAtual.asaasSubscriptionId,
+      vencimentoDia: matriculaAtual.vencimentoDia,
+      precisaRecriarAssinatura,
+    };
+  });
+
+  // Fora da transação: sincronizar Asaas
+  const { asaasSubscriptionIdAnterior, valorBase, periodicidade, vencimentoDia, matriculaAtualizada, precisaRecriarAssinatura } = result;
+
+  if (precisaRecriarAssinatura && asaasSubscriptionIdAnterior && isFeatureAsaasEnabled()) {
+    try {
+      await deleteSubscription(asaasSubscriptionIdAnterior, { contaId: raw.contaId });
+    } catch (error) {
+      console.warn('[Matrícula] Falha ao cancelar assinatura antiga no Asaas:', error);
+    }
+  }
+
+  if (precisaRecriarAssinatura && valorBase > 0 && periodicidade) {
+    const vencimento = computePrimeiroVencimento(new Date(), periodicidade, vencimentoDia);
+    try {
+      const { subscriptionId, endDateIso } = await maybeCreateAsaasRecords({
+        alunoId: matriculaAtualizada.alunoId,
+        contaId: raw.contaId,
+        valor: valorBase,
+        vencimento,
+        formaPagamento: matriculaAtualizada.formaPagamentoTaxa,
+        periodicidade,
+        dataFimContrato: matriculaAtualizada.dataFimContrato,
+      });
+
+      if (subscriptionId) {
+        await prisma.matricula.update({
+          where: { id: matriculaAtualizada.id },
+          data: { asaasSubscriptionId: subscriptionId },
+        });
+      }
+
+      if (endDateIso) {
+        await prisma.matricula.update({
+          where: { id: matriculaAtualizada.id },
+          data: { dataFim: new Date(endDateIso) },
+        });
+      }
+    } catch (error) {
+      console.error('[Matrícula] Erro ao criar nova assinatura no Asaas:', error);
+    }
+  }
+
+  return result.matriculaAtualizada;
+}
+
 // ----------------- buscarMatriculaPorId -----------------
 export type MatriculaDetalhada = {
   id: string;
@@ -1242,6 +2098,17 @@ export type MatriculaDetalhada = {
   taxaStatus: StatusTaxaMatricula;
   taxaIsenta: boolean;
   vencimentoDia: number;
+  // Campos Asaas
+  asaasSubscriptionId: string | null;
+  formaPagamentoTaxa: FormaPagamento | null;
+  // Configurações de juros, multa e desconto (Asaas API)
+  jurosMensal: number | null;
+  jurosTipo: 'FIXED' | 'PERCENTAGE' | null;
+  multaPercentual: number | null;
+  multaTipo: 'FIXED' | 'PERCENTAGE' | null;
+  descontoAntecipado: number | null;
+  descontoTipo: 'FIXED' | 'PERCENTAGE' | null;
+  prazoDesconto: number | null;
   createdAt: Date;
   updatedAt: Date;
   aluno: {
@@ -1257,7 +2124,7 @@ export type MatriculaDetalhada = {
     nome: string;
     valor: number;
     periodicidade: PeriodicidadePlano;
-  };
+  } | null;
   responsavelFinanceiro: {
     id: string;
     nome: string;
@@ -1274,6 +2141,8 @@ export type MatriculaDetalhada = {
   combo: {
     id: string;
     nome: string;
+    valor: number;
+    periodicidade: PeriodicidadePlano;
     turmas: Array<{
       id: string;
       nome: string;
@@ -1293,6 +2162,9 @@ export type MatriculaDetalhada = {
     competenciaInicio: Date;
     competenciaFim: Date;
     createdAt: Date;
+    descricao: string | null;
+    asaasPaymentId: string | null;
+    asaasId: string | null;
   }>;
   checkoutLinks: Array<{
     id: string;
@@ -1366,7 +2238,11 @@ export async function buscarMatriculaPorId({
         },
       },
       combo: {
-        include: {
+        select: {
+          id: true,
+          nome: true,
+          valor: true,
+          periodicidade: true,
           turmas: {
             include: {
               turma: {
@@ -1443,6 +2319,17 @@ export async function buscarMatriculaPorId({
     taxaStatus: matricula.taxaStatus,
     taxaIsenta: matricula.taxaIsenta,
     vencimentoDia: matricula.vencimentoDia,
+    // Campos Asaas
+    asaasSubscriptionId: matricula.asaasSubscriptionId,
+    formaPagamentoTaxa: matricula.formaPagamentoTaxa,
+    // Configurações de juros, multa e desconto (Asaas API)
+    jurosMensal: matricula.jurosMensal ? Number(matricula.jurosMensal) : null,
+    jurosTipo: (matricula.jurosTipo as 'FIXED' | 'PERCENTAGE') ?? null,
+    multaPercentual: matricula.multaPercentual ? Number(matricula.multaPercentual) : null,
+    multaTipo: (matricula.multaTipo as 'FIXED' | 'PERCENTAGE') ?? null,
+    descontoAntecipado: matricula.descontoAntecipado ? Number(matricula.descontoAntecipado) : null,
+    descontoTipo: (matricula.descontoTipo as 'FIXED' | 'PERCENTAGE') ?? null,
+    prazoDesconto: matricula.prazoDesconto,
     createdAt: matricula.createdAt,
     updatedAt: matricula.updatedAt,
     aluno: {
@@ -1453,12 +2340,14 @@ export async function buscarMatriculaPorId({
       telefone: matricula.aluno.telefone,
       email: matricula.aluno.email,
     },
-    plano: {
-      id: matricula.plano.id,
-      nome: matricula.plano.nome,
-      valor: Number(matricula.plano.valor),
-      periodicidade: matricula.plano.periodicidade,
-    },
+    plano: matricula.plano
+      ? {
+          id: matricula.plano.id,
+          nome: matricula.plano.nome,
+          valor: Number(matricula.plano.valor),
+          periodicidade: matricula.plano.periodicidade,
+        }
+      : null,
     responsavelFinanceiro: matricula.responsavelFinanceiro
       ? {
           id: matricula.responsavelFinanceiro.id,
@@ -1480,6 +2369,8 @@ export async function buscarMatriculaPorId({
       ? {
           id: matricula.combo.id,
           nome: matricula.combo.nome,
+          valor: Number(matricula.combo.valor),
+          periodicidade: matricula.combo.periodicidade,
           turmas: matricula.combo.turmas
             .map((ct) => ct.turma)
             .filter((t): t is NonNullable<typeof t> => Boolean(t))
@@ -1492,18 +2383,27 @@ export async function buscarMatriculaPorId({
             })),
         }
       : null,
-    cobrancas: matricula.cobrancas.map((c) => ({
-      id: c.id,
-      valor: Number(c.valor),
-      status: c.status,
-      formaPagamento: c.formaPagamento,
-      tipo: c.tipo,
-      vencimento: c.vencimento,
-      dataPagamento: c.pagamentos[0]?.dataPagamento ?? null,
-      competenciaInicio: c.competenciaInicio,
-      competenciaFim: c.competenciaFim,
-      createdAt: c.createdAt,
-    })),
+    cobrancas: matricula.cobrancas.map((c) => {
+      const tipoNormalizado =
+        c.tipo === TipoCobranca.AVULSA && c.descricao === 'Taxa de matrícula'
+          ? TipoCobranca.TAXA_MATRICULA
+          : c.tipo;
+      return {
+        id: c.id,
+        valor: Number(c.valor),
+        status: c.status,
+        formaPagamento: c.formaPagamento,
+        tipo: tipoNormalizado,
+        vencimento: c.vencimento,
+        dataPagamento: c.pagamentos[0]?.dataPagamento ?? null,
+        competenciaInicio: c.competenciaInicio,
+        competenciaFim: c.competenciaFim,
+        createdAt: c.createdAt,
+        descricao: c.descricao,
+        asaasPaymentId: c.asaasPaymentId,
+        asaasId: c.asaasId,
+      };
+    }),
     checkoutLinks: matricula.checkoutLinks.map((link) => ({
       id: link.id,
       token: link.token,

@@ -1,13 +1,14 @@
 // Necessário para transformar JSX em ambiente de teste (config sem automatic runtime completo)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React from 'react';
+void React;
 import { render, screen } from '@testing-library/react';
 import CardHeader from '@/components/layout/CardHeader';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock next-auth useSession
 vi.mock('next-auth/react', () => ({
-  useSession: () => ({ data: { user: { name: 'Maria Silva', email: 'maria@example.com' } } })
+  useSession: () => ({ data: { user: { name: 'Maria Silva', email: 'maria@example.com' } } }),
 }));
 
 // Mock UserMenu to simplify assertions
@@ -17,7 +18,7 @@ vi.mock('@/components/layout/UserMenu', () => ({
     <div data-testid="user-menu" data-name={name} data-email={email} data-initials={initials}>
       {initials}
     </div>
-  )
+  ),
 }));
 
 describe('CardHeader', () => {
@@ -34,13 +35,13 @@ describe('CardHeader', () => {
 
   it('renderiza botão de notificações acessível', () => {
     render(<CardHeader />);
-    const button = screen.getByRole('button', { name: /notificações/i });
+    const [button] = screen.getAllByRole('button', { name: /notificações/i });
     expect(button).toBeInTheDocument();
   });
 
   it('passa corretamente dados do usuário para UserMenu', () => {
     render(<CardHeader />);
-    const userMenu = screen.getByTestId('user-menu');
+    const [userMenu] = screen.getAllByTestId('user-menu');
     expect(userMenu).toHaveAttribute('data-name', 'Maria Silva');
     expect(userMenu).toHaveAttribute('data-email', 'maria@example.com');
     expect(userMenu).toHaveAttribute('data-initials', 'MS');

@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { SectionCard, StepHeader } from '@/components/alunos/wizard/ui';
+import { Command as CommandPrimitive } from 'cmdk';
+import * as Popover from '@radix-ui/react-popover';
+import { StepHeader } from '@/components/alunos/wizard/ui';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -18,6 +20,7 @@ import {
 import { maskCPF, maskPhone, unmask } from '@/lib/utils/masks';
 import { toast } from 'sonner';
 import { CustomToast } from '@/components/CustomToast';
+import { cn } from '@/lib/utils';
 
 interface Option {
   value: string;
@@ -37,10 +40,12 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [fetchingDetail, setFetchingDetail] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const [open, setOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showAlunoWizard, setShowAlunoWizard] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<number | null>(null);
 
   // React Hook Form
   const {
@@ -79,9 +84,6 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
       return false;
     }
   }, [alunoDataNasc]);
-
-  // Debounce ref
-  const debounceRef = useRef<number | null>(null);
 
   const fetchAlunos = useCallback(
     (term: string) => {
@@ -133,7 +135,8 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
 
   const filtered = useMemo(() => options.slice(0, 25), [options]);
 
-  const canShowDropdown = focused && query.trim().length > 0 && !showForm;
+  // Controla quando mostrar dropdown: aberto + tem busca + não está no form
+  const showDropdown = open && query.trim().length > 0 && !showForm;
 
   const selectAluno = useCallback(
     async (o: Option) => {
@@ -300,7 +303,7 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
 
   return (
     <>
-      <SectionCard>
+      <div className="space-y-4">
         <StepHeader
           title="Selecione ou Cadastre o Aluno"
           hint="Busque por aluno existente ou crie um novo cadastro."
@@ -308,67 +311,98 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
         <div className="space-y-6">
           {!showForm && !state.aluno && (
             <div className="space-y-4">
-              {/* Campo de busca */}
-              <div className="relative">
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setTimeout(() => setFocused(false), 120)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setFocused(false);
-                    }
-                  }}
-                  placeholder="Ex.: Maria Silva ou 123.456.789-00"
-                  className="h-10 rounded-md border-gray-300 bg-white pl-11 text-sm text-gray-900 placeholder:text-gray-400"
-                  disabled={loading}
-                  aria-autocomplete="list"
-                  aria-expanded={canShowDropdown}
-                  aria-controls="aluno-suggestions"
-                />
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-                {canShowDropdown && (
-                  <div
-                    id="aluno-suggestions"
-                    role="listbox"
-                    className="absolute z-40 mt-2 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg"
-                    data-testid="aluno-suggestions"
-                  >
-                    {filtered.length === 0 && !loading && (
-                      <div className="select-none px-4 py-3 text-sm text-gray-500">
-                        Nenhum aluno encontrado
-                      </div>
-                    )}
-                    {loading && (
-                      <div className="select-none px-4 py-3 text-sm text-gray-500">
-                        Carregando...
-                      </div>
-                    )}
-                    {filtered.map((o) => (
-                      <button
-                        key={o.value}
-                        role="option"
-                        type="button"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectAluno(o);
-                          setFocused(false);
-                        }}
-                        className="cursor-pointer w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50"
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium">{o.label}</span>
-                          {o.description && (
-                            <span className="text-xs text-gray-500">{maskCPF(o.description)}</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+              {/* Campo de busca com Autocomplete usando cmdk + Popover */}
+              <Popover.Root open={showDropdown} onOpenChange={setOpen}>
+                <Popover.Anchor asChild>
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none z-10" />
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        if (!open && e.target.value.trim()) setOpen(true);
+                      }}
+                      onFocus={() => {
+                        if (query.trim()) setOpen(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setOpen(false);
+                      }}
+                      placeholder="Ex.: Maria Silva ou 123.456.789-00"
+                      disabled={loading && !query}
+                      className="flex h-10 w-full rounded-lg border border-gray-300 bg-white pl-11 pr-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f2298]/30 focus:border-[#4f2298] disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-autocomplete="list"
+                      aria-expanded={showDropdown}
+                      aria-controls="aluno-suggestions"
+                    />
+                    {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
                   </div>
-                )}
-              </div>
+                </Popover.Anchor>
+                <Popover.Portal>
+                  <Popover.Content
+                    className="z-[99999] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
+                    sideOffset={4}
+                    align="start"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                    onInteractOutside={(e) => {
+                      // Não fecha se clicar no input
+                      if (e.target === inputRef.current) return;
+                      setOpen(false);
+                    }}
+                  >
+                    <CommandPrimitive
+                      shouldFilter={false}
+                      className="max-h-[calc(4*52px+8px)] overflow-y-auto"
+                      style={{
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#d1d5db transparent',
+                      }}
+                    >
+                      <CommandPrimitive.List>
+                        {loading && (
+                          <div className="select-none px-4 py-3 text-sm text-gray-500">
+                            Carregando...
+                          </div>
+                        )}
+                        {!loading && filtered.length === 0 && (
+                          <CommandPrimitive.Empty className="select-none px-4 py-3 text-sm text-gray-500">
+                            Nenhum aluno encontrado
+                          </CommandPrimitive.Empty>
+                        )}
+                        {!loading && filtered.map((o, index) => (
+                          <CommandPrimitive.Item
+                            key={o.value}
+                            value={o.value}
+                            onSelect={() => {
+                              selectAluno(o);
+                              setOpen(false);
+                            }}
+                            className={cn(
+                              'cursor-pointer w-full px-3 py-2.5 text-left text-sm',
+                              'text-gray-900 bg-white',
+                              'hover:bg-gray-50',
+                              'data-[selected=true]:bg-gray-100 data-[selected=true]:text-gray-900',
+                              'aria-selected:bg-gray-100 aria-selected:text-gray-900',
+                              'focus:outline-none focus:bg-gray-100',
+                              '[&[data-highlighted]]:bg-gray-100 [&[data-highlighted]]:text-gray-900',
+                              index < filtered.length - 1 && 'border-b border-gray-100'
+                            )}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900">{o.label}</span>
+                              {o.description && (
+                                <span className="text-xs text-gray-500">{maskCPF(o.description)}</span>
+                              )}
+                            </div>
+                          </CommandPrimitive.Item>
+                        ))}
+                      </CommandPrimitive.List>
+                    </CommandPrimitive>
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
             </div>
           )}
 
@@ -646,7 +680,7 @@ export function StepAluno({ ctx, contaId }: StepAlunoProps) {
             data-step-aluno-loading={fetchingDetail || submitting}
           />
         </div>
-      </SectionCard>
+      </div>
 
       {/* Botão cadastrar aluno renderizado no footer via Portal */}
       {!state.aluno &&

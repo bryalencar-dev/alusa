@@ -9,6 +9,14 @@ import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { POST } from '../../app/api/asaas/webhooks/route';
 
+vi.mock('@alusa/lib', async () => {
+  const actual = await vi.importActual<typeof import('@alusa/lib')>('@alusa/lib');
+  return {
+    ...actual,
+    loadDecryptedAsaasCredentials: vi.fn(),
+  };
+});
+
 // Mock do Prisma
 vi.mock('@/src/prisma', () => ({
   prisma: {
@@ -20,6 +28,7 @@ vi.mock('@/src/prisma', () => ({
       findFirst: vi.fn(),
     },
     cobranca: {
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
     },
@@ -28,6 +37,7 @@ vi.mock('@/src/prisma', () => ({
       upsert: vi.fn(),
     },
     matricula: {
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
     },
@@ -39,6 +49,7 @@ vi.mock('@/src/prisma', () => ({
 
 // Import prisma DEPOIS do mock
 const { prisma } = await import('@/src/prisma');
+const { loadDecryptedAsaasCredentials } = await import('@alusa/lib');
 
 describe('POST /api/asaas/webhooks', () => {
   const WEBHOOK_SECRET = 'test-secret-key-12345';
@@ -57,9 +68,30 @@ describe('POST /api/asaas/webhooks', () => {
       updatedAt: new Date(),
       cpfCnpj: '12345678000100',
       ownerUserId: null,
+      enderecoCep: null,
+      enderecoLogradouro: null,
+      enderecoNumero: null,
+      enderecoBairro: null,
+      enderecoCidade: null,
+      enderecoUf: null,
       asaasApiKeyEncrypted: null,
       asaasWebhookSecretEncrypted: null,
       asaasCredsUpdatedAt: null,
+    } as never);
+
+    vi.mocked(prisma.cobranca.findFirst).mockResolvedValue({
+      matriculaId: 'matricula-123',
+    } as never);
+
+    vi.mocked(prisma.matricula.findUnique).mockResolvedValue({
+      aluno: { contaId: CONTA_ID },
+    } as never);
+
+    vi.mocked(prisma.matricula.findFirst).mockResolvedValue(null);
+
+    vi.mocked(loadDecryptedAsaasCredentials).mockResolvedValue({
+      apiKey: 'test-api-key',
+      webhookSecret: WEBHOOK_SECRET,
     });
   });
 
@@ -206,14 +238,15 @@ describe('POST /api/asaas/webhooks', () => {
     expect(json.processed).toBe(true);
 
     // Verificar que o webhook foi persistido
+    const expectedEventId = 'PAYMENT_RECEIVED:pay_123:RECEIVED:2025-01-15';
     expect(prisma.webhookAsaas.upsert).toHaveBeenCalledWith({
-      where: { eventId: 'pay_123' },
+      where: { eventId: expectedEventId },
       update: expect.objectContaining({
         evento: 'PAYMENT_RECEIVED',
         status: 'RECEBIDO',
       }),
       create: expect.objectContaining({
-        eventId: 'pay_123',
+        eventId: expectedEventId,
         evento: 'PAYMENT_RECEIVED',
         status: 'RECEBIDO',
         contaId: CONTA_ID,
@@ -269,11 +302,18 @@ describe('POST /api/asaas/webhooks', () => {
       processadoEm: new Date(),
     });
 
+    // Mock busca de matrícula para resolver contaId (fase anterior à persistência)
+    vi.mocked(prisma.matricula.findFirst).mockResolvedValue({
+      aluno: { contaId: CONTA_ID },
+    } as never);
+
     // Mock busca de matrícula
     vi.mocked(prisma.matricula.findUnique).mockResolvedValue({
       id: 'matricula-123',
       asaasSubscriptionId: 'sub_123',
       status: 'PENDENTE_TAXA',
+      aluno: { contaId: CONTA_ID },
+      plano: { id: 'plano-123', nome: 'Plano Teste' },
     } as never);
 
     // Mock atualização de matrícula
@@ -292,14 +332,15 @@ describe('POST /api/asaas/webhooks', () => {
     expect(json.processed).toBe(true);
 
     // Verificar que o webhook foi persistido
+    const expectedEventId = 'SUBSCRIPTION_CREATED:sub_123:ACTIVE:2025-02-15';
     expect(prisma.webhookAsaas.upsert).toHaveBeenCalledWith({
-      where: { eventId: 'sub_123' },
+      where: { eventId: expectedEventId },
       update: expect.objectContaining({
         evento: 'SUBSCRIPTION_CREATED',
         status: 'RECEBIDO',
       }),
       create: expect.objectContaining({
-        eventId: 'sub_123',
+        eventId: expectedEventId,
         evento: 'SUBSCRIPTION_CREATED',
         status: 'RECEBIDO',
         contaId: CONTA_ID,
@@ -370,8 +411,10 @@ describe('POST /api/asaas/webhooks', () => {
     });
   });
 
-  it('deve retornar 500 quando não encontrar conta', async () => {
-    // Mock: conta não encontrada
+  it('deve retornar 400 quando não conseguir resolver conta', async () => {
+    // Mock: nenhuma conta disponível para fallback e nenhum relacionamento associado
+    vi.mocked(prisma.cobranca.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.matricula.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.conta.findFirst).mockResolvedValue(null);
 
     const payload = JSON.stringify({
@@ -383,8 +426,8 @@ describe('POST /api/asaas/webhooks', () => {
     const req = createRequest(payload, signature);
     const response = await POST(req);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
     const json = await response.json();
-    expect(json.error).toBe('Conta não encontrada');
+    expect(json.error).toBe('Conta não resolvida');
   });
 });

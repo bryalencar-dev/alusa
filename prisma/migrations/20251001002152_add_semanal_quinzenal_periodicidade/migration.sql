@@ -6,5 +6,5 @@
 -- the enum.
 
 
-ALTER TYPE "PeriodicidadePlano" ADD VALUE 'SEMANAL';
-ALTER TYPE "PeriodicidadePlano" ADD VALUE 'QUINZENAL';
+ALTER TYPE "PeriodicidadePlano" ADD VALUE IF NOT EXISTS 'SEMANAL';
+ALTER TYPE "PeriodicidadePlano" ADD VALUE IF NOT EXISTS 'QUINZENAL';

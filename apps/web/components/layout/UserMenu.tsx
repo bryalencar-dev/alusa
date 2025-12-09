@@ -13,18 +13,36 @@ import {
   MoonIcon,
 } from '@/components/icons/icons';
 import { useTheme } from '@/components/theme/ThemeProvider';
+import { useUserStore, type UserState, type User } from '@/lib/stores/user-store';
 
 type Props = {
   name: string;
   email: string;
   initials: string;
+  foto?: string | null;
 };
 
-export default function UserMenu({ name, email, initials }: Props) {
+export default function UserMenu({ name, email, initials, foto }: Props) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const { isDark, toggleTheme } = useTheme();
+  const storeUser = useUserStore((state: UserState) => state.user);
+  const updateUser = useUserStore((state: UserState) => state.updateUser);
+  // Avatar derives from store (preferido) e depois prop (fallback)
+  const avatarUrl = storeUser?.foto ?? foto ?? null;
+
+  // Atualiza avatar ao receber evento global de atualização do usuário
+  useEffect(() => {
+    function onUserUpdated(e: Event) {
+      const detail = (e as CustomEvent).detail as Record<string, unknown> | undefined;
+      if (detail) updateUser(detail as unknown as Partial<User>);
+    }
+    window.addEventListener('user:updated', onUserUpdated as EventListener);
+    return () => window.removeEventListener('user:updated', onUserUpdated as EventListener);
+  }, [updateUser]);
+
+  // (sem estado local) — avatar é derivado da store/propriedade
 
   // Fechar ao clicar fora / ESC
   useEffect(() => {
@@ -63,7 +81,13 @@ export default function UserMenu({ name, email, initials }: Props) {
         className="group flex items-center gap-3 rounded-full pl-1 pr-3 py-1 ring-1 ring-black/5 transition-colors hover:bg-black/5"
       >
         <span className="relative inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full ring-1 ring-black/5 bg-white">
-          <span className="text-[12px] font-semibold text-[#2A004A]">{initials}</span>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-[12px] font-semibold text-[#2A004A]">
+              {storeUser?.name ? `${storeUser.name[0]}` : initials}
+            </span>
+          )}
         </span>
         <span className="hidden sm:flex flex-col items-start text-left">
           <span className="text-[14px] font-medium leading-tight text-black">{name}</span>

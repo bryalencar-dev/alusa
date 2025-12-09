@@ -12,15 +12,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 import { prisma } from '@/src/prisma';
+import { authOptions } from '@/lib/auth-options';
 import {
   createPayment,
   listPayments,
   isAsaasEnabled,
   AsaasEnvError,
+  formatDate,
   type CreatePaymentInput,
 } from '@alusa/lib/asaas';
+import { FORMA_PAGAMENTO_TO_ASAAS } from '@/lib/utils/asaas-sync';
 
 /**
  * Schema de criação de payment
@@ -82,6 +86,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Integração com Asaas não habilitada' }, { status: 403 });
     }
 
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.contaId) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const params = listPaymentsSchema.parse({
       customer: searchParams.get('customer') || undefined,
@@ -101,6 +110,7 @@ export async function GET(req: NextRequest) {
       billingType: params.billingType,
       offset: params.offset ? parseInt(params.offset) : undefined,
       limit: params.limit ? parseInt(params.limit) : undefined,
+      contaId: session.user.contaId,
     });
 
     return NextResponse.json({
@@ -147,10 +157,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Integração com Asaas não habilitada' }, { status: 403 });
     }
 
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.contaId) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { cobrancaId, customData } = createPaymentSchema.parse(body);
 
     let paymentData: CreatePaymentInput;
+    let effectiveContaId = session.user.contaId;
+    let idempotencyKey: string | undefined;
 
     if (customData) {
       // Usar dados customizados
@@ -194,14 +211,23 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (cobranca.matricula.aluno.contaId !== session.user.contaId) {
+        return NextResponse.json({ error: 'Conta inválida' }, { status: 403 });
+      }
+
       paymentData = {
         customer: cobranca.matricula.aluno.asaasCustomerId,
-        billingType: cobranca.formaPagamento as 'BOLETO' | 'CREDIT_CARD' | 'PIX' | 'UNDEFINED',
+        billingType:
+          FORMA_PAGAMENTO_TO_ASAAS[cobranca.formaPagamento as keyof typeof FORMA_PAGAMENTO_TO_ASAAS] ||
+          'UNDEFINED',
         value: Number(cobranca.valor),
-        dueDate: cobranca.vencimento.toISOString().split('T')[0],
+        dueDate: formatDate(cobranca.vencimento), // ✅ Usa formatDate (timezone-safe)
         description: `Mensalidade - ${cobranca.competenciaInicio.toLocaleDateString('pt-BR')}`,
         externalReference: cobranca.id,
       };
+
+      effectiveContaId = cobranca.matricula.aluno.contaId;
+      idempotencyKey = cobranca.id;
     } else {
       return NextResponse.json({ error: 'Dados insuficientes' }, { status: 400 });
     }
@@ -209,7 +235,10 @@ export async function POST(req: NextRequest) {
     console.log('[API POST /asaas/payments]', { paymentData });
 
     // Criar payment no Asaas
-    const payment = await createPayment(paymentData);
+    const payment = await createPayment(paymentData, {
+      contaId: effectiveContaId,
+      idempotencyKey: idempotencyKey ?? paymentData.externalReference,
+    });
 
     // Atualizar banco de dados
     if (cobrancaId) {

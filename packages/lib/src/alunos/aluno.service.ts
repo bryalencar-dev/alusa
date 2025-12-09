@@ -8,6 +8,7 @@ import {
   flattenAlunoEndereco,
   flattenResponsavelEndereco,
 } from './map-flatten';
+import { syncAlunoWithAsaas, unsyncAlunoFromAsaas, updateAlunoInAsaas } from './sync-aluno-asaas';
 
 const prisma: PrismaClient = shared as unknown as PrismaClient;
 
@@ -285,6 +286,14 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
       nome: aluno.nome,
     });
 
+    // 10. Sincronizar com Asaas (cria customer) - fora da transaction para não bloquear
+    // Executado via setImmediate para não atrasar resposta
+    setImmediate(() => {
+      syncAlunoWithAsaas({ alunoId: aluno.id, contaId: normalizedData.contaId }).catch((err) => {
+        console.error('[createAluno] Erro ao sincronizar com Asaas (não-blocante):', err);
+      });
+    });
+
     return aluno;
   });
 }
@@ -292,6 +301,7 @@ export async function createAluno(data: AlunoCreateInput & AlunoExtraFields) {
 type MaybeEndereco = { endereco?: Partial<AlunoCreateInput['endereco']> };
 type UpdateAlunoWithResponsavel = AlunoUpdateInput &
   MaybeEndereco & {
+    contaId: string;
     responsavel?: Partial<{
       nome: string;
       cpf: string;
@@ -309,7 +319,7 @@ type UpdateAlunoWithResponsavel = AlunoUpdateInput &
     }>;
   };
 export async function updateAluno(data: UpdateAlunoWithResponsavel) {
-  const { id, endereco, responsavel, ...rest } = data;
+  const { id, contaId, endereco, responsavel, ...rest } = data;
 
   // Normalizações leves
   const normEmail = (v?: string | null) =>
@@ -385,6 +395,11 @@ export async function updateAluno(data: UpdateAlunoWithResponsavel) {
       }
     }
 
+    // Sincronizar atualização com Asaas (fail-safe)
+    updateAlunoInAsaas({ alunoId: id, contaId }).catch((err) => {
+      console.error('⚠️ Falha ao atualizar customer no Asaas:', err);
+    });
+
     return aluno;
   });
 }
@@ -398,8 +413,16 @@ export async function getAluno(id: string) {
   });
 }
 
-export async function deleteAluno(id: string, motivo?: string) {
+export async function deleteAluno(id: string, contaId: string, motivo?: string) {
   console.log('🗑️ Excluindo aluno definitivamente', { id, motivo: motivo?.slice(0, 120) });
+
+  // 1. Primeiro, remover sincronização com Asaas (deletar customer)
+  // Fail-safe: se falhar, continua com a deleção do aluno
+  await unsyncAlunoFromAsaas({ alunoId: id, contaId }).catch((err) => {
+    console.error('⚠️ Falha ao remover customer do Asaas (continuando deleção):', err);
+  });
+
+  // 2. Deletar aluno do banco de dados
   return prisma.$transaction(async (tx) => {
     // Remover vínculos com responsáveis para evitar erro de FK
     await tx.alunoResponsavel.deleteMany({ where: { alunoId: id } });
@@ -417,5 +440,137 @@ export async function reactivateAluno(id: string) {
       motivoInativacao: null,
       dataInativacao: null,
     },
+  });
+}
+
+// Tipos para inativação e reativação completa
+export interface InativarAlunoInput {
+  id: string;
+  contaId: string;
+  motivo: string;
+  acao: 'PAUSAR' | 'CANCELAR';
+  actorId: string;
+}
+
+export interface ReativarAlunoCompletoInput {
+  id: string;
+  contaId: string;
+  reativarMatriculas?: boolean;
+  matriculasIds?: string[];
+  actorId: string;
+}
+
+export async function inativarAluno({
+  id,
+  contaId,
+  motivo,
+  acao,
+}: InativarAlunoInput) {
+  return prisma.$transaction(async (tx) => {
+    // 1. Verificar se aluno pertence à conta
+    const aluno = await tx.aluno.findFirst({
+      where: { id, contaId },
+    });
+
+    if (!aluno) {
+      throw new Error('Aluno não encontrado ou não pertence a esta conta');
+    }
+
+    if (aluno.status === 'INATIVO') {
+      throw new Error('Aluno já está inativo');
+    }
+
+    // 2. Atualizar status do aluno
+    const alunoAtualizado = await tx.aluno.update({
+      where: { id },
+      data: {
+        status: 'INATIVO',
+        motivoInativacao: motivo,
+        dataInativacao: new Date(),
+      },
+    });
+
+    // 3. Se ação for CANCELAR, encerrar matrículas ativas
+    if (acao === 'CANCELAR') {
+      await tx.matricula.updateMany({
+        where: {
+          alunoId: id,
+          statusContrato: 'ATIVO',
+        },
+        data: {
+          statusContrato: 'ENCERRADO',
+        },
+      });
+    }
+
+    return {
+      aluno: alunoAtualizado,
+      acao,
+      message: acao === 'PAUSAR' ? 'Aluno pausado com sucesso' : 'Aluno cancelado com sucesso',
+    };
+  });
+}
+
+export async function reativarAlunoCompleto({
+  id,
+  contaId,
+  reativarMatriculas = false,
+  matriculasIds,
+}: ReativarAlunoCompletoInput) {
+  return prisma.$transaction(async (tx) => {
+    // 1. Verificar se aluno pertence à conta
+    const aluno = await tx.aluno.findFirst({
+      where: { id, contaId },
+    });
+
+    if (!aluno) {
+      throw new Error('Aluno não encontrado ou não pertence a esta conta');
+    }
+
+    if (aluno.status === 'ATIVO') {
+      throw new Error('Aluno já está ativo');
+    }
+
+    // 2. Reativar aluno
+    const alunoAtualizado = await tx.aluno.update({
+      where: { id },
+      data: {
+        status: 'ATIVO',
+        motivoInativacao: null,
+        dataInativacao: null,
+      },
+    });
+
+    // 3. Reativar matrículas se solicitado
+    if (reativarMatriculas) {
+      if (matriculasIds && matriculasIds.length > 0) {
+        // Reativar apenas matrículas específicas
+        await tx.matricula.updateMany({
+          where: {
+            id: { in: matriculasIds },
+            alunoId: id,
+          },
+          data: {
+            statusContrato: 'ATIVO',
+          },
+        });
+      } else {
+        // Reativar todas as matrículas encerradas
+        await tx.matricula.updateMany({
+          where: {
+            alunoId: id,
+            statusContrato: 'ENCERRADO',
+          },
+          data: {
+            statusContrato: 'ATIVO',
+          },
+        });
+      }
+    }
+
+    return {
+      aluno: alunoAtualizado,
+      message: 'Aluno reativado com sucesso',
+    };
   });
 }

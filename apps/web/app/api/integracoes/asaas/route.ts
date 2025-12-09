@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getAsaasCredentials, saveAsaasTokenOnly } from '@alusa/lib';
+import { invalidateAsaasClientCache } from '@alusa/lib/asaas/client';
 
 // RBAC permitido para gestão de integrações
 const allowedRoles = new Set(['ADMIN', 'FINANCEIRO']);
@@ -43,13 +44,34 @@ export async function POST(req: Request) {
     if (!body || typeof body !== 'object') return json(400, { error: 'PAYLOAD_INVALIDO' });
     if (!body.token) return json(422, { error: 'CAMPOS_OBRIGATORIOS', missing: ['token'] });
 
-    await saveAsaasTokenOnly(user.contaId, String(body.token));
+    // Validação básica do formato do token Asaas
+    const token = String(body.token).trim();
+    if (!token.startsWith('$aact_')) {
+      return json(422, {
+        error: 'TOKEN_FORMATO_INVALIDO',
+        message: 'Token inválido. A chave API do Asaas deve começar com $aact_prod_ (produção) ou $aact_hmlg_ (sandbox).',
+      });
+    }
+
+    await saveAsaasTokenOnly(user.contaId, token);
+    // Garante que novas chamadas usem o token atualizado
+    invalidateAsaasClientCache(user.contaId);
 
     const creds = await getAsaasCredentials(user.contaId);
     return json(200, { saved: true, credentials: creds });
   } catch (e) {
+    const errorMessage = (e as Error).message;
     console.error('[API Integracoes Asaas][POST] Erro', e);
-    return json(500, { error: 'ERRO_INTERNO', message: (e as Error).message });
+    
+    // Mensagens de erro mais descritivas
+    if (errorMessage.includes('ENCRYPTION_KEY')) {
+      return json(500, { 
+        error: 'CONFIGURACAO_SERVIDOR', 
+        message: 'Erro de configuração do servidor. ENCRYPTION_KEY não está configurada.' 
+      });
+    }
+    
+    return json(500, { error: 'ERRO_INTERNO', message: errorMessage });
   }
 }
 

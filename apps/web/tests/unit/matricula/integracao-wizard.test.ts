@@ -16,6 +16,7 @@ describe('Integração do Wizard com API', () => {
     formaPagamento: 'PIX',
     criarCobranca: true,
     dataInicio: '2025-10-05',
+    dataFimContrato: '2026-10-05',
     confirmacaoRevisao: true,
   };
 
@@ -98,22 +99,24 @@ describe('Integração do Wizard com API', () => {
       }
     });
 
-    it('deve aceitar desconto percentual', () => {
+    it('deve aceitar desconto antecipado percentual (Asaas)', () => {
       const stateDesconto = {
         ...mockWizardState,
-        descontoTipo: 'PERCENTUAL' as const,
-        descontoValor: 20,
+        descontoTipo: 'PERCENTAGE' as const,
+        descontoAntecipado: 20,
+        prazoDesconto: 5,
       };
       const result = prepararPayloadMatricula(stateDesconto as unknown as Record<string, unknown>);
 
       expect(result.valido).toBe(true);
     });
 
-    it('deve aceitar desconto fixo', () => {
+    it('deve aceitar desconto antecipado fixo (Asaas)', () => {
       const stateDesconto = {
         ...mockWizardState,
-        descontoTipo: 'FIXO' as const,
-        descontoValor: 30,
+        descontoTipo: 'FIXED' as const,
+        descontoAntecipado: 30,
+        prazoDesconto: 0,
       };
       const result = prepararPayloadMatricula(stateDesconto as unknown as Record<string, unknown>);
 

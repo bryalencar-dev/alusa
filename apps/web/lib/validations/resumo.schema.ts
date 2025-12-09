@@ -22,10 +22,12 @@ export const resumoMatriculaSchema = z
     modoTurmas: z.enum(['COMBO', 'TURMAS']),
     turmaIds: z.array(z.string()).optional(),
     comboId: z.string().optional(),
+    comboValor: z.number().optional(), // valor do combo (R$)
+    comboPeriodicidade: z.string().optional(), // periodicidade do combo
 
-    // Plano
-    planoId: z.string().min(1, 'Plano é obrigatório'),
-    planoValor: z.number().positive('Valor do plano inválido'),
+    // Plano (opcional quando comboId é fornecido)
+    planoId: z.string().optional(),
+    planoValor: z.number().optional(),
 
     // Taxa
     taxaIsenta: z.boolean(),
@@ -33,6 +35,7 @@ export const resumoMatriculaSchema = z
 
     // Financeiro
     dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data de início inválida'),
+    dataFimContrato: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data de fim do contrato inválida'),
     vencimentoDia: z.number().min(1).max(28, 'Dia de vencimento inválido'),
     formaPagamento: z.enum(['DINHEIRO', 'PIX', 'CARTAO', 'BOLETO']),
 
@@ -53,6 +56,47 @@ export const resumoMatriculaSchema = z
     {
       message: 'Selecione uma turma ou combo',
       path: ['turmaIds'],
+    },
+  )
+  .refine(
+    (data) => {
+      // Se modo TURMAS, planoId é obrigatório
+      if (data.modoTurmas === 'TURMAS') {
+        return !!data.planoId && data.planoId.length > 0;
+      }
+      // Se modo COMBO, planoId é opcional (combo define valor/periodicidade)
+      return true;
+    },
+    {
+      message: 'Selecione um plano',
+      path: ['planoId'],
+    },
+  )
+  .refine(
+    (data) => {
+      // Valida que existe valor: comboValor quando COMBO, planoValor quando TURMAS
+      if (data.modoTurmas === 'COMBO') {
+        return typeof data.comboValor === 'number' && data.comboValor > 0;
+      }
+      return typeof data.planoValor === 'number' && data.planoValor > 0;
+    },
+    {
+      message: 'Valor inválido',
+      path: ['planoValor'],
+    },
+  )
+  .refine(
+    (data) => {
+      // Validar que dataFimContrato >= dataInicio
+      if (!data.dataInicio || !data.dataFimContrato) return true; // Validação básica já foi feita
+      const inicio = new Date(data.dataInicio);
+      const fim = new Date(data.dataFimContrato);
+      if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) return true; // Validação de formato já foi feita
+      return fim >= inicio;
+    },
+    {
+      message: 'Data de fim do contrato deve ser posterior ou igual à data de início',
+      path: ['dataFimContrato'],
     },
   );
 
@@ -93,18 +137,18 @@ export function validarMatriculaCompleta(state: Record<string, unknown>): {
     }
   }
 
-  // Valida plano
-  if (!state.planoId) {
+  // Valida plano - só obrigatório quando NÃO é combo (combo define valor/periodicidade)
+  if (state.modoTurmas !== 'COMBO' && !state.planoId) {
     camposFaltando.push('planoId');
     mensagens.push('Selecione um plano');
   }
 
   // Valida taxa (apenas se não for isenta)
   if (state.taxaIsenta !== true) {
-    const taxaMatricula = Number(state.taxaMatricula || 0);
-    if (taxaMatricula < 0) {
+    const taxaMatricula = Number(state.taxaMatricula ?? 0);
+    if (Number.isNaN(taxaMatricula) || taxaMatricula <= 0) {
       camposFaltando.push('taxaMatricula');
-      mensagens.push('Taxa de matrícula não pode ser negativa');
+      mensagens.push('Informe o valor da taxa de matrícula');
     }
   }
 
@@ -112,6 +156,11 @@ export function validarMatriculaCompleta(state: Record<string, unknown>): {
   if (!state.dataInicio) {
     camposFaltando.push('dataInicio');
     mensagens.push('Defina a data de início');
+  }
+
+  if (!state.dataFimContrato) {
+    camposFaltando.push('dataFimContrato');
+    mensagens.push('Defina a data de fim do contrato');
   }
 
   if (!state.vencimentoDia) {
@@ -124,7 +173,10 @@ export function validarMatriculaCompleta(state: Record<string, unknown>): {
     mensagens.push('Selecione a forma de pagamento');
   }
 
-  // REMOVIDO: validação de confirmacaoRevisao aqui - isso é responsabilidade do UI
+  if (state.confirmacaoRevisao !== true) {
+    camposFaltando.push('confirmacaoRevisao');
+    mensagens.push('Você deve revisar e confirmar os dados');
+  }
 
   return {
     valido: camposFaltando.length === 0,
@@ -160,36 +212,18 @@ export function gerarResumoFinanceiro(state: {
   planoValor?: number;
   taxaMatricula?: number;
   taxaIsenta?: boolean;
-  descontoTipo?: 'FIXO' | 'PERCENTUAL';
-  descontoValor?: number;
 }): {
   valorPlano: number;
   valorTaxa: number;
-  descontoAplicado: number;
-  mensalidadeFinal: number;
   totalInicial: number;
 } {
   const valorPlano = state.planoValor ?? 0;
   const valorTaxa = state.taxaIsenta ? 0 : (state.taxaMatricula ?? 0);
-
-  let descontoAplicado = 0;
-  if (state.descontoTipo && state.descontoValor && state.descontoValor > 0) {
-    if (state.descontoTipo === 'FIXO') {
-      descontoAplicado = state.descontoValor;
-    } else {
-      // PERCENTUAL
-      descontoAplicado = (valorPlano * state.descontoValor) / 100;
-    }
-  }
-
-  const mensalidadeFinal = Math.max(0, valorPlano - descontoAplicado);
-  const totalInicial = valorTaxa + mensalidadeFinal;
+  const totalInicial = valorTaxa + valorPlano;
 
   return {
     valorPlano,
     valorTaxa,
-    descontoAplicado,
-    mensalidadeFinal,
     totalInicial,
   };
 }
@@ -242,8 +276,8 @@ export function descreverModoTurmas(state: {
 export function gerarWarningsRevisao(state: {
   taxaIsenta?: boolean;
   taxaJustificativa?: string;
-  descontoValor?: number;
-  descontoTipo?: 'FIXO' | 'PERCENTUAL';
+  descontoAntecipado?: number;
+  descontoTipo?: 'FIXED' | 'PERCENTAGE';
   planoValor?: number;
   dataInicio?: string;
 }): string[] {
@@ -257,15 +291,15 @@ export function gerarWarningsRevisao(state: {
     warnings.push('⚠️ Taxa isenta sem justificativa detalhada');
   }
 
-  // Warning: Desconto alto
-  if (state.descontoValor && state.descontoValor > 0 && state.planoValor) {
+  // Warning: Desconto alto (para desconto antecipado do Asaas)
+  if (state.descontoAntecipado && state.descontoAntecipado > 0 && state.planoValor) {
     const percentual =
-      state.descontoTipo === 'PERCENTUAL'
-        ? state.descontoValor
-        : (state.descontoValor / state.planoValor) * 100;
+      state.descontoTipo === 'PERCENTAGE'
+        ? state.descontoAntecipado
+        : (state.descontoAntecipado / state.planoValor) * 100;
 
     if (percentual > 30) {
-      warnings.push(`⚠️ Desconto alto aplicado (${percentual.toFixed(0)}%)`);
+      warnings.push(`⚠️ Desconto antecipado alto (${percentual.toFixed(0)}%)`);
     }
   }
 
@@ -315,22 +349,29 @@ export function prepararPayloadMatricula(state: Record<string, unknown>): {
     turmaId: state.modoTurmas === 'TURMAS' ? (state.turmaIds as string[])[0] : undefined,
     comboId: state.modoTurmas === 'COMBO' ? state.comboId : undefined,
 
-    // Plano
-    planoId: state.planoId,
+    // Plano - só inclui se NÃO for combo (combo define valor/periodicidade)
+    planoId: state.modoTurmas === 'COMBO' ? undefined : state.planoId,
 
     // Taxa
     taxaMatricula: state.taxaIsenta ? 0 : (state.taxaMatricula ?? 0),
     taxaIsenta: state.taxaIsenta ?? false,
     taxaJustificativa: state.taxaJustificativa,
+    formaPagamentoTaxa: state.formaPagamentoTaxa,
     pagarTaxaAgora: state.pagarTaxaAgora ?? false,
     gerarCobrancaTaxa: state.gerarCobrancaTaxa ?? false,
 
     // Financeiro
     dataInicio: state.dataInicio,
+    dataFimContrato: state.dataFimContrato,
     vencimentoDia: state.vencimentoDia,
     formaPagamento: state.formaPagamento,
-    descontoTipo: state.descontoTipo,
-    descontoValor: state.descontoValor,
+
+    // Juros, Multa e Desconto (conforme Asaas API)
+    multaPercentual: state.multaPercentual,
+    jurosMensal: state.jurosMensal,
+    descontoAntecipado: state.descontoAntecipado,
+    descontoTipo: state.descontoTipo, // 'FIXED' ou 'PERCENTAGE'
+    prazoDesconto: state.prazoDesconto,
 
     // Metadata
     criarCobranca: state.criarCobranca ?? true,

@@ -61,6 +61,11 @@ export interface AsaasCustomer {
   cannotBeDeletedReason?: string;
   cannotEditReason?: string;
   foreignCustomer: boolean;
+  creditCard?: {
+    creditCardNumber?: string;
+    creditCardBrand?: string;
+    creditCardToken?: string;
+  };
 }
 
 /**
@@ -81,16 +86,23 @@ export interface AsaasCustomer {
  * console.log(customer.id); // 'cus_000000000000'
  * ```
  */
+type CustomerRequestOptions = { contaId?: string; idempotencyKey?: string };
+
 export async function createCustomer(
   input: CreateCustomerInput,
-  opts?: { contaId?: string },
+  opts?: CustomerRequestOptions,
 ): Promise<AsaasCustomer> {
   // Validar input
   const validated = createCustomerSchema.parse(input);
 
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
+  const idempotencyKey = opts?.idempotencyKey ?? validated.externalReference ?? validated.cpfCnpj;
 
-  const response = await client.post<AsaasCustomer>('/customers', validated);
+  const response = await client.post<AsaasCustomer>(
+    '/customers',
+    validated,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined,
+  );
 
   return response.data;
 }
@@ -103,7 +115,7 @@ export async function createCustomer(
  */
 export async function getCustomer(
   customerId: string,
-  opts?: { contaId?: string },
+  opts?: CustomerRequestOptions,
 ): Promise<AsaasCustomer> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
@@ -122,7 +134,7 @@ export async function getCustomer(
 export async function updateCustomer(
   customerId: string,
   input: Partial<CreateCustomerInput>,
-  opts?: { contaId?: string },
+  opts?: CustomerRequestOptions,
 ): Promise<AsaasCustomer> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
@@ -139,7 +151,7 @@ export async function updateCustomer(
  */
 export async function deleteCustomer(
   customerId: string,
-  opts?: { contaId?: string },
+  opts?: CustomerRequestOptions,
 ): Promise<AsaasCustomer> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 

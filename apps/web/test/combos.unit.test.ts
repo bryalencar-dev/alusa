@@ -8,19 +8,15 @@ describe('combos-service normalizeCombo', () => {
       contaId: 'c1',
       nome: 'Combo Gold',
       descricao: 'Desc',
-      valorMensal: 150,
-      taxaMatricula: 50,
-      categoriaMensal: 'MENSAL',
-      categoriaTaxa: 'ADM',
+      valor: 150,
+      periodicidade: 'MENSAL',
       status: 'ATIVO',
-      modoMatricula: 'RESERVADA',
-      vigenciaIni: '2025-01-01',
-      vigenciaFim: '2025-12-31',
       vagasLimite: 20,
       turmas: [{ id: 't1', nome: 'Turma 1' }],
     });
     expect(combo.nome).toBe('Combo Gold');
-    expect(combo.valorMensal).toBe(150);
+    expect(combo.valor).toBe(150);
+    expect(combo.periodicidade).toBe('MENSAL');
     expect(combo.turmas).toHaveLength(1);
   });
 
@@ -29,13 +25,12 @@ describe('combos-service normalizeCombo', () => {
       id: 2,
       contaId: 'c2',
       nome: 'X',
-      valorMensal: '99.9',
-      taxaMatricula: null,
+      valor: '99.9',
       turmas: [],
     });
     expect(combo.id).toBe('2');
-    expect(combo.valorMensal).toBe(99.9);
-    expect(combo.taxaMatricula).toBeNull();
+    expect(combo.valor).toBe(99.9);
+    expect(combo.periodicidade).toBe('MENSAL');
     expect(combo.status).toBe('ATIVO');
   });
 });

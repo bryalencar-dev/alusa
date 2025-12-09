@@ -27,7 +27,7 @@ import { useEntityListFiltering } from '@/hooks/entity/use-entity-list-filtering
 import type { ColaboradorListItem } from './services/colaboradores-service';
 // getStatusBadgeProps substituído por StatusBadge nesta feature
 import DataTable, { type DataTableColumn } from '@/components/layout/DataTable';
-import StatusBadge from '@/components/shared/StatusBadge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { formatFirstLast, formatInitials, maskCpf } from '@alusa/lib';
 import toast from 'react-hot-toast';
 import useCurrentUser from '@/hooks/use-current-user';
@@ -36,18 +36,6 @@ const PAGE_SIZE = 10;
 
 type SortOrder = 'ASC' | 'DESC';
 type StatusFilter = StatusValue;
-
-const cargoLabels: Record<string, string> = {
-  PROFESSOR: 'Professor',
-  RECEPCAO: 'Recepção',
-  FINANCEIRO: 'Financeiro',
-  ADMINISTRATIVO: 'Administrativo',
-  OUTRO: 'Outro',
-};
-
-function formatCargo(cargo: string) {
-  return cargoLabels[cargo] ?? cargo;
-}
 
 export function ColaboradoresFeature() {
   const { user, loading: userLoading } = useCurrentUser();
@@ -379,9 +367,9 @@ function ColaboradoresTable({
       width: 'w-[10%]',
       align: 'center',
       render: (c) => (
-        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-          {formatCargo(c.cargo)}
-        </Badge>
+        <span className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-[11px] font-medium text-gray-700">
+          {c.cargo || '-'}
+        </span>
       ),
       skeleton: <div className="h-4 w-16 bg-gray-200 rounded mx-auto" />,
     },
@@ -390,7 +378,7 @@ function ColaboradoresTable({
       header: 'Status',
       width: 'w-[12%]',
       align: 'center',
-      render: (c) => <StatusBadge status={c.status} />,
+      render: (c) => <StatusBadge status={c.status === 'ATIVO' ? 'ATIVO' : 'INATIVO'} />,
       skeleton: <div className="h-6 w-14 bg-gray-200 rounded-full mx-auto" />,
     },
     {

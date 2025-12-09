@@ -189,8 +189,33 @@ export default function AlunoWizardDialog({
     }
     const ok = await methods.trigger();
     if (!ok) {
+      const errors = methods.formState.errors;
+      console.error('[AlunoWizard] Erros de validação:', errors);
+
+      // Mostrar mensagem específica para erro de responsável
+      if (errors.responsavel) {
+        notifyError(
+          'Dados do responsável são obrigatórios para aluno menor de 18 anos. Preencha a etapa "Responsável".',
+        );
+        // Ir para o step de responsável se existir
+        const responsavelStepIndex = steps.findIndex((s) => s.id === 'responsavel');
+        if (responsavelStepIndex !== -1) {
+          setActiveIndex(responsavelStepIndex);
+          return;
+        }
+      }
+
+      // Para outros erros, ir para o primeiro step com erro
+      const firstErrorField = Object.keys(errors)[0];
+      const errorMessage = errors[firstErrorField as keyof typeof errors]?.message;
+      if (errorMessage) {
+        notifyError(`Erro no formulário: ${errorMessage}`);
+      } else {
+        notifyError('Há campos obrigatórios não preenchidos. Verifique todos os passos.');
+      }
+
       setActiveIndex(0);
-      focusFirstError(methods.formState.errors);
+      focusFirstError(errors);
       return;
     }
     const values = methods.getValues();

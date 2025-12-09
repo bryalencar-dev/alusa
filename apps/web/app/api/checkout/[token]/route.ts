@@ -6,7 +6,7 @@
  * Valida o token JWT e retorna:
  * - Dados da matrícula
  * - Dados do aluno
- * - Dados da cobrança (taxa de matrícula)
+ * - Dados da cobrança pendente (mensalidade, taxa ou avulsa)
  * - Status do checkout link (expirado, usado, válido)
  */
 
@@ -51,6 +51,7 @@ interface CheckoutData {
     vencimento: string;
     status: string;
     formaPagamento: string;
+    tipo: string;
   } | null;
 }
 
@@ -116,15 +117,17 @@ export async function GET(
       return NextResponse.json({ error: 'Matrícula não encontrada' }, { status: 404 });
     }
 
-    // 5. Buscar cobrança de taxa de matrícula
+    // 5. Buscar cobrança pendente (prioriza mensalidade, depois taxa)
     const cobrancaTaxa = await prisma.cobranca.findFirst({
       where: {
         matriculaId: matricula.id,
-        tipo: { in: ['TAXA_MATRICULA', 'AVULSA'] },
+        tipo: { in: ['MENSALIDADE', 'TAXA_MATRICULA', 'AVULSA'] },
+        status: 'PENDENTE',
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: [
+        { tipo: 'asc' }, // MENSALIDADE vem antes alfabeticamente
+        { vencimento: 'asc' },
+      ],
     });
 
     // 6. Montar resposta
@@ -165,6 +168,7 @@ export async function GET(
             vencimento: cobrancaTaxa.vencimento.toISOString(),
             status: cobrancaTaxa.status,
             formaPagamento: cobrancaTaxa.formaPagamento,
+            tipo: cobrancaTaxa.tipo,
           }
         : null,
     };

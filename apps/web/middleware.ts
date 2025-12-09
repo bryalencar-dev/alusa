@@ -27,6 +27,7 @@ export const config = {
     '/alunos/:path*',
     '/professores/:path*', 
     '/matriculas/:path*',
-    '/dashboard/:path*'
+    '/dashboard/:path*',
+    '/portal/:path*'
   ] 
 };

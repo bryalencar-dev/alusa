@@ -214,6 +214,7 @@ async function seedCombo(contaId: string, turmaIds: string[]) {
       contaId,
       nome: 'Ballet + Jazz',
       descricao: 'Pacote combinando Ballet Iniciante e Jazz Intermediario',
+      valorMensal: 200,
     },
   });
   // Inserção em lote evitando duplicados (chave não única declarada no schema original, usamos verificação manual)
@@ -290,6 +291,40 @@ async function seedProfessores(contaId: string) {
   console.log('[seed] professor pronto', { id: prof.id, nome: prof.nome, email: prof.email });
 }
 
+async function seedReceitas(contaId: string) {
+  const baseAno = 2024;
+  const meses = [1, 2, 3, 4, 5, 6, 7];
+
+  for (const mes of meses) {
+    const dataRef = new Date(baseAno, mes - 1, 5);
+
+    await prisma.receitaDashboard.upsert({
+      where: {
+        contaId_ano_mes: {
+          contaId,
+          ano: baseAno,
+          mes,
+        },
+      },
+      update: {
+        valorTotal: 2000 + mes * 500,
+      },
+      create: {
+        contaId,
+        ano: baseAno,
+        mes,
+        valorTotal: 2000 + mes * 500,
+        dataReferencia: dataRef,
+      },
+    });
+  }
+
+  console.log('[seed] receitas ficticias prontas', {
+    ano: baseAno,
+    meses,
+  });
+}
+
 async function main() {
   const conta = await ensureConta();
   const { modalidade, sala } = await seedModalidadeSala(conta.id);
@@ -302,6 +337,40 @@ async function main() {
   const descontos = await seedDescontos(conta.id);
   await seedProfessores(conta.id);
   await seedAlunos(conta.id);
+  await seedReceitas(conta.id);
+
+  // Matrícula elegível para rematrícula (contrato encerrado)
+  const aluno = await prisma.aluno.findFirst({ where: { contaId: conta.id } });
+  const plano = await prisma.plano.findFirst({ where: { contaId: conta.id } });
+  const turma = await prisma.turma.findFirst({ where: { contaId: conta.id } });
+  const responsavel = await prisma.responsavel.findFirst({ where: { email: 'mae@example.com' } });
+  if (aluno && plano && turma && responsavel) {
+    await prisma.matricula.create({
+      data: {
+        alunoId: aluno.id,
+        planoId: plano.id,
+        turmaId: turma.id,
+        responsavelFinanceiroId: responsavel.id,
+        dataInicio: new Date('2024-01-01'),
+        dataFim: new Date('2024-10-01'),
+        dataFimContrato: new Date('2024-10-01'),
+        status: 'CANCELADA', // status que permite renovação
+        statusFinanceiro: 'ADIMPLENTE',
+        statusContrato: 'ENCERRADO',
+        taxaMatricula: 100,
+        taxaStatus: 'PAGO',
+        taxaIsenta: false,
+        vencimentoDia: 5,
+        multaPercentual: 2,
+        jurosMensal: 1,
+        diasTolerancia: 5,
+        descontoAntecipado: 10,
+        prazoDesconto: 5,
+      },
+    });
+    console.log('[seed] matrícula elegível para rematrícula criada');
+  }
+
   // ==== Usuário administrador padrão (para login inicial) ====
   // IMPORTANTE: Estas credenciais são apenas para ambiente de DESENVOLVIMENTO.
   // Em produção faça UM DOS SEGUINTES imediatamente após o deploy:

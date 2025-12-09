@@ -28,6 +28,7 @@ import {
   createCustomer,
   isAsaasEnabled,
   AsaasEnvError,
+  getCurrentBrasiliaDate,
   type BillingType,
   type Cycle,
 } from '@alusa/lib/asaas';
@@ -78,6 +79,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     }
+    if (!session.user.contaId) {
+      return NextResponse.json({ error: 'Conta não encontrada na sessão' }, { status: 400 });
+    }
 
     // Verificar feature flag
     if (!isAsaasEnabled()) {
@@ -123,6 +127,8 @@ export async function POST(req: NextRequest) {
     // Determinar customer ID
     let customerId = providedCustomerId;
 
+    let contaId = session.user.contaId;
+
     if (!customerId) {
       // Priorizar responsável financeiro, depois aluno
       const targetEntity = matricula.responsavelFinanceiro || matricula.aluno;
@@ -152,7 +158,16 @@ export async function POST(req: NextRequest) {
           externalReference: targetEntity.id,
         };
 
-        const newCustomer = await createCustomer(customerData);
+        // Validar contaId do target
+        if (targetEntity.contaId && targetEntity.contaId !== session.user.contaId) {
+          return NextResponse.json({ error: 'Conta inválida' }, { status: 403 });
+        }
+        contaId = targetEntity.contaId ?? session.user.contaId;
+
+        const newCustomer = await createCustomer(customerData, {
+          contaId,
+          idempotencyKey: customerData.externalReference ?? customerData.cpfCnpj,
+        });
         customerId = newCustomer.id;
 
         // Atualizar banco com customerId
@@ -171,31 +186,38 @@ export async function POST(req: NextRequest) {
     }
 
     // Determinar valor da assinatura
-    const subscriptionValue = value || Number(matricula.plano.valor);
+    const subscriptionValue = value || Number(matricula.plano?.valor ?? 0);
 
     // Determinar próxima data de vencimento
     let dueDate = nextDueDate;
     if (!dueDate) {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth() + 1;
+      // ✅ Usar data atual no timezone de Brasília (timezone-safe)
+      const brasiliaDate = getCurrentBrasiliaDate();
       const day = matricula.vencimentoDia;
-      dueDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      dueDate = `${brasiliaDate.year}-${String(brasiliaDate.month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     }
 
     // Determinar ciclo baseado na periodicidade do plano
-    const subscriptionCycle = cycle || mapPeriodicidadeToCycle(matricula.plano.periodicidade);
+    const subscriptionCycle = cycle || mapPeriodicidadeToCycle(matricula.plano?.periodicidade ?? 'MENSAL');
 
     // Criar subscription no Asaas
-    const subscription = await createSubscription({
-      customer: customerId,
-      billingType: billingType as BillingType,
-      value: subscriptionValue,
-      nextDueDate: dueDate,
-      cycle: subscriptionCycle,
-      description: `Mensalidade ${matricula.plano.nome} - ${matricula.aluno.nome}`,
-      externalReference: matricula.id,
-    });
+    // Valida ownership da matrícula
+    if (matricula.aluno.contaId !== session.user.contaId) {
+      return NextResponse.json({ error: 'Conta inválida' }, { status: 403 });
+    }
+
+    const subscription = await createSubscription(
+      {
+        customer: customerId,
+        billingType: billingType as BillingType,
+        value: subscriptionValue,
+        nextDueDate: dueDate,
+        cycle: subscriptionCycle,
+        description: `Mensalidade ${matricula.plano?.nome ?? 'Plano'} - ${matricula.aluno.nome}`,
+        externalReference: matricula.id,
+      },
+      { contaId, idempotencyKey: matricula.id },
+    );
 
     // Atualizar matrícula com subscription ID
     await prisma.matricula.update({
@@ -203,10 +225,45 @@ export async function POST(req: NextRequest) {
       data: { asaasSubscriptionId: subscription.id },
     });
 
+    // Buscar o primeiro payment gerado e vincular à cobrança pendente
+    let linkedPaymentId: string | null = null;
+    try {
+      const { listSubscriptionPayments } = await import('@alusa/lib/asaas');
+      // Aguardar processamento do Asaas
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      const paymentsResult = await listSubscriptionPayments(subscription.id);
+
+      if (paymentsResult.data?.length > 0) {
+        const firstPayment = paymentsResult.data[0];
+        linkedPaymentId = firstPayment.id;
+
+        // Vincular à cobrança pendente da matrícula
+        const cobrancaPendente = await prisma.cobranca.findFirst({
+          where: {
+            matriculaId,
+            asaasPaymentId: null,
+          },
+          orderBy: { vencimento: 'asc' },
+        });
+
+        if (cobrancaPendente) {
+          await prisma.cobranca.update({
+            where: { id: cobrancaPendente.id },
+            data: { asaasPaymentId: linkedPaymentId },
+          });
+          console.log(`[API /asaas/subscriptions] Payment ${linkedPaymentId} vinculado à cobrança ${cobrancaPendente.id}`);
+        }
+      }
+    } catch (paymentErr) {
+      console.warn('[API /asaas/subscriptions] Erro ao buscar payment:', paymentErr);
+    }
+
     return NextResponse.json({
       success: true,
       subscription,
       customerId,
+      linkedPaymentId,
     });
   } catch (error) {
     console.error('[API /asaas/subscriptions] Erro:', error);

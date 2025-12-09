@@ -6,6 +6,7 @@ import EntityFiltersBar, { type SortOrder } from '@/components/layout/EntityFilt
 import Pagination from '@/components/layout/Pagination';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge, type StatusType } from '@/components/ui/status-badge';
 // Skeleton manual será substituído pelos skeletons do DataTable
 import { Plus, Edit3, Trash2 } from '@/components/icons/icons';
 import ConfirmDeleteDialog from '@/components/dialogs/ConfirmDeleteDialog';
@@ -280,15 +281,15 @@ function TurmasTable({ turmas, accountMissing, onEdit, onDelete, loading }: Turm
         <div className="flex flex-wrap gap-1 justify-center">
           {t.diasSemana.length > 0 ? (
             t.diasSemana.map((dia) => (
-              <Badge
+              <StatusBadge
                 key={dia}
-                className="bg-violet-50 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 text-[11px] font-medium"
-              >
-                {dia}
-              </Badge>
+                status={dia.toUpperCase() as StatusType}
+                showIcon={false}
+                size="sm"
+              />
             ))
           ) : (
-            <Badge className="bg-gray-100 text-gray-600 border-gray-200 rounded-full px-2 py-0.5 text-[11px] font-medium">
+            <Badge className="rounded-full px-2.5 py-0.5 text-xs border inline-flex items-center gap-1.5 font-medium bg-gray-100 text-gray-600 border-gray-300">
               Sem dias
             </Badge>
           )}
@@ -321,20 +322,20 @@ function TurmasTable({ turmas, accountMissing, onEdit, onDelete, loading }: Turm
               {t.professores.slice(0, 3).map((professor) => (
                 <Badge
                   key={professor.id}
-                  className="bg-violet-50 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  className="rounded-full px-2.5 py-0.5 text-xs border inline-flex items-center gap-1.5 font-medium bg-violet-100 text-violet-700 border-violet-300"
                   title={professor.nome}
                 >
                   {professor.nome.split(' ').slice(0, 2).join(' ')}
                 </Badge>
               ))}
               {t.professores.length > 3 && (
-                <Badge className="bg-violet-100 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 text-[11px] font-medium">
+                <Badge className="rounded-full px-2.5 py-0.5 text-xs border inline-flex items-center gap-1.5 font-medium bg-violet-100 text-violet-700 border-violet-300">
                   +{t.professores.length - 3}
                 </Badge>
               )}
             </>
           ) : (
-            <Badge className="bg-violet-50 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 text-[11px] font-medium">
+            <Badge className="rounded-full px-2.5 py-0.5 text-xs border inline-flex items-center gap-1.5 font-medium bg-violet-100 text-violet-700 border-violet-300">
               {t.professoresCount > 0 ? `${t.professoresCount} prof.` : 'Sem professor'}
             </Badge>
           )}
@@ -348,7 +349,7 @@ function TurmasTable({ turmas, accountMissing, onEdit, onDelete, loading }: Turm
       width: 'w-1/6',
       align: 'center',
       render: (t) => (
-        <Badge className="bg-violet-50 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 text-[11px] font-medium">
+        <Badge className="rounded-full px-2.5 py-0.5 text-xs border inline-flex items-center gap-1.5 font-medium bg-violet-100 text-violet-700 border-violet-300">
           {t.capacidade}
         </Badge>
       ),

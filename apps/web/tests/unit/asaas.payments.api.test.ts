@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST, GET } from '@/app/api/asaas/payments/route';
 import { NextRequest } from 'next/server';
 import * as asaasLib from '@alusa/lib/asaas';
+import type { AsaasPayment as PaymentEntity } from '@alusa/lib/asaas/payment';
 
 // Mock do Prisma
 vi.mock('@/src/prisma', () => ({
@@ -38,15 +39,23 @@ describe('POST /api/asaas/payments', () => {
 
   it('deve criar payment com dados customizados', async () => {
     // Arrange
-    const mockPayment = {
+    const mockPayment: PaymentEntity = {
+      object: 'payment',
       id: 'pay_123',
+      dateCreated: '2025-01-01',
       customer: 'cus_123',
       value: 199.9,
+      netValue: 199.9,
+      billingType: 'BOLETO',
       dueDate: '2025-10-10',
       status: 'PENDING',
+      canBePaidAfterDueDate: false,
+      deleted: false,
+      anticipated: false,
+      anticipable: true,
     };
 
-    vi.mocked(asaasLib.createPayment).mockResolvedValue(mockPayment as asaasLib.AsaasPayment);
+    vi.mocked(asaasLib.createPayment).mockResolvedValue(mockPayment);
 
     const request = new NextRequest('http://localhost:3001/api/asaas/payments', {
       method: 'POST',

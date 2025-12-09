@@ -1,2 +1,2 @@
 -- AlterEnum
-ALTER TYPE "TipoCobranca" ADD VALUE 'AVULSA';
+ALTER TYPE "TipoCobranca" ADD VALUE IF NOT EXISTS 'AVULSA';

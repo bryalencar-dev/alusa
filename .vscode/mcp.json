@@ -1,0 +1,19 @@
+{
+  "servers": {
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"],
+      "cwd": "${workspaceFolder}/apps/web"
+    },
+    "alusadb": {
+      "command": "npx",
+      "args": ["dotenv", "-e", ".env", "--", "tsx", "mcp/postgres-server.ts"],
+      "cwd": "${workspaceFolder}"
+    },
+    "asaas7": {
+      "command": "npx",
+      "args": ["dotenv", "-e", ".env", "--", "tsx", "mcp/asaas/server.ts"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

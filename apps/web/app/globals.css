@@ -123,26 +123,49 @@ html {
 
 /* Scrollbars globais (WebKit: Chrome, Edge, Safari) */
 ::-webkit-scrollbar {
-	width: 10px;
-	height: 10px;
+	width: 8px;
+	height: 8px;
 }
 ::-webkit-scrollbar-track {
 	background: transparent; /* preserva transparência para modais/dialogs */
 }
 ::-webkit-scrollbar-thumb {
-	background-color: var(--scrollbar-thumb);
-	border-radius: 9999px; /* totalmente arredondado */
-	border: 2px solid transparent; /* cria "respiro" interno (fina) */
-	background-clip: content-box;
+	background-color: #d1d5db; /* cinza claro */
+	border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-	background-color: var(--scrollbar-thumb-hover);
+	background-color: #9ca3af; /* cinza um pouco mais escuro no hover */
 }
 /* Remove setas quadradas padrão */
 ::-webkit-scrollbar-button {
 	width: 0;
 	height: 0;
 	display: none;
+}
+
+/* Scrollbar fino dentro dos cards de Configurações */
+.settings-scroll-area {
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+	scrollbar-color: #d1d5db transparent;
+}
+
+.settings-scroll-area::-webkit-scrollbar {
+	width: 6px;
+}
+
+.settings-scroll-area::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.settings-scroll-area::-webkit-scrollbar-thumb {
+	background-color: #d1d5db;
+	border-radius: 999px;
+}
+
+.settings-scroll-area::-webkit-scrollbar-thumb:hover {
+	background-color: #9ca3af;
 }
 
 /* Remove outline/focus ring de todos os elementos */
@@ -650,4 +673,23 @@ svg:hover,
 [data-radix-select-item][data-highlighted] {
 	background-color: #faf5ff !important; /* purple-50 */
 	color: #7c3aed !important; /* purple-600 */
+}
+
+/* Estilos para cmdk (autocomplete) - cores mais suaves */
+[cmdk-item] {
+	color: #111827 !important; /* text-gray-900 */
+	background-color: white !important;
+	transition: background-color 0.15s ease;
+}
+
+[cmdk-item]:hover,
+[cmdk-item][data-highlighted],
+[cmdk-item][aria-selected="true"],
+[cmdk-item][data-selected="true"] {
+	background-color: #f3f4f6 !important; /* gray-100 - suave */
+	color: #111827 !important; /* text-gray-900 */
+}
+
+[cmdk-item]:active {
+	background-color: #e5e7eb !important; /* gray-200 */
 }

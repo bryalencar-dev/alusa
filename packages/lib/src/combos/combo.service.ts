@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, PeriodicidadePlano } from '@prisma/client';
 import { prisma } from '../prisma';
 import {
   comboCreateSchema,
@@ -19,14 +19,9 @@ interface RawCombo {
   contaId: string;
   nome: string;
   descricao: string | null;
-  valorMensal: Prisma.Decimal | number;
-  taxaMatricula: Prisma.Decimal | number | null;
-  categoriaMensal: string | null;
-  categoriaTaxa: string | null;
+  valor: Prisma.Decimal | number;
+  periodicidade: PeriodicidadePlano;
   status: string;
-  modoMatricula: string;
-  vigenciaIni: Date | null;
-  vigenciaFim: Date | null;
   vagasLimite: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -39,14 +34,9 @@ function toComboDTO(combo: RawCombo): ComboDTO {
     contaId: combo.contaId,
     nome: combo.nome,
     descricao: combo.descricao ?? null,
-    valorMensal: Number(combo.valorMensal),
-    taxaMatricula: combo.taxaMatricula == null ? null : Number(combo.taxaMatricula),
-    categoriaMensal: combo.categoriaMensal ?? null,
-    categoriaTaxa: combo.categoriaTaxa ?? null,
+    valor: Number(combo.valor),
+    periodicidade: combo.periodicidade,
     status: combo.status,
-    modoMatricula: combo.modoMatricula,
-    vigenciaIni: combo.vigenciaIni ?? null,
-    vigenciaFim: combo.vigenciaFim ?? null,
     vagasLimite: combo.vagasLimite ?? null,
     turmas: (combo.turmas || []).map((ct: { turma: { id: string; nome: string } }) => ({
       id: ct.turma.id,
@@ -87,15 +77,9 @@ export async function createCombo(input: ComboCreateInput): Promise<ComboDTO> {
       contaId: parsed.contaId,
       nome: parsed.nome,
       descricao: parsed.descricao,
-      valorMensal: toDecimal(parsed.valorMensal),
-      taxaMatricula:
-        parsed.taxaMatricula === undefined ? undefined : toDecimal(parsed.taxaMatricula),
-      categoriaMensal: parsed.categoriaMensal,
-      categoriaTaxa: parsed.categoriaTaxa,
+      valor: toDecimal(parsed.valor),
+      periodicidade: parsed.periodicidade as PeriodicidadePlano,
       status: parsed.status ?? 'ATIVO',
-      modoMatricula: parsed.modoMatricula,
-      vigenciaIni: parsed.vigenciaIni,
-      vigenciaFim: parsed.vigenciaFim,
       vagasLimite: parsed.vagasLimite,
       turmas:
         parsed.turmaIds && parsed.turmaIds.length
@@ -130,15 +114,9 @@ export async function updateCombo(input: ComboUpdateInput): Promise<ComboDTO> {
   const data: Prisma.ComboUpdateInput = {};
   if (parsed.nome !== undefined) data.nome = parsed.nome;
   if (parsed.descricao !== undefined) data.descricao = parsed.descricao;
-  if (parsed.valorMensal !== undefined) data.valorMensal = toDecimal(parsed.valorMensal);
-  if (parsed.taxaMatricula !== undefined)
-    data.taxaMatricula = parsed.taxaMatricula == null ? null : toDecimal(parsed.taxaMatricula);
-  if (parsed.categoriaMensal !== undefined) data.categoriaMensal = parsed.categoriaMensal;
-  if (parsed.categoriaTaxa !== undefined) data.categoriaTaxa = parsed.categoriaTaxa;
+  if (parsed.valor !== undefined) data.valor = toDecimal(parsed.valor);
+  if (parsed.periodicidade !== undefined) data.periodicidade = parsed.periodicidade as PeriodicidadePlano;
   if (parsed.status !== undefined) data.status = parsed.status;
-  if (parsed.modoMatricula !== undefined) data.modoMatricula = parsed.modoMatricula;
-  if (parsed.vigenciaIni !== undefined) data.vigenciaIni = parsed.vigenciaIni;
-  if (parsed.vigenciaFim !== undefined) data.vigenciaFim = parsed.vigenciaFim;
   if (parsed.vagasLimite !== undefined) data.vagasLimite = parsed.vagasLimite;
 
   const turmasUpdate = parsed.turmaIds

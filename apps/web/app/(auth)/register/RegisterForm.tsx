@@ -83,9 +83,15 @@ type FormValues = {
 };
 
 interface InviteData {
-  email: string;
+  email?: string; // Opcional para RESPONSAVEL
   role: string;
   token: string;
+  alunos?: Array<{
+    id: string;
+    nome: string;
+    email: string | null;
+    idade: number | null;
+  }>;
 }
 
 type RegisterMode = 'first' | 'invite';
@@ -137,6 +143,7 @@ export default function RegisterForm({ inviteData }: RegisterFormProps) {
         payload = {
           token: inviteData.token,
           name: `${data.firstName} ${data.lastName}`.trim(),
+          email: data.email, // Envia o email (pode ser do convite ou digitado pelo usuário)
           password: data.senha,
         };
       }
@@ -280,6 +287,33 @@ export default function RegisterForm({ inviteData }: RegisterFormProps) {
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted" aria-hidden><IdCard className="h-4 w-4" /></span>
           </div>
         </div>
+        {/* Alunos vinculados (quando for RESPONSAVEL) */}
+        {mode === 'invite' && inviteData?.alunos && inviteData.alunos.length > 0 && (
+          <div className="p-4 bg-violet-50 rounded-lg border border-violet-200">
+            <h2 className="text-sm font-semibold text-violet-900 mb-3">
+              Você será responsável por {inviteData.alunos.length === 1 ? 'este aluno' : 'estes alunos'}:
+            </h2>
+            <div className="space-y-2">
+              {inviteData.alunos.map((aluno) => (
+                <div key={aluno.id} className="flex items-center gap-3 bg-white p-3 rounded-md">
+                  <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-semibold text-sm">
+                    {aluno.nome.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900 text-sm">{aluno.nome}</p>
+                    {aluno.email && (
+                      <p className="text-xs text-gray-500">{aluno.email}</p>
+                    )}
+                    {aluno.idade && (
+                      <p className="text-xs text-gray-500">{aluno.idade} anos</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <div>
           <div className="relative h-12">
             <input
@@ -290,9 +324,8 @@ export default function RegisterForm({ inviteData }: RegisterFormProps) {
               aria-invalid={undefined}
               className="w-full h-12 rounded-[30px] border border-gray-300 bg-white pl-5 pr-11 text-[14px] font-medium text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-300 focus:ring-0 disabled:bg-gray-100"
               {...register('email')}
-              value={mode === 'invite' ? (inviteData?.email ?? '') : undefined}
-              readOnly={mode === 'invite'}
-              disabled={mode === 'invite'}
+              readOnly={mode === 'invite' && !!inviteData?.email}
+              disabled={mode === 'invite' && !!inviteData?.email}
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-brand-muted" aria-hidden><Mail className="h-4 w-4" /></span>
           </div>

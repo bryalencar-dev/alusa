@@ -106,6 +106,22 @@ export interface AsaasPayment {
   creditDate?: string;
   estimatedCreditDate?: string;
   refunds?: unknown;
+  creditCard?: {
+    creditCardNumber?: string;
+    creditCardBrand?: string;
+    creditCardToken?: string;
+  };
+  discount?: {
+    value?: number;
+    dueDateLimitDays?: number;
+    type?: string;
+  };
+  interest?: {
+    value?: number;
+  };
+  fine?: {
+    value?: number;
+  };
 }
 
 /**
@@ -127,16 +143,23 @@ export interface AsaasPayment {
  * console.log(payment.id); // 'pay_000000000000'
  * ```
  */
+type PaymentRequestOptions = { contaId?: string; idempotencyKey?: string };
+
 export async function createPayment(
   input: CreatePaymentInput,
-  opts?: { contaId?: string },
+  opts?: PaymentRequestOptions,
 ): Promise<AsaasPayment> {
   // Validar input
   const validated = createPaymentSchema.parse(input);
 
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
+  const idempotencyKey = opts?.idempotencyKey ?? validated.externalReference;
 
-  const response = await client.post<AsaasPayment>('/payments', validated);
+  const response = await client.post<AsaasPayment>(
+    '/payments',
+    validated,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined,
+  );
 
   return response.data;
 }
@@ -159,20 +182,41 @@ export async function getPayment(
 }
 
 /**
+ * Input para atualização de pagamento
+ * @see https://docs.asaas.com/reference/atualizar-cobranca-existente
+ */
+export type UpdatePaymentInput = Partial<CreatePaymentInput> & {
+  /**
+   * Configuração de callback para redirecionamento após pagamento
+   */
+  callback?: {
+    successUrl: string;
+    autoRedirect?: boolean;
+  };
+};
+
+/**
  * Atualiza um pagamento existente
  *
+ * @see PUT /v3/payments/{id} - https://docs.asaas.com/reference/atualizar-cobranca-existente
  * @param paymentId - ID do pagamento no Asaas
  * @param input - Dados para atualizar
  * @returns Pagamento atualizado
  */
 export async function updatePayment(
   paymentId: string,
-  input: Partial<CreatePaymentInput>,
-  opts?: { contaId?: string },
+  input: UpdatePaymentInput,
+  opts?: PaymentRequestOptions,
 ): Promise<AsaasPayment> {
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
+  const idempotencyKey = opts?.idempotencyKey ?? input.externalReference;
 
-  const response = await client.post<AsaasPayment>(`/payments/${paymentId}`, input);
+  // Asaas usa PUT para atualizar cobranças
+  const response = await client.put<AsaasPayment>(
+    `/payments/${paymentId}`,
+    input,
+    idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined,
+  );
 
   return response.data;
 }
@@ -298,6 +342,26 @@ export async function undoCashPayment(
   const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
 
   const response = await client.post<AsaasPayment>(`/payments/${paymentId}/undoReceivedInCash`);
+
+  return response.data;
+}
+
+/**
+ * Recupera dados do QR Code PIX de um pagamento existente
+ */
+export interface PixQrCodeResponse {
+  encodedImage?: string;
+  payload?: string;
+  expirationDate?: string;
+}
+
+export async function getPixQrCode(
+  paymentId: string,
+  opts?: { contaId?: string },
+): Promise<PixQrCodeResponse> {
+  const client = opts?.contaId ? await getAsaasClientForConta(opts.contaId) : getAsaasClient();
+
+  const response = await client.get<PixQrCodeResponse>(`/payments/${paymentId}/pixQrCode`);
 
   return response.data;
 }

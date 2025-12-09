@@ -98,8 +98,13 @@ async function checkAsaasConnection() {
   console.log('🔌 Testando conexão com Asaas...\n');
 
   try {
+    const baseUrl =
+      process.env.ASAAS_ENVIRONMENT === 'production'
+        ? 'https://api.asaas.com/v3'
+        : 'https://api-sandbox.asaas.com/v3';
+
     const response = await fetch(
-      `${process.env.ASAAS_ENVIRONMENT === 'production' ? 'https://api.asaas.com' : 'https://sandbox.asaas.com/api'}/v3/customers?limit=1`,
+      `${baseUrl}/customers?limit=1`,
       {
         headers: {
           access_token: process.env.ASAAS_API_KEY,

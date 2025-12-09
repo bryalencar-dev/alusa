@@ -44,15 +44,16 @@ async function ensureMigrations() {
 
     if (!rows[0]?.exists) {
       console.log('⚠️  Tabelas não encontradas. Aplicando migrações...');
-      execSync('pnpm prisma migrate deploy --schema=prisma/schema.prisma', {
-        stdio: 'inherit',
-        cwd: projectDir,
-        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
-      });
-      console.log('✅ Migrações aplicadas com sucesso!');
     } else {
-      console.log('✅ Migrações já estão aplicadas.');
+      console.log('✅ Estrutura base encontrada. Aplicando migrações pendentes...');
     }
+
+    execSync('pnpm prisma migrate deploy --schema=prisma/schema.prisma', {
+      stdio: 'inherit',
+      cwd: projectDir,
+      env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+    });
+    console.log('✅ Migrações sincronizadas com sucesso!');
   } catch (error) {
     console.error('❌ Erro ao verificar/aplicar migrações:', error);
     try {

@@ -107,8 +107,8 @@ export function useMatriculaSubmit(options: UseMatriculaSubmitOptions = {}) {
       const result: MatriculaResponse = await response.json();
       setData(result);
 
-      // Copiar link de checkout para área de transferência se for cartão
-      if (result.checkoutToken && payload?.formaPagamento === 'CARTAO') {
+      // Copiar link de checkout para área de transferência automaticamente (APENAS PARA CARTÃO)
+      if (result.checkoutToken && wizardState.formaPagamentoTaxa === 'CARTAO') {
         const checkoutUrl = `${window.location.origin}/checkout/${result.checkoutToken}`;
         try {
           await navigator.clipboard.writeText(checkoutUrl);
@@ -117,11 +117,11 @@ export function useMatriculaSubmit(options: UseMatriculaSubmitOptions = {}) {
               <CustomToast
                 variant="success"
                 title="Link de checkout copiado!"
-                description={`Link copiado para área de transferência: ${checkoutUrl}`}
+                description="Link copiado para área de transferência e pronto para colar!"
                 onClose={() => toast.dismiss(t)}
               />
             ),
-            { duration: 8000 },
+            { duration: 5000 },
           );
         } catch (clipboardError) {
           console.warn('[useMatriculaSubmit] Erro ao copiar para clipboard:', clipboardError);
@@ -156,9 +156,23 @@ export function useMatriculaSubmit(options: UseMatriculaSubmitOptions = {}) {
       // Callback de sucesso
       options.onSuccess?.(result);
 
-      // Redirecionar se configurado
+      // Redirecionar para checkout se houver taxa não isenta
       if (options.redirectOnSuccess !== false) {
-        router.push(`/matriculas/${result.matricula.id}`);
+        if (
+          !result.matricula.taxaIsenta &&
+          result.cobrancas?.taxa?.id &&
+          wizardState.formaPagamentoTaxa
+        ) {
+          // PIX → pix-boleto (cliente escolhe no checkout)
+          // CARTAO → cartao (direto)
+          const formaPagamento = wizardState.formaPagamentoTaxa.toLowerCase();
+          const checkoutPath = formaPagamento === 'pix' ? 'pix-boleto' : formaPagamento;
+          const checkoutUrl = `/checkout/${checkoutPath}/${result.cobrancas.taxa.id}`;
+          console.log('[useMatriculaSubmit] Redirecionando para checkout:', checkoutUrl);
+          router.push(checkoutUrl);
+        } else {
+          router.push(`/matriculas/${result.matricula.id}`);
+        }
       }
 
       return result;

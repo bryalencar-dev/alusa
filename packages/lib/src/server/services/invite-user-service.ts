@@ -74,7 +74,8 @@ export async function acceptInvite(token: string, nome: string, senhaHash: strin
   }
   if (!contaId) throw new InvalidInviteError();
 
-  const email = invite.email.toLowerCase().trim();
+  const email = (invite.email ?? '').toLowerCase().trim();
+  if (!email) throw new InvalidInviteError();
   const exists = await prisma.usuario.findUnique({ where: { email } });
   if (exists) throw new UserAlreadyExistsError();
 

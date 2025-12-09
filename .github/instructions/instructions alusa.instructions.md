@@ -546,7 +546,7 @@ Antes de marcar como completo, valide:
 2. ✅ **Implementar fatias verticais completas** (backend + frontend + testes)
 3. ✅ **Seguir boas práticas** (clean code, clean arch, tipos fortes)
 4. ✅ **Evitar retrabalho** validando dependências antes de começar
-5. ✅ **Entregar documentação clara** do que foi feito e como testar
+5. ✅ **Entregar documentação clara, apenas quando completar e cobrir tudo o que foi feito, exemplo: solicitei uma refatoração, entregue a documentação apenas quando concluir todas as etapas e estiver tudo funcional** do que foi feito e como testar
 6. ✅ **Garantir qualidade** com testes >= 80% de cobertura
 7. ✅ **Perguntar antes de assumir** quando houver ambiguidade
 

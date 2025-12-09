@@ -6,6 +6,7 @@ export * from './math';
 export * from './alunos/aluno.schema';
 export * from './alunos/aluno.service';
 export * from './services/matricula';
+export * from './services/rematricula';
 // Turmas
 export * from './schemas/turma.schema';
 export * from './services/turma.service';
@@ -41,3 +42,21 @@ export * from './utils/mask';
 export * from './asaas';
 // Integrações / Credenciais
 export * from './services/integracoes/asaas-credentials-service';
+export * from './services/integracoes/asaas-notifications.service';
+// Sincronização de Matrículas
+export {
+  syncMatriculaStatus,
+  resendTaxaMatricula,
+  ManualSyncError,
+  type SyncMatriculaStatusInput,
+  type SyncMatriculaStatusResult,
+  type ResendTaxaMatriculaInput,
+  type ResendTaxaMatriculaResult,
+} from './services/integracoes/matricula-sync.service';
+
+// Jobs
+export {
+  encerrarContratosExpirados,
+  listarContratosProximosDeExpirar,
+  type EncerrarContratosResult,
+} from './jobs/encerrar-contratos-expirados';

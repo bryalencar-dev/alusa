@@ -1,15 +1,7 @@
-import nextDynamic from 'next/dynamic';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
 import { redirect } from 'next/navigation';
-
-const AsaasCredentialsForm = nextDynamic(
-  () =>
-    import('../../../../../features/integracoes/asaas/AsaasCredentialsForm').then(
-      (m) => m.AsaasCredentialsForm,
-    ),
-  { ssr: false },
-);
+import { authOptions } from '@/lib/auth-options';
+import { IntegracoesFeature } from '@/features/integracoes/IntegracoesFeature';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -23,20 +15,18 @@ export default async function ConfigIntegracoesPage() {
     redirect('/admin/configuracoes');
   }
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-base font-semibold text-gray-900">Integrações</h2>
-        <p className="mt-1 text-sm text-gray-600 max-w-prose">
-          Configure credenciais de serviços externos utilizados nos fluxos financeiros.
+    <div className="rounded-lg bg-white p-6">
+      <header className="space-y-1">
+        <h2 className="text-xl md:text-2xl font-medium tracking-tight text-gray-900">Integrações</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Conecte os serviços que sustentam cobranças, notificações e demais automações da Alusa. Os
+          cards abaixo exibem o status atualizado de cada integração e as ações necessárias para
+          mantê-las saudáveis.
         </p>
+      </header>
+      <div className="mt-4">
+        <IntegracoesFeature />
       </div>
-      <section className="space-y-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <h3 className="font-medium mb-2">Asaas</h3>
-          <p className="text-xs text-gray-500 mb-4">Armazene o Token da API do Asaas por conta. O valor é mascarado após salvar.</p>
-          <AsaasCredentialsForm />
-        </div>
-      </section>
     </div>
   );
 }

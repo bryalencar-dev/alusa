@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 // Constante de debounce pode ficar em nível de módulo (não é hook)
 const DEBOUNCE_MS = 500;
 import { useSession } from 'next-auth/react';
+import { useUserStore } from '@/lib/stores/user-store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import CardHeader from '@/components/layout/CardHeader';
 import useCurrentUser from '@/hooks/use-current-user';
@@ -13,19 +14,27 @@ import { toast } from 'sonner';
 import { CustomToast } from '@/components/CustomToast';
 import { createModalidade } from '@/features/cadastro/modalidades/services/modalidades-service';
 import { createSala } from '@/features/cadastro/salas/services/salas-service';
+import { CustomScrollArea } from '@/components/ui/custom-scroll-area';
 
 /** Espaçamentos já validados por você */
 const CONTENT_GAP_PX = 12;
 const OUTER_PADDING_TOP_PX = 20;
 const OUTER_PADDING_RIGHT_PX = 24; // igual ao padding inferior
 const OUTER_PADDING_BOTTOM_PX = 24;
+const OUTER_PADDING_LEFT_PX = 12; // espaço para sombra do card não ser cortada
 const CARD_PADDING_PX = 32;
 const CARD_RADIUS_PX = 40;
 const CARD_SHADOW =
   'rgba(14, 63, 126, 0.06) 0px 0px 0px 1px, rgba(42, 51, 70, 0.03) 0px 1px 1px -0.5px, rgba(42, 51, 70, 0.04) 0px 2px 2px -1px, rgba(42, 51, 70, 0.04) 0px 3px 3px -1.5px, rgba(42, 51, 70, 0.03) 0px 5px 5px -2.5px, rgba(42, 51, 70, 0.03) 0px 10px 10px -5px, rgba(42, 51, 70, 0.03) 0px 24px 24px -8px';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  useSession(); // mantém hidratação de sessão caso necessário
+  const { data: session } = useSession();
+  // Hidrata a store central de usuário sempre que a sessão muda (garante persistência do avatar no header)
+  // Obter função diretamente via getState evita problemas de tipagem durante CI/sem node_modules
+  const setUser = useUserStore.getState().setUser;
+  useEffect(() => {
+    setUser(session?.user ?? null);
+  }, [session, setUser]);
 
   // Health ping em dev
   useEffect(() => {
@@ -52,11 +61,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // (Mantemos session effect/health ping para consistência.)
 
   return (
-    <div className="relative min-h-screen w-full app-surface-bg">
+    <div className="relative h-screen w-full app-surface-bg overflow-hidden">
       <Sidebar />
 
       <main
-        className="with-sidebar transition-[padding-left] duration-300 ease-in-out overflow-visible"
+        className="with-sidebar h-full overflow-hidden transition-[padding-left] duration-300 ease-in-out"
         style={{ ['--sidebar-gap' as string]: `${CONTENT_GAP_PX}px` } as Record<string, string>}
       >
         <div
@@ -64,13 +73,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             paddingTop: OUTER_PADDING_TOP_PX,
             paddingRight: OUTER_PADDING_RIGHT_PX,
             paddingBottom: OUTER_PADDING_BOTTOM_PX,
+            paddingLeft: OUTER_PADDING_LEFT_PX,
           }}
-          className="overflow-visible"
+          className="h-full overflow-visible"
         >
           <div
-            className="w-full transition-[width] duration-300 ease-in-out overflow-visible"
+            className="flex h-full w-full flex-col overflow-hidden transition-[width] duration-300 ease-in-out"
             style={{
-              minHeight: `calc(100vh - ${OUTER_PADDING_TOP_PX + OUTER_PADDING_BOTTOM_PX}px)`,
+              height: `calc(100vh - ${OUTER_PADDING_TOP_PX + OUTER_PADDING_BOTTOM_PX}px)`,
               background: '#FFFFFF',
               borderRadius: CARD_RADIUS_PX,
               padding: CARD_PADDING_PX,
@@ -80,7 +90,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             }}
           >
             <CardHeader />
-            <div className="mt-6">{children}</div>
+            {/* Wrapper para o conteúdo das páginas com scroll vertical */}
+            <CustomScrollArea className="mt-6 flex-1">{children}</CustomScrollArea>
             <GlobalQuickCreatePortals />
           </div>
         </div>

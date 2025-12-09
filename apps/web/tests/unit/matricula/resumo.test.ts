@@ -108,6 +108,7 @@ describe('Validações Resumo', () => {
         taxaIsenta: true,
         taxaMatricula: 0,
         dataInicio: '2025-10-15',
+        dataFimContrato: '2026-10-15',
         vencimentoDia: 10,
         formaPagamento: 'PIX',
         confirmacaoRevisao: true,
@@ -148,7 +149,7 @@ describe('Validações Resumo', () => {
   });
 
   describe('gerarResumoFinanceiro', () => {
-    it('calcula valores sem desconto', () => {
+    it('calcula valores corretamente', () => {
       const resumo = gerarResumoFinanceiro({
         planoValor: 150,
         taxaMatricula: 120,
@@ -157,8 +158,6 @@ describe('Validações Resumo', () => {
 
       expect(resumo.valorPlano).toBe(150);
       expect(resumo.valorTaxa).toBe(120);
-      expect(resumo.descontoAplicado).toBe(0);
-      expect(resumo.mensalidadeFinal).toBe(150);
       expect(resumo.totalInicial).toBe(270);
     });
 
@@ -171,32 +170,6 @@ describe('Validações Resumo', () => {
 
       expect(resumo.valorTaxa).toBe(0);
       expect(resumo.totalInicial).toBe(150);
-    });
-
-    it('aplica desconto fixo', () => {
-      const resumo = gerarResumoFinanceiro({
-        planoValor: 150,
-        taxaMatricula: 0,
-        taxaIsenta: true,
-        descontoTipo: 'FIXO',
-        descontoValor: 30,
-      });
-
-      expect(resumo.descontoAplicado).toBe(30);
-      expect(resumo.mensalidadeFinal).toBe(120);
-    });
-
-    it('aplica desconto percentual', () => {
-      const resumo = gerarResumoFinanceiro({
-        planoValor: 150,
-        taxaMatricula: 0,
-        taxaIsenta: true,
-        descontoTipo: 'PERCENTUAL',
-        descontoValor: 20,
-      });
-
-      expect(resumo.descontoAplicado).toBe(30); // 20% de 150
-      expect(resumo.mensalidadeFinal).toBe(120);
     });
   });
 
@@ -271,11 +244,11 @@ describe('Validações Resumo', () => {
     it('avisa desconto alto', () => {
       const warnings = gerarWarningsRevisao({
         planoValor: 100,
-        descontoTipo: 'PERCENTUAL',
-        descontoValor: 40,
+        descontoTipo: 'PERCENTAGE',
+        descontoAntecipado: 40,
       });
 
-      expect(warnings.some((w) => w.includes('Desconto alto'))).toBe(true);
+      expect(warnings.some((w) => w.includes('Desconto'))).toBe(true);
     });
 
     it('avisa data muito distante', () => {
@@ -295,8 +268,8 @@ describe('Validações Resumo', () => {
         taxaIsenta: true,
         taxaJustificativa: 'Aluno bolsista integral',
         planoValor: 100,
-        descontoValor: 10,
-        descontoTipo: 'PERCENTUAL',
+        descontoAntecipado: 10,
+        descontoTipo: 'PERCENTAGE',
         dataInicio: new Date().toISOString().slice(0, 10),
       });
 
@@ -329,6 +302,7 @@ describe('Validações Resumo', () => {
         taxaIsenta: true,
         taxaMatricula: 0,
         dataInicio: '2025-10-15',
+        dataFimContrato: '2026-10-15',
         vencimentoDia: 10,
         formaPagamento: 'PIX',
         confirmacaoRevisao: true,
@@ -364,6 +338,7 @@ describe('Validações Resumo', () => {
         taxaIsenta: false,
         taxaMatricula: 120,
         dataInicio: '2025-10-15',
+        dataFimContrato: '2026-10-15',
         vencimentoDia: 10,
         formaPagamento: 'PIX' as const,
         confirmacaoRevisao: true,
@@ -381,6 +356,7 @@ describe('Validações Resumo', () => {
         taxaIsenta: true,
         taxaMatricula: 0,
         dataInicio: '2025-10-15',
+        dataFimContrato: '2026-10-15',
         vencimentoDia: 10,
         formaPagamento: 'PIX' as const,
         confirmacaoRevisao: true,
@@ -399,6 +375,7 @@ describe('Validações Resumo', () => {
         taxaIsenta: true,
         taxaMatricula: 0,
         dataInicio: '2025-10-15',
+        dataFimContrato: '2026-10-15',
         vencimentoDia: 10,
         formaPagamento: 'PIX' as const,
         confirmacaoRevisao: true,
@@ -417,6 +394,7 @@ describe('Validações Resumo', () => {
         taxaIsenta: true,
         taxaMatricula: 0,
         dataInicio: '2025-10-15',
+        dataFimContrato: '2026-10-15',
         vencimentoDia: 10,
         formaPagamento: 'PIX' as const,
         confirmacaoRevisao: false,

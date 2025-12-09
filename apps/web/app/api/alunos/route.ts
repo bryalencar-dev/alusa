@@ -150,6 +150,10 @@ export async function POST(request: NextRequest) {
     }
 
     const aluno = await createAluno(parsed);
+
+    // NOTA: syncAlunoWithAsaas já é chamado dentro de createAluno()
+    // Não é necessário chamar createAsaasCustomerForAluno aqui para evitar duplicação
+
     return NextResponse.json(aluno, { status: 201 });
   } catch (error) {
     console.error('Erro ao criar aluno:', error);

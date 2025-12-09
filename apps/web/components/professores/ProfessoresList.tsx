@@ -10,7 +10,7 @@ import Pagination from '@/components/layout/Pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Edit3, Trash2 } from '@/components/icons/icons';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { toast } from 'sonner';
 import { CustomToast } from '@/components/CustomToast';
 import { useSession } from 'next-auth/react';
@@ -175,13 +175,7 @@ export default function ProfessoresList() {
                         {p.telefoneCel || '-'}
                       </div>
                       <div className="col-span-1 flex justify-center">
-                        {p.status === 'ATIVO' ? (
-                          <Badge className="bg-green-100 text-green-700 border-green-200">
-                            Ativo
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-red-100 text-red-700 border-red-200">Inativo</Badge>
-                        )}
+                        <StatusBadge status={p.status === 'ATIVO' ? 'ATIVO' : 'INATIVO'} />
                       </div>
                       <div className="col-span-1 flex justify-end gap-1">
                         <Button

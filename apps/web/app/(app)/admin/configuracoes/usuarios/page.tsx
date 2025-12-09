@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge, type StatusType } from '@/components/ui/status-badge';
 import { CustomToast } from '@/components/CustomToast';
 import { Edit3, Trash2, Search } from '@/components/icons/icons';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,7 @@ import UsuarioEditDialog from '@/components/usuarios/UsuarioEditDialog';
 import InviteLinkModal from '@/components/invite/InviteLinkModal';
 import { buildInviteUrl } from '@alusa/lib/client';
 
-type Role = 'PROFESSOR' | 'RECEPCAO' | 'FINANCEIRO' | 'RESPONSAVEL' | 'ADMIN';
+type Role = 'PROFESSOR' | 'RECEPCAO' | 'FINANCEIRO' | 'RESPONSAVEL' | 'ALUNO' | 'ADMIN';
 type UserStatus = 'ATIVO' | 'INATIVO';
 type InviteStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
 
@@ -54,6 +55,13 @@ export default function ConfigUsuariosPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [lastInviteEmail, setLastInviteEmail] = useState<string | undefined>(undefined);
+  
+  // Alunos (para RESPONSAVEL)
+  const [selectedAlunos, setSelectedAlunos] = useState<string[]>([]);
+  const [alunosList, setAlunosList] = useState<{id: string; nome: string; email: string | null; idade: number | null}[]>([]);
+  const [loadingAlunos, setLoadingAlunos] = useState(false);
+  const [searchAlunoTerm, setSearchAlunoTerm] = useState('');
+  const [showAlunoDropdown, setShowAlunoDropdown] = useState(false);
 
   // Tabs & busca
   const [tab, setTab] = useState<'USERS' | 'PENDING'>('USERS');
@@ -127,21 +135,104 @@ export default function ConfigUsuariosPage() {
     loadInvites();
     reloadUsers();
   }, []);
+  
+  // Carregar alunos quando selecionar RESPONSAVEL
+  useEffect(() => {
+    async function loadAlunos() {
+      if (role !== 'RESPONSAVEL') {
+        setAlunosList([]);
+        setSelectedAlunos([]);
+        setSearchAlunoTerm('');
+        return;
+      }
+      
+      setLoadingAlunos(true);
+      try {
+        const res = await fetch('/api/alunos/list-for-responsavel');
+        if (res.ok) {
+          const data = await res.json();
+          setAlunosList(data.alunos || []);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar alunos:', error);
+        setAlunosList([]);
+      } finally {
+        setLoadingAlunos(false);
+      }
+    }
+    
+    loadAlunos();
+  }, [role]);
+
+  // Filtrar alunos baseado na busca
+  const filteredAlunos = React.useMemo(() => {
+    const term = searchAlunoTerm.toLowerCase().trim();
+    if (!term) return [];
+    
+    return alunosList.filter((aluno) => {
+      const nome = aluno.nome.toLowerCase();
+      const email = (aluno.email || '').toLowerCase();
+      return nome.includes(term) || email.includes(term);
+    });
+  }, [searchAlunoTerm, alunosList]);
+
+  // Fechar dropdown ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('#search-alunos') && !target.closest('.aluno-dropdown')) {
+        setShowAlunoDropdown(false);
+      }
+    }
+    
+    if (showAlunoDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showAlunoDropdown]);
 
   // Actions
   async function onGenerateInvite() {
-    if (!email) return;
+    // Validar se selecionou alunos quando for RESPONSAVEL
+    if (role === 'RESPONSAVEL') {
+      if (selectedAlunos.length === 0) {
+        setToast({
+          title: 'Selecione ao menos um aluno',
+          description: 'É necessário vincular ao menos um aluno ao responsável.',
+          variant: 'warning',
+        });
+        setTimeout(() => setToast(null), 3000);
+        return;
+      }
+    } else {
+      // Para outras roles, email é obrigatório
+      if (!email) return;
+    }
+    
     setSubmitting(true);
     try {
       setInviteUrl(null);
-      setLastInviteEmail(email);
+      setLastInviteEmail(email || 'responsavel@convidado');
       setInviteOpen(true);
+      
+      // Enviar payload apropriado
+      const payload: any = { role };
+      if (role === 'RESPONSAVEL') {
+        payload.alunosIds = selectedAlunos;
+        // Não envia email para RESPONSAVEL
+      } else {
+        payload.email = email;
+      }
+      
       const res = await fetch('/api/users/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Falha ao criar convite');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Falha ao criar convite');
+      }
       const json = await res.json();
       const base =
         (process.env.NEXT_PUBLIC_APP_URL as string | undefined) ?? window.location.origin;
@@ -151,6 +242,8 @@ export default function ConfigUsuariosPage() {
       setInviteUrl(link ?? null);
       setToast({ title: 'Convite criado', description: link, variant: 'success' });
       setEmail('');
+      setSelectedAlunos([]); // Limpar seleção
+      setSearchAlunoTerm(''); // Limpar busca
       await loadInvites();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Tente novamente';
@@ -265,6 +358,7 @@ export default function ConfigUsuariosPage() {
     if (role === 'RECEPCAO') return 'Recepção';
     if (role === 'FINANCEIRO') return 'Financeiro';
     if (role === 'RESPONSAVEL') return 'Responsável';
+    if (role === 'ALUNO') return 'Aluno';
     return role;
   }
 
@@ -332,9 +426,7 @@ export default function ConfigUsuariosPage() {
 
                   {/* Função como Badge */}
                   <div className="col-span-2 text-sm">
-                    <Badge className="bg-gray-100 text-gray-700 border-gray-200">
-                      {labelRole(u.role)}
-                    </Badge>
+                    <StatusBadge status={u.role as StatusType} showIcon={false} size="sm" />
                   </div>
 
                   {/* Toggle de status — OFF cinza */}
@@ -416,15 +508,13 @@ export default function ConfigUsuariosPage() {
         : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
     };
     const statusBadge = (s: InviteStatus) => {
-      if (s === 'PENDING')
-        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">Pendente</Badge>;
-      if (s === 'ACCEPTED')
-        return <Badge className="bg-green-100 text-green-700 border-green-200">Aceito</Badge>;
-      if (s === 'REVOKED')
-        return <Badge className="bg-red-100 text-red-700 border-red-200">Revogado</Badge>;
-      if (s === 'EXPIRED')
-        return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Expirado</Badge>;
-      return <Badge className="bg-gray-100 text-gray-700 border-gray-200">-</Badge>;
+      const statusMap: Record<InviteStatus, StatusType> = {
+        PENDING: 'PENDING_INVITE',
+        ACCEPTED: 'ACCEPTED',
+        REVOKED: 'REVOKED',
+        EXPIRED: 'EXPIRED',
+      };
+      return <StatusBadge status={statusMap[s]} showIcon={true} size="sm" />;
     };
     const term = search.trim().toLowerCase();
     const filtered = term
@@ -497,20 +587,120 @@ export default function ConfigUsuariosPage() {
       {/* Card: Enviar convite */}
       <section className="mt-4 rounded-md border border-gray-200 p-4" aria-label="Enviar convite">
         <div className="grid grid-cols-12 gap-3 items-end">
-          <div className="col-span-12 md:col-span-5">
+          {/* Campo adaptável: Email ou Autocomplete de Alunos */}
+          <div className={role === 'RESPONSAVEL' ? 'col-span-12 md:col-span-8' : 'col-span-12 md:col-span-5'}>
             <label htmlFor="invite-email" className="block text-sm font-medium text-gray-700">
-              E-mail
+              {role === 'RESPONSAVEL' ? 'Pesquise e selecione os alunos *' : 'E-mail'}
             </label>
-            <input
-              id="invite-email"
-              aria-label="E-mail do convidado"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@exemplo.com"
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 h-10 text-sm outline-none focus:border-violet-400"
-            />
+            
+            {role === 'RESPONSAVEL' ? (
+              // Input com tags inline para RESPONSAVEL
+              <div className="relative mt-1">
+                <div className="flex flex-wrap items-center gap-1.5 min-h-[40px] w-full rounded-md border border-gray-300 px-2 py-1.5 focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-500/20">
+                  {/* Tags dos alunos selecionados */}
+                  {selectedAlunos.map((alunoId) => {
+                    const aluno = alunosList.find(a => a.id === alunoId);
+                    if (!aluno) return null;
+                    return (
+                      <span
+                        key={alunoId}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-100 text-violet-700 rounded text-xs font-medium"
+                      >
+                        {aluno.nome}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAlunos(selectedAlunos.filter(id => id !== alunoId))}
+                          className="hover:bg-violet-200 rounded-full p-0.5 transition-colors"
+                          aria-label={`Remover ${aluno.nome}`}
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    );
+                  })}
+                  
+                  {/* Input de busca */}
+                  <input
+                    id="search-alunos"
+                    type="text"
+                    placeholder={loadingAlunos ? "Carregando..." : selectedAlunos.length === 0 ? "Pesquise o aluno..." : "Adicionar mais..."}
+                    disabled={loadingAlunos}
+                    className="flex-1 min-w-[120px] outline-none text-sm py-1 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                    value={searchAlunoTerm}
+                    onChange={(e) => setSearchAlunoTerm(e.target.value)}
+                    onFocus={() => setShowAlunoDropdown(true)}
+                  />
+                </div>
+                
+                {/* Dropdown de sugestões */}
+                {showAlunoDropdown && searchAlunoTerm.trim().length > 0 && (
+                  <div className="aluno-dropdown absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {filteredAlunos.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                        Nenhum aluno encontrado
+                      </div>
+                    ) : (
+                      filteredAlunos.map((aluno) => {
+                        const isSelected = selectedAlunos.includes(aluno.id);
+                        return (
+                          <button
+                            key={aluno.id}
+                            type="button"
+                            onClick={() => {
+                              if (!isSelected) {
+                                setSelectedAlunos([...selectedAlunos, aluno.id]);
+                              }
+                              setSearchAlunoTerm('');
+                            }}
+                            disabled={isSelected}
+                            className={`w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                              isSelected ? 'bg-gray-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-900">{aluno.nome}</p>
+                                {aluno.email && (
+                                  <p className="text-xs text-gray-500">{aluno.email}</p>
+                                )}
+                                {aluno.idade && (
+                                  <p className="text-xs text-gray-500">{aluno.idade} anos</p>
+                                )}
+                              </div>
+                              {isSelected && (
+                                <span className="text-xs text-violet-600 font-medium">✓</span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+                
+                {/* Helper text */}
+                {!loadingAlunos && alunosList.length === 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nenhum aluno disponível. Cadastre alunos primeiro.
+                  </p>
+                )}
+              </div>
+            ) : (
+              // Input de email normal
+              <input
+                id="invite-email"
+                aria-label="E-mail do convidado"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@exemplo.com"
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 h-10 text-sm outline-none focus:border-violet-400"
+              />
+            )}
           </div>
+          
           <div className="col-span-12 md:col-span-3">
             <label htmlFor="invite-role" className="block text-sm font-medium text-gray-700">
               Função
@@ -529,13 +719,15 @@ export default function ConfigUsuariosPage() {
                 <SelectItem value="RECEPCAO">Recepção</SelectItem>
                 <SelectItem value="FINANCEIRO">Financeiro</SelectItem>
                 <SelectItem value="RESPONSAVEL">Responsável</SelectItem>
+                <SelectItem value="ALUNO">Aluno</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          
           <div className="col-span-12 md:col-span-4">
             <Button
               onClick={onGenerateInvite}
-              disabled={submitting || !email}
+              disabled={submitting || (role !== 'RESPONSAVEL' && !email) || (role === 'RESPONSAVEL' && selectedAlunos.length === 0)}
               className="mt-6 md:mt-0 w-full h-10 rounded-md bg-violet-600 hover:bg-violet-700 text-white"
               aria-label="Gerar convite"
             >

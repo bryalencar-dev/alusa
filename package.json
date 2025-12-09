@@ -14,22 +14,18 @@
     "lint": "pnpm -r exec eslint .",
     "typecheck": "pnpm -r run typecheck",
     "format": "prettier --write .",
-
     "build": "pnpm -r run build",
     "build:web": "pnpm -F @alusa/web build",
-  "build:clean": "pnpm --filter @alusa/web build:clean",
-
+    "build:clean": "pnpm --filter @alusa/web build:clean",
     "dev": "pnpm --filter @alusa/ui build && pnpm --filter @alusa/lib build && pnpm --filter @alusa/web dev",
     "dev:web": "pnpm --filter @alusa/ui build && pnpm --filter @alusa/lib build && pnpm -F @alusa/web dev",
-  "dev:clean": "pnpm --filter @alusa/web dev:clean",
+    "dev:clean": "pnpm --filter @alusa/web dev:clean",
     "dev:prisma": "pnpm dlx prisma studio",
-
     "test": "pnpm -r run test",
-  "test:unit:all": "pnpm -r --filter ./apps/web run test:unit",
-  "test:unit": "pnpm --filter @alusa/web run test:unit",
-  "test:unit:watch": "pnpm --filter @alusa/web run test:unit:watch",
+    "test:unit:all": "pnpm -r --filter ./apps/web run test:unit",
+    "test:unit": "pnpm --filter @alusa/web run test:unit",
+    "test:unit:watch": "pnpm --filter @alusa/web run test:unit:watch",
     "test:e2e": "pnpm -r --filter ./apps/web run test:e2e",
-
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --name init --schema=prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma --name matriculas",
@@ -38,43 +34,31 @@
     "db:migrate:test": "pnpm --filter @alusa/web run db:migrate:test",
     "db:reset:test": "pnpm --filter @alusa/web run db:reset:test",
     "db:seed:test": "pnpm --filter @alusa/web run db:seed:test",
-    "db:verify:test": "dotenv -e .env.test -- node scripts/verify-test-db.mjs"
+    "db:verify:test": "dotenv -e .env.test -- node scripts/verify-test-db.mjs",
+    "mcp": "dotenv -e .env -- tsx mcp/postgres-server.ts",
+    "mcp:build": "tsc -p mcp/tsconfig.json",
+    "mcp:dev": "dotenv -e .env -- tsx watch mcp/postgres-server.ts",
+    "mcp:asaas": "dotenv -e .env -- tsx mcp/asaas/server.ts"
   },
   "devDependencies": {
-    "@prisma/client": "5.18.0",
-    "@testing-library/jest-dom": "6.4.2",
-    "@testing-library/react": "16.0.0",
-    "@types/bcryptjs": "2.4.6",
-    "@types/node": "20.14.9",
-    "@types/react": "18.2.74",
-    "@types/react-dom": "18.2.22",
-    "@typescript-eslint/eslint-plugin": "^8.41.0",
-    "@typescript-eslint/parser": "^8.41.0",
-    "@vitest/coverage-v8": "1.6.0",
-    "bcryptjs": "2.4.3",
-    "dotenv-cli": "7.4.1",
-    "eslint": "9.8.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "jsdom": "^26.1.0",
-    "prettier": "3.3.3",
+    "@types/node": "^22.10.1",
+    "@types/pg": "^8.15.6",
+    "dotenv-cli": "^11.0.0",
     "prisma": "5.18.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "tsx": "4.19.1",
-    "turbo": "2.0.6",
-    "typescript": "5.5.4",
-    "typescript-eslint": "8.41.0",
-    "vitest": "1.6.0",
-    "zod": "3.23.8"
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.3"
   },
   "pnpm": {
     "overrides": {}
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.22.0",
+    "@prisma/client": "5.18.0",
     "@radix-ui/react-dialog": "^1.1.15",
-    "cep-promise": "^4.4.1"
+    "cep-promise": "^4.4.1",
+    "cheerio": "^1.0.0",
+    "pg": "^8.16.3",
+    "zod": "3.25.76"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

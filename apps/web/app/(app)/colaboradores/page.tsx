@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -424,7 +425,6 @@ function LegacyColaboradoresPage() {
                               </div>
                             </div>
                           </div>
-
                           {/* CPF */}
                           <div className="col-span-2 text-[13px] text-gray-700 text-center">
                             <span
@@ -433,7 +433,6 @@ function LegacyColaboradoresPage() {
                               {colaborador.cpf ? maskCpf(colaborador.cpf) : '-'}
                             </span>
                           </div>
-
                           {/* E-mail */}
                           <div
                             className="col-span-2 text-[13px] text-gray-700 text-center"
@@ -447,7 +446,6 @@ function LegacyColaboradoresPage() {
                               </span>
                             )}
                           </div>
-
                           {/* Telefone */}
                           <div className="col-span-2 text-[13px] text-gray-700 text-center">
                             <span
@@ -458,7 +456,6 @@ function LegacyColaboradoresPage() {
                               {colaborador.telefone1 || '-'}
                             </span>
                           </div>
-
                           {/* Função */}
                           <div className="col-span-1 text-center">
                             <Badge
@@ -468,20 +465,12 @@ function LegacyColaboradoresPage() {
                               {formatCargo(colaborador.cargo)}
                             </Badge>
                           </div>
-
                           {/* Status */}
                           <div className="col-span-1 flex justify-center">
-                            {colaborador.status === 'ATIVO' ? (
-                              <Badge className="bg-green-100 text-green-700 border-green-200">
-                                Ativo
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-red-100 text-red-700 border-red-200">
-                                Inativo
-                              </Badge>
-                            )}
+                            <StatusBadge
+                              status={colaborador.status === 'ATIVO' ? 'ATIVO' : 'INATIVO'}
+                            />
                           </div>
-
                           {/* Ações */}
                           <div className="col-span-1 flex justify-center gap-1">
                             <Button

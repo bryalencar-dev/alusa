@@ -16,17 +16,61 @@ enum Status {
   INATIVO
 }
 
+// Formas de pagamento compatíveis com Asaas billingType
+// Referência: https://docs.asaas.com/reference/criar-nova-cobranca
+// Apenas 4 tipos suportados pelo Asaas em pagamentos básicos
 enum FormaPagamento {
-  DINHEIRO
+  BOLETO // Sincronizado com BOLETO do Asaas - "Boleto Bancário / Pix"
+  PIX // Sincronizado com PIX do Asaas - "Pix"
+  CARTAO_CREDITO // Sincronizado com CREDIT_CARD do Asaas - "Cartão de Crédito"
+  INDEFINIDO // Sincronizado com UNDEFINED do Asaas - "Pergunte ao cliente"
+}
+
+// Lancamentos financeiros (Receita/Despesa)
+enum TipoLancamento {
+  RECEITA
+  DESPESA
+}
+
+enum OrigemLancamento {
+  SISTEMA
+  MANUAL
+}
+
+enum StatusLancamento {
+  RECEBIDO
+  PREVISTO
+  PAGO
+  PENDENTE
+  ESTORNADO
+}
+
+enum FormaPagamentoLancamento {
   PIX
-  CARTAO
   BOLETO
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  DINHEIRO
+  TRANSFERENCIA
+  TED
+  DOC
+  DEBITO_AUTOMATICO
+  CHEQUE
+  VOUCHER
+  OUTRO
+}
+
+enum CentroCustoTipo {
+  RECEITA
+  DESPESA
+  MISTO
 }
 
 enum StatusMatricula {
   PENDENTE_TAXA
   AGUARDANDO_CONFIRMACAO
   ATIVA
+  PAUSADA
   RECUSADA
   CANCELADA
 }
@@ -42,21 +86,40 @@ enum TipoCobranca {
   TAXA_MATRICULA
   MENSALIDADE
   EXTRA
-  AVULSA
+  AVULSA // Sincronizado com DETACHED do Asaas
+  PARCELADA // Sincronizado com INSTALLMENT do Asaas
+  RECORRENTE // Sincronizado com RECURRENT do Asaas
 }
 
 enum StatusCobranca {
-  PENDENTE
-  PAGO
-  ATRASADO
-  CANCELADO
-  ESTORNADO
+  A_VENCER // Cobrança criada, vencimento futuro
+  PENDENTE // Vencimento chegou, aguardando pagamento
+  PROCESSANDO // Pagamento em análise/processamento
+  PAGO // Pagamento confirmado
+  ATRASADO // Vencimento passou, sem pagamento
+  CANCELADO // Cobrança cancelada
+  ESTORNADO // Pagamento estornado/reembolsado
+  ESTORNADO_PARCIAL // Estorno parcial do pagamento
 }
 
 enum StatusFinanceiro {
   ADIMPLENTE
   PENDENTE_TAXA
   INADIMPLENTE
+}
+
+enum StatusContrato {
+  ATIVO
+  ENCERRADO
+}
+
+enum AsaasNotificationEvent {
+  PAYMENT_CREATED
+  PAYMENT_UPDATED
+  PAYMENT_DUEDATE_WARNING
+  SEND_LINHA_DIGITAVEL
+  PAYMENT_OVERDUE
+  PAYMENT_RECEIVED
 }
 
 enum PeriodicidadePlano {
@@ -155,16 +218,16 @@ model Colaborador {
 }
 
 model Conta {
-  id                          String         @id @default(cuid())
+  id                          String          @id @default(cuid())
   nome                        String
   cpfCnpj                     String
-  status                      Status         @default(ATIVO)
-  createdAt                   DateTime       @default(now())
-  updatedAt                   DateTime       @updatedAt
+  status                      Status          @default(ATIVO)
+  createdAt                   DateTime        @default(now())
+  updatedAt                   DateTime        @updatedAt
   // Dono (owner) da conta — imutável na lógica de negócio
   ownerUserId                 String?
-  ownerUser                   Usuario?       @relation("ContaOwner", fields: [ownerUserId], references: [id])
-  usuarios                    Usuario[]      @relation("ContaUsuarios")
+  ownerUser                   Usuario?        @relation("ContaOwner", fields: [ownerUserId], references: [id])
+  usuarios                    Usuario[]       @relation("ContaUsuarios")
   invites                     Invite[]
   alunos                      Aluno[]
   turmas                      Turma[]
@@ -172,10 +235,23 @@ model Conta {
   combos                      Combo[]
   descontos                   Desconto[]
   webhooks                    WebhookAsaas[]
+  logsFinanceiros             LogFinanceiro[]
+  logsIntegracao              LogIntegracao[]
+  asaasNotificationPreferences AsaasNotificationPreference[]
   professores                 Professor[]
   colaboradores               Colaborador[]
   modalidades                 Modalidade[]
   salas                       Sala[]
+  lancamentos                 Lancamento[]
+  centrosCusto                CentroCusto[]
+  categoriasLancamento        CategoriaLancamento[]
+  // Campos de endereco da conta (escola)
+  enderecoCep                 String?         @db.Char(8)
+  enderecoLogradouro          String?
+  enderecoNumero              String?
+  enderecoBairro              String?
+  enderecoCidade              String?
+  enderecoUf                  String?         @db.Char(2)
   // Credenciais de integração (criptografadas em repouso). Armazenamos separadamente para permitir rotação.
   asaasApiKeyEncrypted        String?
   asaasWebhookSecretEncrypted String?
@@ -183,6 +259,27 @@ model Conta {
 
   @@index([cpfCnpj])
   @@index([ownerUserId])
+}
+
+model AsaasNotificationPreference {
+  id                     String                 @id @default(cuid())
+  contaId                String
+  event                  AsaasNotificationEvent
+  scheduleOffset         Int                    @default(0)
+  enabled                Boolean                @default(true)
+  emailEnabledForProvider Boolean               @default(false)
+  smsEnabledForProvider   Boolean               @default(false)
+  emailEnabledForCustomer Boolean               @default(true)
+  smsEnabledForCustomer   Boolean               @default(true)
+  whatsappEnabledForCustomer Boolean            @default(false)
+  phoneCallEnabledForCustomer Boolean           @default(false)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  conta Conta @relation(fields: [contaId], references: [id], onDelete: Cascade)
+
+  @@unique([contaId, event, scheduleOffset])
+  @@index([contaId])
 }
 
 /// Modelo de Professor com foco em multi-tenant via contaId.
@@ -254,6 +351,14 @@ model Usuario {
   email       String   @unique
   telefone    String?
   foto        String?
+  bio         String?
+  locale      String   @default("pt-BR")
+  theme       String   @default("system")
+  notifyEmailProduct   Boolean  @default(true)
+  notifyEmailSecurity  Boolean  @default(true)
+  notifyEmailMarketing Boolean  @default(false)
+  notifyWhatsapp       Boolean  @default(true)
+  notifySms            Boolean  @default(false)
   senhaHash   String
   role        Role     @default(RESPONSAVEL)
   status      Status   @default(ATIVO)
@@ -267,6 +372,8 @@ model Usuario {
   aluno                Aluno?
   checkoutLinksCriados CheckoutLink[]
   matriculaLogs        MatriculaLog[]
+  logsFinanceiros      LogFinanceiro[]
+  lancamentosCriados   Lancamento[]
 
   @@index([contaId])
 }
@@ -330,25 +437,33 @@ model Aluno {
 }
 
 model Responsavel {
-  id                  String   @id @default(cuid())
-  nome                String
-  cpf                 String   @unique
-  email               String   @unique
-  telefone            String
+  id                   String   @id @default(cuid())
+  nome                 String
+  cpf                  String   @unique
+  email                String   @unique
+  telefone             String
   // Campos de endere�o estruturados
-  enderecoCep         String?
-  enderecoLogradouro  String?
-  enderecoNumero      String?
-  enderecoComplemento String?
-  enderecoBairro      String?
-  enderecoCidade      String?
-  enderecoUf          String?
-  financeiro          Boolean  @default(false)
-  asaasId             String?  @unique
-  asaasCustomerId     String?  @unique
+  enderecoCep          String?
+  enderecoLogradouro   String?
+  enderecoNumero       String?
+  enderecoComplemento  String?
+  enderecoBairro       String?
+  enderecoCidade       String?
+  enderecoUf           String?
+  financeiro           Boolean  @default(false)
+  asaasId              String?  @unique
+  asaasCustomerId      String?  @unique
+  asaasCreditCardToken String? // Token do cartão para débito automático
+  // Metadados do cartão (para exibição, não contém dados sensíveis)
+  creditCardBrand      String? // Bandeira do cartão (Visa, Mastercard, etc)
+  creditCardLast4      String? // Últimos 4 dígitos
+  creditCardExpiryMonth Int? // Mês de expiração (1-12)
+  creditCardExpiryYear  Int? // Ano de expiração (4 dígitos)
+  creditCardUpdatedAt   DateTime? // Data da última atualização do cartão
+  preferredBillingType  String? // Tipo de cobrança preferido (BOLETO, PIX, CREDIT_CARD)
   // Vinculação opcional com um usuário do sistema (para acesso via portal)
-  usuarioId           String?  @unique
-  usuario             Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  usuarioId            String?  @unique
+  usuario              Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
   alunos                AlunoResponsavel[]
   matriculasFinanceiras Matricula[]        @relation("MatriculaResponsavelFinanceiro")
@@ -390,6 +505,7 @@ model Turma {
   matriculas  Matricula[]
   combos      ComboTurma[]
   professores TurmaProfessor[]
+  matriculaTurmas MatriculaTurma[]
 
   @@unique([contaId, nome], name: "uq_turma_conta_nome")
   @@index([contaId], name: "idx_turma_conta")
@@ -467,17 +583,29 @@ model Matricula {
   alunoId                 String
   responsavelFinanceiroId String?
   turmaId                 String?
-  planoId                 String
+  planoId                 String?             // Opcional quando comboId é fornecido (combo define valor/periodicidade)
   comboId                 String?
   dataInicio              DateTime
   dataFim                 DateTime?
+  dataFimContrato         DateTime
   status                  StatusMatricula     @default(ATIVA)
   statusFinanceiro        StatusFinanceiro    @default(PENDENTE_TAXA)
+  statusContrato          StatusContrato      @default(ATIVO)
   taxaMatricula           Decimal             @db.Decimal(12, 2)
   taxaStatus              StatusTaxaMatricula @default(PENDENTE)
   taxaIsenta              Boolean             @default(false)
   taxaJustificativa       String?
+  formaPagamentoTaxa      FormaPagamento?     @default(BOLETO)
   vencimentoDia           Int                 @default(5)
+  // Configurações financeiras de juros, multa e desconto (padrão Asaas API)
+  // @see https://docs.asaas.com/docs/criando-uma-assinatura
+  jurosMensal             Decimal?            @db.Decimal(5, 2) // Ex: 1.0 = 1% ao mês
+  jurosTipo               String?             @default("PERCENTAGE") // FIXED ou PERCENTAGE (Asaas)
+  multaPercentual         Decimal?            @db.Decimal(5, 2) // Ex: 2.0 = 2%
+  multaTipo               String?             @default("PERCENTAGE") // FIXED ou PERCENTAGE (Asaas)
+  descontoAntecipado      Decimal?            @db.Decimal(5, 2) // Ex: 5.0 = 5% de desconto
+  descontoTipo            String?             @default("PERCENTAGE") // FIXED ou PERCENTAGE (Asaas)
+  prazoDesconto           Int?                @default(0) // Quantos dias antes do vencimento para aplicar desconto
   asaasId                 String?             @unique
   asaasSubscriptionId     String?             @unique
   createdAt               DateTime            @default(now())
@@ -486,12 +614,13 @@ model Matricula {
   aluno                 Aluno               @relation(fields: [alunoId], references: [id], onDelete: Cascade)
   responsavelFinanceiro Responsavel?        @relation("MatriculaResponsavelFinanceiro", fields: [responsavelFinanceiroId], references: [id])
   turma                 Turma?              @relation(fields: [turmaId], references: [id])
-  plano                 Plano               @relation(fields: [planoId], references: [id])
+  plano                 Plano?              @relation(fields: [planoId], references: [id])
   combo                 Combo?              @relation(fields: [comboId], references: [id])
   descontos             DescontoMatricula[]
   cobrancas             Cobranca[]
   checkoutLinks         CheckoutLink[]
   logs                  MatriculaLog[]
+  matriculaTurmas       MatriculaTurma[]
 
   @@index([alunoId], name: "idx_matricula_aluno")
   @@index([responsavelFinanceiroId], name: "idx_matricula_responsavel")
@@ -499,6 +628,22 @@ model Matricula {
   @@index([planoId], name: "idx_matricula_plano")
   @@index([comboId], name: "idx_matricula_combo")
   @@index([status], name: "idx_matricula_status")
+  @@index([statusContrato], name: "idx_matricula_status_contrato")
+  @@index([dataFimContrato], name: "idx_matricula_fim_contrato")
+}
+
+model MatriculaTurma {
+  id           String   @id @default(cuid())
+  matriculaId  String
+  turmaId      String
+  createdAt    DateTime @default(now())
+
+  matricula Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  turma     Turma     @relation(fields: [turmaId], references: [id])
+
+  @@unique([matriculaId, turmaId], name: "uq_matriculaturma_unique")
+  @@index([matriculaId], name: "idx_matriculaturma_matricula")
+  @@index([turmaId], name: "idx_matriculaturma_turma")
 }
 
 model Desconto {
@@ -535,21 +680,16 @@ model DescontoMatricula {
 }
 
 model Combo {
-  id              String    @id @default(cuid())
-  contaId         String
-  nome            String
-  descricao       String?
-  valorMensal     Decimal   @db.Decimal(12, 2)
-  taxaMatricula   Decimal?  @db.Decimal(12, 2)
-  categoriaMensal String?
-  categoriaTaxa   String?
-  status          String    @default("ATIVO")
-  modoMatricula   String    @default("RESERVADA")
-  vigenciaIni     DateTime?
-  vigenciaFim     DateTime?
-  vagasLimite     Int?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            String             @id @default(cuid())
+  contaId       String
+  nome          String
+  descricao     String?
+  valor         Decimal            @db.Decimal(12, 2) // Valor do ciclo (conforme periodicidade)
+  periodicidade PeriodicidadePlano @default(MENSAL) // Ciclo de cobrança (Asaas)
+  status        String             @default("ATIVO")
+  vagasLimite   Int?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   conta      Conta        @relation(fields: [contaId], references: [id])
   turmas     ComboTurma[]
@@ -585,15 +725,65 @@ model Cobranca {
   status            StatusCobranca @default(PENDENTE)
   asaasId           String?        @unique
   asaasPaymentId    String?        @unique
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
 
-  matricula  Matricula   @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
-  pagamentos Pagamento[]
+  // Campos financeiros adicionais - Juros
+  jurosPercentual Decimal? @default(0) @db.Decimal(5, 2) // Percentual de juros ao mês (%)
+  jurosValorFixo  Decimal? @default(0) @db.Decimal(12, 2) // Valor fixo de juros ao mês (R$)
+  juros           Decimal? @default(0) @db.Decimal(12, 2) // Valor total de juros acumulados
+
+  // Campos financeiros adicionais - Multa
+  multaTipo       String?  @default("VALOR_FIXO") // VALOR_FIXO ou PERCENTUAL
+  multaPercentual Decimal? @default(0) @db.Decimal(5, 2) // Percentual de multa (%)
+  multaValorFixo  Decimal? @default(0) @db.Decimal(12, 2) // Valor fixo da multa (R$)
+  multa           Decimal? @default(0) @db.Decimal(12, 2) // Valor total da multa aplicada
+
+  // Campos financeiros adicionais - Desconto
+  descontoTipo        String?  @default("VALOR_FIXO") // VALOR_FIXO ou PERCENTUAL
+  descontoPercentual  Decimal? @default(0) @db.Decimal(5, 2) // Percentual de desconto (%)
+  descontoValorFixo   Decimal? @default(0) @db.Decimal(12, 2) // Valor fixo do desconto (R$)
+  descontoPrazoMaximo String?  @default("ATE_VENCIMENTO") // ATE_VENCIMENTO, 1_DIA, 3_DIAS, 7_DIAS, 15_DIAS, 30_DIAS
+  desconto            Decimal? @default(0) @db.Decimal(12, 2) // Valor total do desconto aplicado
+
+  valorFinal Decimal? @db.Decimal(12, 2) // Valor final com multa, juros e desconto aplicados
+
+  // Campos de auditoria para rastreabilidade completa
+  pagoEm          DateTime? // Data/hora em que o pagamento foi confirmado
+  pagoPor         String? // Forma de pagamento real utilizada (pode diferir da esperada)
+  canceladoEm     DateTime? // Data/hora do cancelamento
+  canceladoMotivo String? // Motivo do cancelamento
+  canceladoPor    String? // Usuário ou sistema que cancelou
+  estornadoEm     DateTime? // Data/hora do estorno (total ou parcial)
+  estornadoMotivo String? // Motivo do estorno
+  estornadoValor  Decimal?  @db.Decimal(12, 2) // Valor estornado (para estornos parciais)
+  estornadoPor    String? // Usuário ou sistema que estornou
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  matricula       Matricula         @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  pagamentos      Pagamento[]
+  logsFinanceiros LogFinanceiro[]
+  arquivos        ArquivoCobranca[]
 
   @@index([matriculaId], name: "idx_cobranca_matricula")
   @@index([status], name: "idx_cobranca_status")
   @@index([tipo], name: "idx_cobranca_tipo")
+}
+
+model ArquivoCobranca {
+  id           String   @id @default(cuid())
+  cobrancaId   String
+  nomeOriginal String
+  nomeArquivo  String   @unique // Nome do arquivo no storage
+  mimetype     String
+  tamanho      Int // Em bytes
+  url          String
+  uploadPor    String? // ID do usuário que fez upload
+  createdAt    DateTime @default(now())
+
+  cobranca Cobranca @relation(fields: [cobrancaId], references: [id], onDelete: Cascade)
+
+  @@index([cobrancaId], name: "idx_arquivo_cobranca")
 }
 
 model CheckoutLink {
@@ -661,12 +851,133 @@ model WebhookAsaas {
   @@index([status], name: "idx_webhookasaas_status")
 }
 
+model LogFinanceiro {
+  id         String   @id @default(cuid())
+  contaId    String
+  usuarioId  String
+  cobrancaId String?
+  acao       String // DELETAR, PAUSAR, REENVIAR, SEGUNDA_VIA, CONFIRMAR_MANUAL, REFUND, REATIVAR
+  detalhes   Json?
+  createdAt  DateTime @default(now())
+
+  conta    Conta     @relation(fields: [contaId], references: [id])
+  usuario  Usuario   @relation(fields: [usuarioId], references: [id])
+  cobranca Cobranca? @relation(fields: [cobrancaId], references: [id], onDelete: SetNull)
+
+  @@index([contaId], name: "idx_logfinanceiro_conta")
+  @@index([usuarioId], name: "idx_logfinanceiro_usuario")
+  @@index([cobrancaId], name: "idx_logfinanceiro_cobranca")
+  @@index([acao], name: "idx_logfinanceiro_acao")
+  @@index([createdAt], name: "idx_logfinanceiro_createdat")
+}
+
+model LogIntegracao {
+  id             String   @id @default(cuid())
+  contaId        String
+  tipoOperacao   String // CREATE_CUSTOMER, UPDATE_CUSTOMER, DELETE_CUSTOMER, CREATE_SUBSCRIPTION, SUSPEND_SUBSCRIPTION, ACTIVATE_SUBSCRIPTION, DELETE_SUBSCRIPTION, RECEIVE_IN_CASH, CREATE_PAYMENT, etc
+  entidade       String // ALUNO, RESPONSAVEL, MATRICULA, COBRANCA
+  entidadeId     String
+  asaasId        String? // ID retornado pelo Asaas (customerId, subscriptionId, paymentId)
+  status         String // SUCCESS, ERROR
+  httpStatus     Int? // Status HTTP da resposta
+  request        Json? // Payload enviado
+  response       Json? // Resposta do Asaas
+  errorMessage   String?
+  idempotencyKey String? // Idempotency-Key usado na request
+  duration       Int? // Duração da request em ms
+  createdAt      DateTime @default(now())
+
+  conta Conta @relation(fields: [contaId], references: [id])
+
+  @@index([contaId, tipoOperacao], name: "idx_logintegracao_conta_tipo")
+  @@index([entidade, entidadeId], name: "idx_logintegracao_entidade")
+  @@index([status], name: "idx_logintegracao_status")
+  @@index([createdAt], name: "idx_logintegracao_createdat")
+  @@index([asaasId], name: "idx_logintegracao_asaasid")
+}
+
+// --- Lancamentos financeiros ---
+model Lancamento {
+  id             String                  @id @default(cuid())
+  contaId        String
+  tipo           TipoLancamento
+  origem         OrigemLancamento
+  status         StatusLancamento
+  valor          Decimal                 @db.Decimal(14, 2)
+  descricao      String
+  referencia     String?
+  centroCustoId  String?
+  categoriaId    String?
+  subcategoriaId String?
+  formaPagamento FormaPagamentoLancamento?
+  dataEfetiva    DateTime?
+  dataPrevista   DateTime?
+  isEstorno      Boolean                 @default(false)
+  parentId       String?
+  dataEstorno    DateTime?
+  motivoEstorno  String?
+  observacao     String?
+  anexoUrl       String?
+  externalRef    String?
+  createdById    String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  conta        Conta                  @relation(fields: [contaId], references: [id])
+  centroCusto  CentroCusto?           @relation(fields: [centroCustoId], references: [id])
+  categoria    CategoriaLancamento?   @relation("CategoriaLancamentoCategoria", fields: [categoriaId], references: [id])
+  subcategoria CategoriaLancamento?   @relation("CategoriaLancamentoSubcategoria", fields: [subcategoriaId], references: [id])
+  parent       Lancamento?            @relation("LancamentoEstorno", fields: [parentId], references: [id])
+  estornos     Lancamento[]           @relation("LancamentoEstorno")
+  createdBy    Usuario?               @relation(fields: [createdById], references: [id])
+
+  @@index([contaId, tipo, status], name: "idx_lancamento_conta_tipo_status")
+  @@index([contaId, dataEfetiva], name: "idx_lancamento_conta_data")
+  @@index([externalRef], name: "idx_lancamento_external_ref")
+}
+
+model CentroCusto {
+  id        String           @id @default(cuid())
+  contaId   String
+  nome      String
+  tipo      CentroCustoTipo
+  descricao String?
+  status    Status           @default(ATIVO)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  conta        Conta        @relation(fields: [contaId], references: [id])
+  lancamentos  Lancamento[]
+
+  @@unique([contaId, nome, tipo], name: "uq_centrocusto_nome_tipo_conta")
+  @@index([contaId, tipo], name: "idx_centrocusto_conta_tipo")
+}
+
+model CategoriaLancamento {
+  id        String           @id @default(cuid())
+  contaId   String
+  nome      String
+  tipo      TipoLancamento
+  parentId  String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  conta    Conta                  @relation(fields: [contaId], references: [id])
+  parent   CategoriaLancamento?   @relation("CategoriaLancParent", fields: [parentId], references: [id])
+  children CategoriaLancamento[]  @relation("CategoriaLancParent")
+  lancamentosCategoria    Lancamento[] @relation("CategoriaLancamentoCategoria")
+  lancamentosSubcategoria Lancamento[] @relation("CategoriaLancamentoSubcategoria")
+
+  @@unique([contaId, nome, tipo, parentId], name: "uq_categoria_lancamento_nome_tipo_parent")
+  @@index([contaId, tipo], name: "idx_categoria_lancamento_conta_tipo")
+}
+
 // --- Convites de usuário ---
 model Invite {
   id               String    @id @default(cuid())
   // A conta do convidador no momento da criação do convite (usada no aceite)
   contaId          String?
-  email            String
+  email            String?   // Opcional para convites de RESPONSAVEL
   role             Role
   token            String    @unique
   invitedById      String
@@ -675,13 +986,13 @@ model Invite {
   // Auditoria de aceite
   acceptedByUserId String?
   acceptedAt       DateTime?
+  metadata         Json?     // Armazena dados extras como alunosIds para RESPONSAVEL
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   // Relação opcional para garantir integridade sem quebrar convites antigos
   conta Conta? @relation(fields: [contaId], references: [id])
 
-  @@unique([contaId, email, status], name: "uq_invite_conta_email_status")
   @@index([email, status], name: "idx_invite_email_status")
   @@index([expiresAt], name: "idx_invite_expires")
   @@index([contaId], name: "idx_invite_conta")

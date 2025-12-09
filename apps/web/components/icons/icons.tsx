@@ -20,6 +20,7 @@ export {
   UserPlusIcon as UserPlus,
   // Estados / Feedback
   CheckCircleIcon as CheckCircle,
+  ExclamationCircleIcon as AlertCircle,
   ExclamationTriangleIcon as Warning,
   InformationCircleIcon as InfoCircle,
   QuestionMarkCircleIcon as Help,
@@ -39,6 +40,8 @@ export {
   FunnelIcon as Filter,
   PlusIcon as Plus,
   EnvelopeIcon as Mail,
+  PhoneIcon as Phone,
+  MapPinIcon as MapPin,
   EyeIcon as Eye,
   EyeSlashIcon as EyeOff,
   IdentificationIcon as IdCard,
@@ -52,6 +55,10 @@ export {
   SunIcon as Sun,
   MoonIcon as Moon,
   ArrowUpTrayIcon as Upload,
+  ArrowDownTrayIcon as Download,
+  ArrowTopRightOnSquareIcon as ExternalLink,
+  CreditCardIcon as CreditCard,
+  CurrencyDollarIcon as DollarSign,
   // Ações de compartilhamento/cópia
   DocumentDuplicateIcon as Copy,
   ShareIcon as Share2,

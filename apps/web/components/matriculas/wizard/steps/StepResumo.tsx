@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { SectionCard, StepHeader } from '@/components/alunos/wizard/ui';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import type { WizardContextValue } from '../types';
 
 interface StepResumoProps {
@@ -9,7 +9,7 @@ interface StepResumoProps {
 }
 
 export function StepResumo({ ctx }: StepResumoProps) {
-  const { state } = ctx;
+  const { state, update } = ctx;
   const turmaId = state.turmaIds[0];
   const initials = useMemo(() => {
     if (!state.aluno?.nome) return '';
@@ -21,165 +21,175 @@ export function StepResumo({ ctx }: StepResumoProps) {
       .join('');
   }, [state.aluno?.nome]);
 
-  const idade = useMemo(() => {
-    if (!state.aluno?.dataNasc) return null;
-    const nasc = new Date(state.aluno.dataNasc);
-    if (Number.isNaN(nasc.getTime())) return null;
-    const hoje = new Date();
-    let age = hoje.getFullYear() - nasc.getFullYear();
-    const monthDiff = hoje.getMonth() - nasc.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && hoje.getDate() < nasc.getDate())) age -= 1;
-    return age;
-  }, [state.aluno?.dataNasc]);
-
   const formatter = useMemo(
     () => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }),
     [],
   );
 
-  const planoValor = state.planoValor ?? 0;
-  const descontoValor = state.descontoValor ?? 0;
-  const descontoAplicado =
-    state.descontoTipo === 'PERCENTUAL' ? (planoValor * descontoValor) / 100 : descontoValor;
-  const mensalidadeFinal = Math.max(planoValor - descontoAplicado, 0);
+  const valorMensalidade = state.modoTurmas === 'COMBO'
+    ? (state.comboValor ?? 0)
+    : (state.planoValor ?? 0);
 
-  const statusTaxaResumo = state.taxaIsenta
-    ? 'Isenta'
-    : state.gerarCobrancaTaxa
-      ? 'Cobrança será gerada imediatamente'
-      : 'Cobrança aguardará validação do cartão';
+  const temMulta = Boolean(state.multaPercentual && state.multaPercentual > 0);
+  const temJuros = Boolean(state.jurosMensal && state.jurosMensal > 0);
+  const temDesconto = Boolean(state.descontoAntecipado && state.descontoAntecipado > 0);
+
+  const handleConfirmacaoChange = (checked: boolean | 'indeterminate') => {
+    update({ confirmacaoRevisao: checked === true });
+  };
+
+  const formaPagamentoLabel = (forma: string | undefined) => {
+    if (!forma) return '—';
+    const labels: Record<string, string> = {
+      PIX: 'PIX',
+      CARTAO: 'Cartão',
+      BOLETO: 'Boleto',
+      DINHEIRO: 'Dinheiro',
+    };
+    return labels[forma] ?? forma;
+  };
 
   return (
     <SectionCard>
       <StepHeader title="Resumo" hint="Confirme os dados antes de finalizar a matrícula." />
-      <div className="space-y-6 text-sm text-gray-700">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
-              {initials || 'A'}
-            </div>
-            <div className="space-y-1">
-              <p className="text-base font-semibold text-gray-900">
-                {state.aluno?.nome ?? 'Aluno não selecionado'}
-                {idade != null && (
-                  <span className="ml-2 text-sm font-medium text-gray-500">{idade} anos</span>
-                )}
-              </p>
-              {state.aluno?.dataNasc && (
-                <p className="text-xs text-gray-500">
-                  Nascimento: {new Date(state.aluno.dataNasc).toLocaleDateString()}
+
+      <div className="space-y-4">
+        {/* Box Aluno + Plano */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Aluno */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 text-sm font-semibold text-violet-700">
+                {initials || 'A'}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {state.aluno?.nome ?? 'Aluno não selecionado'}
                 </p>
-              )}
-              {state.aluno?.responsavel && (
-                <p className="text-sm text-gray-600">
-                  Responsável:{' '}
-                  <span className="font-medium text-gray-800">{state.aluno.responsavel.nome}</span>
-                </p>
-              )}
+                <div className="space-y-0.5 text-xs text-gray-500">
+                  {state.aluno?.dataNasc && (
+                    <p>Nascimento: {new Date(state.aluno.dataNasc).toLocaleDateString('pt-BR')}</p>
+                  )}
+                  {state.aluno?.email && <p>E-mail: {state.aluno.email}</p>}
+                  {state.aluno?.telefone && <p>Telefone: {state.aluno.telefone}</p>}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <p className="text-sm font-medium text-gray-600">Plano selecionado</p>
-            <p className="mt-1 text-base font-semibold text-gray-900">{state.planoLabel}</p>
-            <p className="mt-2 text-sm text-gray-600">
-              Forma de pagamento:{' '}
-              <span className="font-medium text-gray-800">{state.formaPagamento ?? '—'}</span>
-            </p>
-            <div className="mt-3 space-y-1 text-sm text-gray-600">
+          {/* Plano/Combo */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+            <div className="space-y-1 text-sm">
+              <p className="text-gray-600">
+                {state.modoTurmas === 'COMBO' ? 'Combo selecionado' : 'Plano selecionado'}:{' '}
+                <span className="font-semibold text-gray-900">
+                  {state.modoTurmas === 'COMBO' ? state.comboLabel : state.planoLabel}
+                </span>
+              </p>
+              <p className="text-gray-600">
+                Pagamento: <span className="font-medium text-gray-900">{formaPagamentoLabel(state.formaPagamento)}</span>
+              </p>
               {turmaId && (
-                <div>
-                  Turma:{' '}
-                  <span className="font-medium text-gray-800">{state.turmaLabel || turmaId}</span>
-                </div>
+                <p className="text-gray-600">
+                  Turma: <span className="font-medium text-gray-900">{state.turmaLabel || turmaId}</span>
+                </p>
               )}
-              {state.comboId && (
-                <div>
-                  Combo: <span className="font-medium text-gray-800">{state.comboLabel}</span>
-                </div>
+              <p className="text-gray-600">
+                Início: <span className="font-medium text-gray-900">{state.dataInicio ? new Date(state.dataInicio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}</span>
+              </p>
+              {state.dataFimContrato && (
+                <p className="text-gray-600">
+                  Fim: <span className="font-medium text-gray-900">{new Date(state.dataFimContrato).toLocaleDateString('pt-BR')}</span>
+                </p>
               )}
-              <div>
-                Início das aulas:{' '}
-                <span className="font-medium text-gray-800">{state.dataInicio ?? '—'}</span>
-              </div>
-              {state.taxaMatricula != null && (
-                <div>
-                  Taxa de matrícula:{' '}
-                  <span className="font-medium text-gray-800">
-                    {formatter.format(state.taxaMatricula)}
+            </div>
+          </div>
+        </div>
+
+        {/* Box Taxa de Matrícula + Box Mensalidade */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Taxa de Matrícula */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Taxa de Matrícula</h3>
+            <div className="space-y-1 text-sm">
+              <p className="text-gray-600">
+                Valor:{' '}
+                <span className="font-semibold text-gray-900">
+                  {state.taxaIsenta ? 'Isenta' : formatter.format(state.taxaMatricula ?? 0)}
+                </span>
+              </p>
+              {!state.taxaIsenta && state.formaPagamentoTaxa && (
+                <p className="text-gray-600">
+                  Pagamento: <span className="font-medium text-gray-900">{formaPagamentoLabel(state.formaPagamentoTaxa)}</span>
+                </p>
+              )}
+              {state.taxaIsenta && state.taxaJustificativa && (
+                <p className="text-gray-600">
+                  Justificativa: <span className="font-medium text-gray-900">{state.taxaJustificativa}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Mensalidade */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Mensalidade</h3>
+            <div className="space-y-1 text-sm">
+              <p className="text-gray-600">
+                Valor:{' '}
+                <span className="font-semibold text-gray-900">{formatter.format(valorMensalidade)}</span>
+              </p>
+              <p className="text-gray-600">
+                Pagamento: <span className="font-medium text-gray-900">{formaPagamentoLabel(state.formaPagamento)}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Box Configurações de Cobrança - só se houver */}
+        {(temMulta || temJuros || temDesconto) && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Configurações de cobrança</h3>
+            <div className="grid gap-4 sm:grid-cols-3 text-sm">
+              {temMulta && (
+                <p className="text-gray-600">
+                  Multa: <span className="font-medium text-gray-900">{state.multaPercentual}%</span>
+                </p>
+              )}
+              {temJuros && (
+                <p className="text-gray-600">
+                  Juros: <span className="font-medium text-gray-900">{state.jurosMensal}% a.m.</span>
+                </p>
+              )}
+              {temDesconto && (
+                <p className="text-gray-600">
+                  Desconto:{' '}
+                  <span className="font-medium text-gray-900">
+                    {state.descontoTipo === 'PERCENTAGE'
+                      ? `${state.descontoAntecipado}%`
+                      : formatter.format(state.descontoAntecipado ?? 0)}
+                    {state.prazoDesconto ? ` (${state.prazoDesconto}d)` : ''}
                   </span>
-                </div>
+                </p>
               )}
-              <div>
-                Situação da taxa:{' '}
-                <span className="font-medium text-gray-800">{statusTaxaResumo}</span>
-              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Mensalidade final</p>
-              <p className="text-lg font-semibold text-violet-700">
-                {formatter.format(mensalidadeFinal)}
-              </p>
-            </div>
-            <div className="text-sm text-gray-600">
-              <p>
-                Desconto:
-                <span className="font-medium text-gray-800">
-                  {state.descontoTipo === 'PERCENTUAL'
-                    ? `${descontoValor}%`
-                    : formatter.format(descontoAplicado)}
-                </span>
-              </p>
-              <p>
-                Taxa matrícula:{' '}
-                <span className="font-medium text-gray-800">
-                  {formatter.format(state.taxaMatricula ?? 0)}
-                </span>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Alert sobre status financeiro */}
-        {!state.taxaIsenta && (
-          <div className="space-y-3">
-            {state.pagarTaxaAgora ? (
-              <Alert className="border-blue-200 bg-blue-50">
-                <CheckCircleIcon className="h-5 w-5 text-blue-600" />
-                <AlertDescription className="text-blue-800">
-                  <strong>Pagamento imediato:</strong> A matrícula será criada com{' '}
-                  <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">status: ATIVA</code> e{' '}
-                  <code className="rounded bg-blue-100 px-1 py-0.5 text-xs">
-                    statusFinanceiro: PENDENTE_TAXA
-                  </code>
-                  . Um link de checkout será enviado ao responsável financeiro. Após a confirmação
-                  do pagamento, o sistema atualizará automaticamente para{' '}
-                  <code className="rounded bg-emerald-100 px-1 py-0.5 text-xs">ADIMPLENTE</code>.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Alert variant="warning" className="border-amber-200 bg-amber-50">
-                <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
-                <AlertDescription className="text-amber-800">
-                  <strong>Taxa pendente:</strong> A matrícula será criada normalmente com{' '}
-                  <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">status: ATIVA</code>,
-                  mas com{' '}
-                  <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">
-                    statusFinanceiro: PENDENTE_TAXA
-                  </code>
-                  . O aluno poderá frequentar as aulas enquanto a situação financeira não é
-                  regularizada. O pagamento pode ser feito posteriormente através do portal do aluno
-                  ou pelo financeiro.
-                </AlertDescription>
-              </Alert>
-            )}
           </div>
         )}
+
+        {/* Checkbox de confirmação */}
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              id="confirmacao-revisao"
+              checked={state.confirmacaoRevisao}
+              onCheckedChange={handleConfirmacaoChange}
+              className="mt-0.5"
+            />
+            <Label htmlFor="confirmacao-revisao" className="text-sm text-gray-700 cursor-pointer">
+              Confirmo que revisei todas as informações da matrícula.
+            </Label>
+          </div>
+        </div>
       </div>
     </SectionCard>
   );

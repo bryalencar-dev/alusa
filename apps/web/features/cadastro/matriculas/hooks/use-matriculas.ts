@@ -11,6 +11,7 @@ export interface UseMatriculasOptions {
   contaId: string | null | undefined;
   status?: MatriculaStatus | MatriculaStatus[];
   search?: string;
+  turmaId?: string;
 }
 
 interface UseMatriculasState {
@@ -31,7 +32,7 @@ const INITIAL_STATE: UseMatriculasState = {
   pageSize: 20,
 };
 
-export function useMatriculas({ contaId, status, search }: UseMatriculasOptions) {
+export function useMatriculas({ contaId, status, search, turmaId }: UseMatriculasOptions) {
   const [state, setState] = useState<UseMatriculasState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -42,7 +43,7 @@ export function useMatriculas({ contaId, status, search }: UseMatriculasOptions)
         return; // não limpar para manter qualquer estado anterior enquanto aguardamos
       }
 
-      console.log('[useMatriculas] Carregando matrículas:', { contaId, status, search, overrides });
+      console.log('[useMatriculas] Carregando matrículas:', { contaId, status, search, turmaId, overrides });
 
       if (abortRef.current) abortRef.current.abort();
       const controller = new AbortController();
@@ -53,6 +54,7 @@ export function useMatriculas({ contaId, status, search }: UseMatriculasOptions)
           contaId,
           status,
           search,
+          turmaId,
           page: overrides?.page ?? 1,
           pageSize: overrides?.pageSize ?? 50,
           signal: controller.signal,
@@ -84,7 +86,7 @@ export function useMatriculas({ contaId, status, search }: UseMatriculasOptions)
         }));
       }
     },
-    [contaId, status, search],
+    [contaId, status, search, turmaId],
   );
 
   useEffect(() => {

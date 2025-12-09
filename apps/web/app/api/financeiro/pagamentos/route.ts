@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { safeGetServerSession } from '@/lib/safe-server-session';
 import { prisma } from '@/src/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +18,7 @@ function err(status: number, code: string, message: string) {
 // Filtros: status, formaPagamento, q (aluno ou descricao da cobrança), cobrancaId
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions).catch(() => null);
+    const session = await safeGetServerSession();
     type SessUser = { id?: string; contaId?: string; role?: string };
     const user = (session as { user?: SessUser } | null)?.user;
     if (!user?.id || !user?.contaId) return err(401, 'NAO_AUTENTICADO', 'Usuário não autenticado');

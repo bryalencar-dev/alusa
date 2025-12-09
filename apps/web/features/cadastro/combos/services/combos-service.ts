@@ -1,19 +1,14 @@
 export type ComboStatus = 'ATIVO' | 'INATIVO';
-export type ComboModoMatricula = 'RESERVADA' | 'SOB_DEMANDA';
+export type ComboPeriodicidade = 'SEMANAL' | 'QUINZENAL' | 'MENSAL' | 'TRIMESTRAL' | 'ANUAL';
 
 export interface ComboListItem {
   id: string;
   contaId: string;
   nome: string;
   descricao: string | null;
-  valorMensal: number;
-  taxaMatricula: number | null;
-  categoriaMensal: string | null;
-  categoriaTaxa: string | null;
+  valor: number;
+  periodicidade: ComboPeriodicidade;
   status: ComboStatus;
-  modoMatricula: ComboModoMatricula;
-  vigenciaIni: string | null;
-  vigenciaFim: string | null;
   vagasLimite: number | null;
   turmas: { id: string; nome: string }[];
   createdAt?: string;
@@ -29,22 +24,20 @@ function coerceNumber(value: unknown): number {
   throw new Error('Valor numérico inválido recebido.');
 }
 
+const PERIODICIDADES: ComboPeriodicidade[] = ['SEMANAL', 'QUINZENAL', 'MENSAL', 'TRIMESTRAL', 'ANUAL'];
+
 export function normalizeCombo(raw: unknown): ComboListItem {
   if (!raw || typeof raw !== 'object') throw new Error('Combo inválido.');
   const r = raw as Record<string, unknown>;
+  const rawPeriodicidade = String(r.periodicidade ?? 'MENSAL').toUpperCase() as ComboPeriodicidade;
   return {
     id: String(r.id),
     contaId: String(r.contaId),
     nome: String(r.nome),
     descricao: r.descricao == null ? null : String(r.descricao),
-    valorMensal: coerceNumber(r.valorMensal),
-    taxaMatricula: r.taxaMatricula == null ? null : coerceNumber(r.taxaMatricula),
-    categoriaMensal: r.categoriaMensal == null ? null : String(r.categoriaMensal),
-    categoriaTaxa: r.categoriaTaxa == null ? null : String(r.categoriaTaxa),
+    valor: coerceNumber(r.valor),
+    periodicidade: PERIODICIDADES.includes(rawPeriodicidade) ? rawPeriodicidade : 'MENSAL',
     status: r.status === 'INATIVO' ? 'INATIVO' : 'ATIVO',
-    modoMatricula: r.modoMatricula === 'SOB_DEMANDA' ? 'SOB_DEMANDA' : 'RESERVADA',
-    vigenciaIni: r.vigenciaIni ? new Date(String(r.vigenciaIni)).toISOString() : null,
-    vigenciaFim: r.vigenciaFim ? new Date(String(r.vigenciaFim)).toISOString() : null,
     vagasLimite: r.vagasLimite == null ? null : Number(r.vagasLimite),
     turmas: Array.isArray(r.turmas)
       ? (r.turmas as unknown[]).map((t) => {
@@ -83,13 +76,8 @@ export interface CreateComboInput {
   contaId: string;
   nome: string;
   descricao?: string | null;
-  valorMensal: number;
-  taxaMatricula?: number | null;
-  categoriaMensal?: string | null;
-  categoriaTaxa?: string | null;
-  modoMatricula: ComboModoMatricula;
-  vigenciaIni?: string | null;
-  vigenciaFim?: string | null;
+  valor: number;
+  periodicidade: ComboPeriodicidade;
   vagasLimite?: number | null;
   turmaIds?: string[];
 }

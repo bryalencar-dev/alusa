@@ -45,5 +45,6 @@
     "**/storybook-static": true,
     "**/prisma/migrations": true
   },
-  "chat.mcp.serverSampling": {}
+  "chat.mcp.serverSampling": {},
+  "prisma.pinToPrisma6": true
 }

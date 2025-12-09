@@ -6,8 +6,8 @@ import path from 'path';
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 const DEFAULT_MAX_MB = 15;
 const MAX_SIZE = (Number(process.env.NEXT_UPLOAD_MAX_MB || process.env.NEXT_PUBLIC_UPLOAD_MAX_MB) || DEFAULT_MAX_MB) * 1024 * 1024;
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
 
 async function ensureDir() {
   try {
@@ -20,38 +20,50 @@ async function ensureDir() {
 function validateFile(file: File): { valid: boolean; error?: string } {
   // Validar tipo MIME
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return { valid: false, error: 'Tipo de arquivo não permitido. Use JPG, PNG ou WebP.' };
+    return { valid: false, error: 'Tipo de arquivo nao permitido. Use JPG, PNG, WebP ou PDF.' };
   }
 
   // Validar tamanho
   if (file.size > MAX_SIZE) {
-  const mb = Math.floor(MAX_SIZE / (1024 * 1024));
-  return { valid: false, error: `Arquivo muito grande. Máximo ${mb}MB.` };
+    const mb = Math.floor(MAX_SIZE / (1024 * 1024));
+    return { valid: false, error: `Arquivo muito grande. Maximo ${mb}MB.` };
   }
 
-  // Validar extensão
+  // Validar extensao
   const ext = path.extname(file.name).toLowerCase();
   if (!ALLOWED_EXTENSIONS.includes(ext)) {
-    return { valid: false, error: 'Extensão de arquivo não permitida.' };
+    return { valid: false, error: 'Extensao de arquivo nao permitida.' };
   }
 
   return { valid: true };
 }
 
+
 export async function POST(req: Request) {
   try {
+    console.log('📤 [API /api/upload] Iniciando upload...');
     await ensureDir();
     
     const formData = await req.formData();
     const file = formData.get('file');
     
+    console.log('📦 [API /api/upload] Arquivo recebido:', {
+      hasFile: !!file,
+      isFile: file instanceof File,
+      name: file instanceof File ? file.name : null,
+      size: file instanceof File ? file.size : null,
+      type: file instanceof File ? file.type : null,
+    });
+    
     if (!file || !(file instanceof File)) {
+      console.error('❌ [API /api/upload] Nenhum arquivo válido enviado');
       return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
     }
 
     // Validar arquivo
     const validation = validateFile(file);
     if (!validation.valid) {
+      console.error('❌ [API /api/upload] Validação falhou:', validation.error);
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
@@ -60,17 +72,22 @@ export async function POST(req: Request) {
     const filename = `${randomUUID()}${ext}`;
     const filePath = path.join(UPLOAD_DIR, filename);
 
+    console.log('💾 [API /api/upload] Salvando arquivo:', { filename, filePath });
+    
     // Salvar arquivo
     const arrayBuffer = await file.arrayBuffer();
     await fs.writeFile(filePath, new Uint8Array(arrayBuffer));
 
-    return NextResponse.json({ 
+    const result = { 
       url: `/uploads/${filename}`,
       size: file.size,
       type: file.type 
-    });
+    };
+    
+    console.log('✅ [API /api/upload] Upload concluído:', result);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Erro no upload:', error);
+    console.error('❌ [API /api/upload] Erro no upload:', error);
     return NextResponse.json({ 
       error: 'Erro interno do servidor. Tente novamente.' 
     }, { status: 500 });

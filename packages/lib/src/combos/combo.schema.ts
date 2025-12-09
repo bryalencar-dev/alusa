@@ -1,7 +1,15 @@
 import { z } from 'zod';
 
 export const comboStatusEnum = z.enum(['ATIVO', 'INATIVO']);
-export const comboModoMatriculaEnum = z.enum(['RESERVADA', 'SOB_DEMANDA']);
+
+// Periodicidade do combo (ciclo de cobrança) - alinhado com PeriodicidadePlano do Prisma
+export const comboPeriodicidadeEnum = z.enum([
+  'SEMANAL',
+  'QUINZENAL',
+  'MENSAL',
+  'TRIMESTRAL',
+  'ANUAL',
+]);
 
 // Normalização de monetários (string/number) -> number com 2 casas
 function normalizeMoney(v: unknown): number {
@@ -21,7 +29,7 @@ const moneySchema = z
   .unknown()
   .transform(normalizeMoney)
   .refine((n) => !Number.isNaN(n), 'Valor inválido')
-  .refine((n) => n >= 0, 'Valor deve ser >= 0');
+  .refine((n) => n > 0, 'Valor deve ser maior que zero');
 
 const comboBaseObj = z.object({
   nome: z.string().trim().min(2).max(120),
@@ -33,14 +41,9 @@ const comboBaseObj = z.object({
       return t.length ? t : null;
     })
     .refine((v) => v === null || v.length <= 400, 'Descrição muito longa'),
-  valorMensal: moneySchema,
-  taxaMatricula: moneySchema.optional(),
-  categoriaMensal: z.string().trim().max(80).optional(),
-  categoriaTaxa: z.string().trim().max(80).optional(),
+  valor: moneySchema, // Valor do ciclo (conforme periodicidade)
+  periodicidade: comboPeriodicidadeEnum.default('MENSAL'), // Ciclo de cobrança (Asaas)
   status: comboStatusEnum.default('ATIVO').optional(),
-  modoMatricula: comboModoMatriculaEnum.default('RESERVADA'),
-  vigenciaIni: z.coerce.date().optional(),
-  vigenciaFim: z.coerce.date().optional(),
   vagasLimite: z
     .union([z.number(), z.string()])
     .transform((v) => (typeof v === 'string' ? Number(v) : v))
@@ -51,34 +54,17 @@ const comboBaseObj = z.object({
 
 export const comboBaseSchema = comboBaseObj;
 
-function withRanges<T extends z.ZodTypeAny>(schema: T) {
-  return schema.superRefine((val: unknown, ctx) => {
-    const v = val as { vigenciaIni?: Date; vigenciaFim?: Date };
-    if (v.vigenciaFim && v.vigenciaIni && v.vigenciaFim < v.vigenciaIni) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['vigenciaFim'],
-        message: 'vigência fim deve ser >= início',
-      });
-    }
-  });
-}
-
-export const comboCreateSchema = withRanges(
-  comboBaseObj.extend({
-    contaId: z.string().min(1),
-    turmaIds: z.array(z.string().min(1)).default([]).optional(),
-  }),
-);
+export const comboCreateSchema = comboBaseObj.extend({
+  contaId: z.string().min(1),
+  turmaIds: z.array(z.string().min(1)).default([]).optional(),
+});
 export type ComboCreateInput = z.infer<typeof comboCreateSchema>;
 
-export const comboUpdateSchema = withRanges(
-  comboBaseObj.partial().extend({
-    id: z.string().min(1),
-    contaId: z.string().min(1),
-    turmaIds: z.array(z.string().min(1)).optional(),
-  }),
-);
+export const comboUpdateSchema = comboBaseObj.partial().extend({
+  id: z.string().min(1),
+  contaId: z.string().min(1),
+  turmaIds: z.array(z.string().min(1)).optional(),
+});
 export type ComboUpdateInput = z.infer<typeof comboUpdateSchema>;
 
 export const comboFilterSchema = z.object({
@@ -99,14 +85,9 @@ export interface ComboDTO {
   contaId: string;
   nome: string;
   descricao: string | null;
-  valorMensal: number;
-  taxaMatricula: number | null;
-  categoriaMensal: string | null;
-  categoriaTaxa: string | null;
+  valor: number; // Valor do ciclo (conforme periodicidade)
+  periodicidade: string; // Ciclo de cobrança (MENSAL, TRIMESTRAL, ANUAL, etc.)
   status: string;
-  modoMatricula: string;
-  vigenciaIni: Date | null;
-  vigenciaFim: Date | null;
   vagasLimite: number | null;
   turmas: { id: string; nome: string }[];
   createdAt: Date;

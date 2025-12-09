@@ -1,6 +1,18 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { CobrancaActionsMenu } from '@/components/financeiro/CobrancaActionsMenu';
+
+// Helper para formatar tipo de cobrança
+function formatarTipo(tipo: string): string {
+  const tiposFormatados: Record<string, string> = {
+    MENSALIDADE: 'Mensalidade',
+    TAXA_MATRICULA: 'Taxa de Matrícula',
+    EXTRA: 'Extra',
+    AVULSA: 'Avulsa',
+  };
+  return tiposFormatados[tipo] || tipo;
+}
 
 interface ChargeRow {
   id: string;
@@ -11,6 +23,7 @@ interface ChargeRow {
   aluno: { id: string; nome: string };
   matriculaId: string;
   asaasPaymentId?: string | null;
+  formaPagamento?: string;
   atrasado?: boolean;
 }
 
@@ -141,33 +154,32 @@ export default function ChargesTable() {
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Aluno</th>
-              <th className="px-3 py-2 text-left font-medium">Tipo</th>
-              <th className="px-3 py-2 text-left font-medium">Status</th>
-              <th className="px-3 py-2 text-left font-medium">Valor</th>
-              <th className="px-3 py-2 text-left font-medium">Vencimento</th>
-              <th className="px-3 py-2 text-left font-medium">Pagamento Asaas</th>
-              <th className="px-3 py-2 text-left font-medium">Ações</th>
+              <th className="px-4 py-3 text-left font-medium w-1/4">Nome</th>
+              <th className="px-4 py-3 text-left font-medium w-1/6">Valor</th>
+              <th className="px-4 py-3 text-left font-medium w-1/6">Tipo</th>
+              <th className="px-4 py-3 text-left font-medium w-1/6">Vencimento</th>
+              <th className="px-4 py-3 text-left font-medium w-1/6">Status</th>
+              <th className="px-4 py-3 text-center font-medium w-24">Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
                   Carregando...
                 </td>
               </tr>
             )}
             {!loading && error && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-red-600">
+                <td colSpan={6} className="px-4 py-6 text-center text-red-600">
                   {error}
                 </td>
               </tr>
             )}
             {!loading && !error && rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-gray-500">
                   Nenhuma cobrança encontrada.
                 </td>
               </tr>
@@ -175,48 +187,48 @@ export default function ChargesTable() {
             {!loading &&
               !error &&
               rows.map((r) => (
-                <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2 whitespace-nowrap">{r.aluno.nome}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{r.tipo}</td>
-                  <td className="px-3 py-2">
-                    <span className="inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700">
-                      {r.status}
-                    </span>
+                <tr key={r.id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900">{r.aluno.nome}</div>
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap font-medium">
                     {r.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span className={r.atrasado ? 'text-red-600 font-medium' : ''}>
+                  <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                    {formatarTipo(r.tipo)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className={r.atrasado ? 'text-red-600 font-medium' : 'text-gray-700'}>
                       {new Date(r.vencimento).toLocaleDateString('pt-BR')}
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-xs text-gray-500">
-                    {r.asaasPaymentId ? (
-                      <span className="text-green-600">{r.asaasPaymentId.slice(0, 10)}…</span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                        r.status === 'PAGO'
+                          ? 'bg-green-100 text-green-800'
+                          : r.status === 'PENDENTE'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : r.status === 'ATRASADO'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      {r.status === 'PAGO' ? '✓ Pago' : r.status}
+                    </span>
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-xs">
-                    <div className="flex gap-2">
-                      <a
-                        href={`/matriculas/${r.matriculaId}`}
-                        className="underline text-blue-600 hover:text-blue-800"
-                      >
-                        Ver Matrícula
-                      </a>
-                      {r.asaasPaymentId && (
-                        <a
-                          href={`https://www.asaas.com/pay/${r.asaasPaymentId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline text-indigo-600 hover:text-indigo-800"
-                        >
-                          Segunda Via
-                        </a>
-                      )}
-                    </div>
+                  <td className="px-4 py-3 text-center">
+                    <CobrancaActionsMenu
+                      cobranca={{
+                        id: r.id,
+                        status: r.status,
+                        asaasPaymentId: r.asaasPaymentId,
+                        matriculaId: r.matriculaId,
+                        formaPagamento: r.formaPagamento || r.tipo,
+                        atrasado: r.atrasado,
+                      }}
+                      variant="button"
+                    />
                   </td>
                 </tr>
               ))}

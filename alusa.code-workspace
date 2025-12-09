@@ -34,5 +34,6 @@
 
     "editor.inlineSuggest.enabled": true,
     "github.copilot.inlineSuggest.enable": true,
+    "chatgpt.openOnStartup": true,
   },
 }

@@ -21,7 +21,7 @@ import EntityFiltersBar, {
 } from '@/components/layout/EntityFiltersBar';
 // getStatusBadgeProps substituído pelo componente StatusBadge
 import DataTable, { type DataTableColumn } from '@/components/layout/DataTable';
-import StatusBadge from '@/components/shared/StatusBadge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { formatFirstLast, formatInitials, maskCpf } from '@alusa/lib';
 import { useDeleteDialog } from '@/hooks/use-delete-dialog';
 import { useEditDialog } from '@/hooks/use-edit-dialog';
@@ -32,7 +32,7 @@ import type { AlunoListItem } from './services/alunos-service';
 import toast from 'react-hot-toast';
 import { statusColumn, actionsColumn } from '@alusa/ui/datatable/columns';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 6;
 
 type SortOrder = 'ASC' | 'DESC';
 type StatusFilter = StatusValue;
@@ -83,6 +83,7 @@ export function AlunosFeature() {
     setSort,
     page,
     setPage,
+    setPageSize,
     ordered,
     paginated,
     resetFilters,
@@ -102,6 +103,11 @@ export function AlunosFeature() {
     initialSort: 'ASC',
   });
   const [wizardOpen, setWizardOpen] = useState(false);
+
+  // Definir PAGE_SIZE no hook
+  useEffect(() => {
+    setPageSize(PAGE_SIZE);
+  }, [setPageSize]);
 
   useEffect(() => {
     const handler = () => {
@@ -374,7 +380,9 @@ function AlunosTable({
       skeleton: <div className="h-4 w-24 bg-gray-200 rounded mx-auto" />,
     },
     statusColumn<AlunoListItem>({
-      render: (aluno: AlunoListItem) => <StatusBadge status={aluno.status ?? 'ATIVO'} />,
+      render: (aluno: AlunoListItem) => (
+        <StatusBadge status={aluno.status === 'ATIVO' ? 'ATIVO' : 'INATIVO'} />
+      ),
     }),
     actionsColumn<AlunoListItem>({
       onEdit,

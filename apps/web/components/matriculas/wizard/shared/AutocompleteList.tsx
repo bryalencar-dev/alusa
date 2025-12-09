@@ -66,12 +66,12 @@ export function AutocompleteList({
               e.preventDefault();
               onSelect(o);
             }}
-            className="cursor-pointer w-full rounded-md px-3 py-2 text-left text-sm text-slate-900 transition focus:outline-none hover:bg-slate-50 data-[selected]:!bg-primary data-[selected]:!text-primary-foreground data-[selected]:hover:!bg-primary data-[state=active]:!bg-[#6b35cc] data-[state=active]:!text-white"
+            className="cursor-pointer w-full rounded-md px-3 py-2 text-left text-sm text-gray-900 transition focus:outline-none hover:bg-gray-50 data-[selected]:bg-gray-100 data-[selected]:text-gray-900 data-[state=active]:bg-gray-100 data-[state=active]:text-gray-900"
           >
             <div className="flex flex-col">
-              <span className="font-medium data-[selected]:text-white">{o.label}</span>
+              <span className="font-medium text-gray-900">{o.label}</span>
               {renderDescription && (
-                <span className="text-xs text-slate-500 data-[selected]:text-white">
+                <span className="text-xs text-gray-500">
                   {renderDescription(o)}
                 </span>
               )}

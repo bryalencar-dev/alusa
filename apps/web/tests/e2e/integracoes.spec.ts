@@ -3,11 +3,14 @@ import { resetDb } from './utils/reset-db';
 
 async function firstRegister(page: import('@playwright/test').Page) {
   await page.goto('/register');
-  await page.fill('[data-testid="register-escolaNome"]', 'Escola Integrações');
+  // Preenche campos visíveis do formulário de registro
+  await page.fill('[data-testid="register-nome-first"]', 'Admin');
+  await page.fill('[data-testid="register-nome-last"]', 'Integrações');
   await page.fill('[data-testid="register-cpfCnpj"]', '12345678901');
-  await page.fill('[data-testid="register-nome"]', 'Admin Integrações');
   await page.fill('[data-testid="register-email"]', 'admin-int@example.com');
   await page.fill('[data-testid="register-senha"]', 'SenhaFort3!');
+  await page.fill('[data-testid="register-senha-confirmar"]', 'SenhaFort3!');
+  await page.getByRole('checkbox').check();
   await page.click('[data-testid="register-submit"]');
   await page.waitForURL('**/dashboard');
 }

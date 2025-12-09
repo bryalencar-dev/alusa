@@ -1,0 +1,1580 @@
+C:\alusa/
+├── .github/
+│   ├── instructions/
+│   │   ├── boas práticas.instructions.md
+│   │   ├── documentação.instructions.md
+│   │   ├── instructions alusa.instructions.md
+│   │   ├── refatoração.instructions.md
+│   │   └── visao geral.instructions.md
+│   └── workflows/
+│       └── ci.yml
+├── .vscode/
+│   ├── launch.json
+│   ├── mcp.json
+│   ├── settings.json
+│   └── tasks.json
+├── apps/
+│   ├── .vscode/
+│   │   └── tasks.json
+│   └── web/
+│       ├── .vscode/
+│       │   ├── mcp.json
+│       │   └── settings.json
+│       ├── app/
+│       │   ├── (admin)/
+│       │   │   ├── admin/
+│       │   │   │   └── users/
+│       │   │   │       └── InviteUserButton.tsx
+│       │   │   └── users/
+│       │   │       └── page.tsx
+│       │   ├── (app)/
+│       │   │   ├── admin/
+│       │   │   │   ├── configuracoes/
+│       │   │   │   │   ├── conta/
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── integracoes/
+│       │   │   │   │   │   ├── asaas/
+│       │   │   │   │   │   │   └── page.tsx
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── notificacoes/
+│       │   │   │   │   │   ├── asaas/
+│       │   │   │   │   │   │   └── page.tsx
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── seguranca/
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── usuarios/
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── layout.tsx
+│       │   │   │   │   └── page.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── alunos/
+│       │   │   │   ├── loading.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── cobrancas/
+│       │   │   │   └── [id]/
+│       │   │   │       └── page.tsx
+│       │   │   ├── colaboradores/
+│       │   │   │   ├── new/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── combos/
+│       │   │   │   └── page.tsx
+│       │   │   ├── comunicacao/
+│       │   │   │   └── page.tsx
+│       │   │   ├── conta/
+│       │   │   │   ├── assinaturas/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── email/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── forma-pagamento/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── notificacoes/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── perfil/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── seguranca/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── layout.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── dashboard/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── CashflowCard.tsx
+│       │   │   │   │   ├── EmAtrasoCard.tsx
+│       │   │   │   │   ├── ReceitaMesCard.tsx
+│       │   │   │   │   ├── TaxaMatriculaCard.tsx
+│       │   │   │   │   ├── TotalAlunosCard.tsx
+│       │   │   │   │   └── WeeklyPerformanceCard.tsx
+│       │   │   │   ├── DashboardClient.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── financeiro/
+│       │   │   │   ├── centros-custo/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── cobrancas/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── dashboard/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── lancamentos/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── pagamentos/
+│       │   │   │   │   ├── [alunoId]/
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   └── page.tsx
+│       │   │   │   └── relatorios/
+│       │   │   │       └── page.tsx
+│       │   │   ├── matriculas/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── turma/
+│       │   │   │   │   └── [turmaId]/
+│       │   │   │   │       └── page.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── modalidades/
+│       │   │   │   └── page.tsx
+│       │   │   ├── planos/
+│       │   │   │   └── page.tsx
+│       │   │   ├── portal/
+│       │   │   │   ├── eventos/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── financeiro/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   ├── checkout/
+│       │   │   │   │   │   │   └── page.tsx
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── matriculas/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── perfil/
+│       │   │   │   │   └── page.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── rematriculas/
+│       │   │   │   └── page.tsx
+│       │   │   ├── salas/
+│       │   │   │   └── page.tsx
+│       │   │   ├── turmas/
+│       │   │   │   └── page.tsx
+│       │   │   └── layout.tsx
+│       │   ├── (auth)/
+│       │   │   ├── accept/
+│       │   │   │   └── page.tsx
+│       │   │   ├── complete-profile/
+│       │   │   │   └── page.tsx
+│       │   │   ├── forgot-password/
+│       │   │   │   └── page.tsx
+│       │   │   ├── login/
+│       │   │   │   ├── client/
+│       │   │   │   │   └── index.ts
+│       │   │   │   ├── client.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── register/
+│       │   │   │   ├── page.server.tsx
+│       │   │   │   ├── page.tsx
+│       │   │   │   └── RegisterForm.tsx
+│       │   │   ├── register-responsavel/
+│       │   │   │   └── [token]/
+│       │   │   ├── reset-password/
+│       │   │   │   └── page.tsx
+│       │   │   └── layout.tsx
+│       │   ├── (public)/
+│       │   │   ├── checkout/
+│       │   │   │   ├── [token]/
+│       │   │   │   │   ├── credit-card-form.tsx
+│       │   │   │   │   └── use-checkout-form.tsx
+│       │   │   │   ├── boleto/
+│       │   │   │   │   └── [cobrancaId]/
+│       │   │   │   │       └── page.tsx
+│       │   │   │   ├── cartao/
+│       │   │   │   │   └── [cobrancaId]/
+│       │   │   │   │       └── page.tsx
+│       │   │   │   ├── pix/
+│       │   │   │   │   └── [cobrancaId]/
+│       │   │   │   │       └── page.tsx
+│       │   │   │   └── pix-boleto/
+│       │   │   │       └── [cobrancaId]/
+│       │   │   │           └── page.tsx
+│       │   │   ├── pagamento-pix/
+│       │   │   │   └── [pixId]/
+│       │   │   │       └── page.tsx
+│       │   │   └── layout.tsx
+│       │   ├── api/
+│       │   │   ├── admin/
+│       │   │   │   └── clean-checkout-links/
+│       │   │   │       └── route.ts
+│       │   │   ├── alunos/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   ├── inativar/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── reativar/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── list-for-responsavel/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── asaas/
+│       │   │   │   ├── cobrancas/
+│       │   │   │   │   └── avulsa/
+│       │   │   │   │       └── route.ts
+│       │   │   │   ├── customers/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── payments/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   ├── confirm-cash/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── subscriptions/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── webhooks/
+│       │   │   │       └── route.ts
+│       │   │   ├── auth/
+│       │   │   │   ├── [...nextauth]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── accept-invite/
+│       │   │   │   └── forgot/
+│       │   │   │       └── route.ts
+│       │   │   ├── checkout/
+│       │   │   │   ├── [token]/
+│       │   │   │   │   ├── process/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── boleto/
+│       │   │   │   │   └── [cobrancaId]/
+│       │   │   │   │       └── route.ts
+│       │   │   │   ├── cartao/
+│       │   │   │   │   └── [cobrancaId]/
+│       │   │   │   │       └── route.ts
+│       │   │   │   ├── pix/
+│       │   │   │   │   └── [cobrancaId]/
+│       │   │   │   │       └── route.ts
+│       │   │   │   └── pix-boleto/
+│       │   │   │       └── [cobrancaId]/
+│       │   │   │           └── route.ts
+│       │   │   ├── cobrancas/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   ├── arquivos/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── asaas-notify/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── auditoria/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── confirmar-recebimento/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── forma-pagamento/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── reenviar/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── resend/
+│       │   │   │   │   │   ├── __tests__/
+│       │   │   │   │   │   │   └── route.test.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── sync-asaas/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── sync-status/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── colaboradores/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── combos/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── configuracoes/
+│       │   │   │   └── notificacoes/
+│       │   │   │       └── asaas/
+│       │   │   │           └── route.ts
+│       │   │   ├── conta/
+│       │   │   │   └── forma-pagamento/
+│       │   │   │       ├── change-method/
+│       │   │   │       │   └── route.ts
+│       │   │   │       ├── sync/
+│       │   │   │       │   └── route.ts
+│       │   │   │       ├── update-card/
+│       │   │   │       │   └── route.ts
+│       │   │   │       ├── validate-card/
+│       │   │   │       │   └── route.ts
+│       │   │   │       └── route.ts
+│       │   │   ├── dashboard/
+│       │   │   │   ├── metrics/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── receita/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── taxa-matricula/
+│       │   │   │       └── route.ts
+│       │   │   ├── dev/
+│       │   │   │   ├── login/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── set-password/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── user/
+│       │   │   │       └── route.ts
+│       │   │   ├── financeiro/
+│       │   │   │   ├── centros-custo/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   ├── status/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── cobrancas/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   ├── marcar-pago/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   ├── receber-dinheiro/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── confirmar-manual/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── deletar-cobranca/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── gerar-segunda-via/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── indicadores/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── lancamentos/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   ├── estornar/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── categorias/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── pagamentos/
+│       │   │   │   │   ├── aluno/
+│       │   │   │   │   │   └── [alunoId]/
+│       │   │   │   │   │       └── route.ts
+│       │   │   │   │   ├── summary/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── pausar-assinatura/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── reativar-assinatura/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── reenviar-cobranca/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── refund-cobranca/
+│       │   │   │       └── route.ts
+│       │   │   ├── health/
+│       │   │   │   └── route.ts
+│       │   │   ├── integracoes/
+│       │   │   │   └── asaas/
+│       │   │   │       ├── testar/
+│       │   │   │       │   └── route.ts
+│       │   │   │       └── route.ts
+│       │   │   ├── invite/
+│       │   │   │   └── validate/
+│       │   │   │       └── [token]/
+│       │   │   ├── jobs/
+│       │   │   │   └── encerrar-contratos/
+│       │   │   │       └── route.ts
+│       │   │   ├── matriculas/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   ├── editar/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── forma-pagamento/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── gerar-pix/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── juros-multa/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── reenviar-cobranca/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── status/
+│       │   │   │   │   │   ├── __tests__/
+│       │   │   │   │   │   │   └── route.test.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── valor/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── modalidades/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── pagamento-pix/
+│       │   │   │   └── [pixId]/
+│       │   │   │       └── route.ts
+│       │   │   ├── planos/
+│       │   │   │   └── route.ts
+│       │   │   ├── portal/
+│       │   │   │   ├── dashboard/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── eventos/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── financeiro/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   ├── boleto/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   ├── checkout/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   ├── pix/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   ├── process-card/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── matriculas/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── notifications/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── perfil/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── responsavel/
+│       │   │   │       └── alunos/
+│       │   │   │           └── route.ts
+│       │   │   ├── professores/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── rematriculas/
+│       │   │   │   └── route.ts
+│       │   │   ├── responsaveis/
+│       │   │   │   └── route.ts
+│       │   │   ├── salas/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── test/
+│       │   │   │   └── create-invite/
+│       │   │   │       └── route.ts
+│       │   │   ├── turmas/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── route.ts
+│       │   │   ├── twilio/
+│       │   │   │   └── send/
+│       │   │   │       └── route.ts
+│       │   │   ├── upload/
+│       │   │   │   └── route.ts
+│       │   │   ├── users/
+│       │   │   │   ├── [id]/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── accept/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── count/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── first-register/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── invite/
+│       │   │   │   │   ├── [id]/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── list/
+│       │   │   │   │   └── route.ts
+│       │   │   │   ├── me/
+│       │   │   │   │   ├── email/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── notifications/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── password/
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── school/
+│       │   │   │   │   │   ├── address/
+│       │   │   │   │   │   │   └── route.ts
+│       │   │   │   │   │   └── route.ts
+│       │   │   │   │   ├── helpers.ts
+│       │   │   │   │   └── route.ts
+│       │   │   │   └── register/
+│       │   │   │       └── route.ts
+│       │   │   └── webhooks/
+│       │   │       └── asaas/
+│       │   │           └── route.ts
+│       │   ├── globals.css
+│       │   ├── layout.tsx
+│       │   ├── page.tsx
+│       │   └── providers.tsx
+│       ├── components/
+│       │   ├── alunos/
+│       │   │   ├── wizard/
+│       │   │   │   ├── steps/
+│       │   │   │   │   ├── ConfirmacaoSection.tsx
+│       │   │   │   │   ├── EnderecoFields.tsx
+│       │   │   │   │   ├── FotoFields.tsx
+│       │   │   │   │   ├── IdentificacaoFields.tsx
+│       │   │   │   │   ├── PerfilFields.tsx
+│       │   │   │   │   ├── ResponsavelFields.tsx
+│       │   │   │   │   └── SaudeFields.tsx
+│       │   │   │   ├── hooks.ts
+│       │   │   │   ├── ui.tsx
+│       │   │   │   └── utils.ts
+│       │   │   ├── AlunoDeleteDialog.tsx
+│       │   │   ├── AlunoEditDialog.tsx
+│       │   │   ├── AlunoWizardDialog.tsx
+│       │   │   ├── InativarAlunoDialog.tsx
+│       │   │   └── ReativarAlunoDialog.tsx
+│       │   ├── auth/
+│       │   │   ├── AuthCard.tsx
+│       │   │   ├── AuthPageContainer.tsx
+│       │   │   └── InputField.tsx
+│       │   ├── colaboradores/
+│       │   │   ├── wizard/
+│       │   │   │   ├── steps/
+│       │   │   │   │   ├── AcessoFields.tsx
+│       │   │   │   │   ├── ConfirmacaoSection.tsx
+│       │   │   │   │   ├── EnderecoFields.tsx
+│       │   │   │   │   ├── FotoFields.tsx
+│       │   │   │   │   ├── IdentificacaoFields.tsx
+│       │   │   │   │   ├── index.ts
+│       │   │   │   │   └── VinculoFields.tsx
+│       │   │   │   ├── index.ts
+│       │   │   │   ├── ui.tsx
+│       │   │   │   ├── utils.ts
+│       │   │   │   └── validators.ts
+│       │   │   ├── ColaboradorDeleteDialog.tsx
+│       │   │   ├── ColaboradorEditDialog.tsx
+│       │   │   ├── ColaboradoresList.tsx
+│       │   │   └── ColaboradorWizardDialog.tsx
+│       │   ├── dialogs/
+│       │   │   ├── ConfirmDeleteDialog.tsx
+│       │   │   └── EditEntityDialog.tsx
+│       │   ├── financeiro/
+│       │   │   ├── cobranca-auditoria-timeline.tsx
+│       │   │   ├── CobrancaActionsMenu.tsx
+│       │   │   ├── CobrancaArquivos.tsx
+│       │   │   ├── CobrancaCompartilharButton.tsx
+│       │   │   ├── CobrancaEditarDialog.tsx
+│       │   │   └── CobrancaNotificacoes.tsx
+│       │   ├── icons/
+│       │   │   ├── Icon.tsx
+│       │   │   ├── icons.tsx
+│       │   │   └── README.md
+│       │   ├── image/
+│       │   │   ├── __stories__/
+│       │   │   ├── ImageCropDialog.tsx
+│       │   │   └── ImageCropper.tsx
+│       │   ├── invite/
+│       │   │   └── InviteLinkModal.tsx
+│       │   ├── layout/
+│       │   │   ├── CardHeader.tsx
+│       │   │   ├── DataInfo.tsx
+│       │   │   ├── DataTable.tsx
+│       │   │   ├── EntityFiltersBar.tsx
+│       │   │   ├── Pagination.tsx
+│       │   │   ├── Sidebar.tsx
+│       │   │   ├── TableLayout.tsx
+│       │   │   ├── TableStyles.ts
+│       │   │   └── UserMenu.tsx
+│       │   ├── matriculas/
+│       │   │   ├── wizard/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useMatriculaWizard.ts
+│       │   │   │   ├── shared/
+│       │   │   │   │   ├── AutocompleteList.tsx
+│       │   │   │   │   └── Chip.tsx
+│       │   │   │   ├── steps/
+│       │   │   │   │   ├── StepAluno.backup.tsx
+│       │   │   │   │   ├── StepAluno.tsx
+│       │   │   │   │   ├── StepAlunoRefactored.tsx
+│       │   │   │   │   ├── StepFinanceiro.tsx
+│       │   │   │   │   ├── StepJurosMulta.tsx
+│       │   │   │   │   ├── StepPlano.tsx
+│       │   │   │   │   ├── StepResumo.tsx
+│       │   │   │   │   ├── StepTaxa.old.tsx
+│       │   │   │   │   ├── StepTaxa.tsx
+│       │   │   │   │   └── StepTurmasCombo.tsx
+│       │   │   │   ├── CardDetailsDrawer.tsx
+│       │   │   │   └── types.ts
+│       │   │   ├── MatriculaWizardDialog.tsx
+│       │   │   ├── MatriculaWizardFlow.tsx
+│       │   │   ├── MatriculaWizardSuccess.tsx
+│       │   │   ├── RematriculaDialog.tsx
+│       │   │   ├── StatusFinanceiroBadge.tsx
+│       │   │   └── StatusPagamentoBadge.tsx
+│       │   ├── modalidades/
+│       │   │   ├── ModalidadeDialog.tsx
+│       │   │   └── ModalidadeEditDialog.tsx
+│       │   ├── notifications/
+│       │   │   └── NotificationsPanel.tsx
+│       │   ├── planos/
+│       │   │   └── PlanoDialog.tsx
+│       │   ├── portal/
+│       │   │   └── PixModal.tsx
+│       │   ├── professores/
+│       │   │   ├── ProfessoresList.tsx
+│       │   │   └── ProfessorWizardDialog.tsx
+│       │   ├── rematriculas/
+│       │   │   ├── AcoesMatricula.tsx
+│       │   │   ├── ActionDialog.tsx
+│       │   │   ├── ConfiguracoesPagamento.tsx
+│       │   │   ├── DadosAluno.tsx
+│       │   │   ├── DadosMatricula.tsx
+│       │   │   ├── DadosPlano.tsx
+│       │   │   ├── DangerActionDialog.tsx
+│       │   │   ├── EditarMatriculaDialog.tsx
+│       │   │   ├── MatriculaHeader.tsx
+│       │   │   └── TaxaMatriculaSection.tsx
+│       │   ├── salas/
+│       │   │   ├── SalaDialog.tsx
+│       │   │   └── SalaEditDialog.tsx
+│       │   ├── settings/
+│       │   │   ├── AccountSettingsNav.tsx
+│       │   │   └── SettingsCardNav.tsx
+│       │   ├── shared/
+│       │   │   ├── ImageCropDialog.tsx
+│       │   │   ├── ReasonField.tsx
+│       │   │   └── variants.tsx
+│       │   ├── theme/
+│       │   │   └── ThemeProvider.tsx
+│       │   ├── turmas/
+│       │   │   ├── TurmaDialog.tsx
+│       │   │   ├── TurmaEditDialog.tsx
+│       │   │   └── types.ts
+│       │   ├── ui/
+│       │   │   ├── alert-dialog.tsx
+│       │   │   ├── alert.tsx
+│       │   │   ├── avatar.tsx
+│       │   │   ├── badge.tsx
+│       │   │   ├── button.tsx
+│       │   │   ├── calendar.tsx
+│       │   │   ├── card.tsx
+│       │   │   ├── checkbox.tsx
+│       │   │   ├── cobranca-status-badge.tsx
+│       │   │   ├── confirm-dialog.tsx
+│       │   │   ├── custom-scroll-area.md
+│       │   │   ├── custom-scroll-area.tsx
+│       │   │   ├── date-picker.tsx
+│       │   │   ├── dialog.tsx
+│       │   │   ├── dropdown-menu.tsx
+│       │   │   ├── edit-actions.tsx
+│       │   │   ├── input.tsx
+│       │   │   ├── label.tsx
+│       │   │   ├── popover.tsx
+│       │   │   ├── progress.tsx
+│       │   │   ├── select.tsx
+│       │   │   ├── skeleton.tsx
+│       │   │   ├── status-badge.tsx
+│       │   │   ├── textarea.tsx
+│       │   │   ├── toast.tsx
+│       │   │   ├── toggle-group.tsx
+│       │   │   └── tooltip.tsx
+│       │   ├── usuarios/
+│       │   │   ├── UsuarioDeleteDialog.tsx
+│       │   │   └── UsuarioEditDialog.tsx
+│       │   └── CustomToast.tsx
+│       ├── context7/
+│       │   ├── .github/
+│       │   │   ├── workflows/
+│       │   │   │   ├── check.yaml
+│       │   │   │   └── release.yml
+│       │   │   └── dependabot.yml
+│       │   ├── docs/
+│       │   │   ├── adding-projects.md
+│       │   │   ├── README.ar.md
+│       │   │   ├── README.de.md
+│       │   │   ├── README.es.md
+│       │   │   ├── README.fr.md
+│       │   │   ├── README.id-ID.md
+│       │   │   ├── README.it.md
+│       │   │   ├── README.ja.md
+│       │   │   ├── README.ko.md
+│       │   │   ├── README.pt-BR.md
+│       │   │   ├── README.ru.md
+│       │   │   ├── README.tr.md
+│       │   │   ├── README.uk.md
+│       │   │   ├── README.vi.md
+│       │   │   ├── README.zh-CN.md
+│       │   │   └── README.zh-TW.md
+│       │   ├── mcpb/
+│       │   │   ├── .mcpbignore
+│       │   │   ├── context7.mcpb
+│       │   │   └── manifest.json
+│       │   ├── public/
+│       │   │   ├── context7-icon-green.svg
+│       │   │   ├── context7-icon.svg
+│       │   │   ├── context7-logo.svg
+│       │   │   ├── cover.png
+│       │   │   └── icon.png
+│       │   ├── schema/
+│       │   │   └── context7.json
+│       │   ├── src/
+│       │   │   ├── lib/
+│       │   │   │   ├── api.ts
+│       │   │   │   ├── encryption.ts
+│       │   │   │   ├── types.ts
+│       │   │   │   └── utils.ts
+│       │   │   └── index.ts
+│       │   ├── .gitignore
+│       │   ├── bun.lock
+│       │   ├── Dockerfile
+│       │   ├── eslint.config.js
+│       │   ├── LICENSE
+│       │   ├── package.json
+│       │   ├── prettier.config.mjs
+│       │   ├── README.md
+│       │   ├── smithery.yaml
+│       │   └── tsconfig.json
+│       ├── e2e/
+│       │   ├── utils/
+│       │   │   └── reset-db.ts
+│       │   ├── accept-invite-wizard.spec.ts
+│       │   ├── aluno-wizard-maior.spec.ts
+│       │   ├── aluno-wizard-menor.spec.ts
+│       │   ├── alunos.spec.ts
+│       │   ├── asaas.integration.spec.ts
+│       │   ├── auth-first-register.spec.ts
+│       │   ├── auth.spec.ts
+│       │   ├── colaborador-wizard-create.spec.ts
+│       │   ├── colaborador-wizard.spec.ts
+│       │   ├── combos.spec.ts
+│       │   ├── debug-colaboradores.spec.ts
+│       │   ├── first-register-flow.spec.ts
+│       │   ├── first-user.spec.ts
+│       │   ├── invite-link-modal.spec.ts
+│       │   ├── login-redirect.spec.ts
+│       │   ├── matricula-checkout-taxa.spec.ts
+│       │   ├── matricula-wizard-full.spec.ts
+│       │   ├── matriculas-sync.spec.ts
+│       │   ├── minha-conta.spec.ts
+│       │   ├── modalidade.wizard.spec.ts
+│       │   ├── owner-invite-accept.spec.ts
+│       │   ├── planos.debug.spec.ts
+│       │   ├── rematricula-dialog.spec.ts
+│       │   ├── sala.wizard.spec.ts
+│       │   ├── settings-users-invite.spec.ts
+│       │   ├── smoke.spec.ts
+│       │   ├── turma.wizard.spec.ts
+│       │   ├── wizard-aluno-simples.spec.ts
+│       │   ├── wizard-aluno.spec.ts
+│       │   └── wizard-colaborador.spec.ts
+│       ├── features/
+│       │   ├── account/
+│       │   │   ├── components/
+│       │   │   │   ├── EmailChangeForm.tsx
+│       │   │   │   ├── NotificationPreferencesForm.tsx
+│       │   │   │   ├── PasswordForm.tsx
+│       │   │   │   └── ProfileForm.tsx
+│       │   │   ├── services/
+│       │   │   │   ├── avatar-service.ts
+│       │   │   │   ├── profile-service.ts
+│       │   │   │   └── security-service.ts
+│       │   │   └── types.ts
+│       │   ├── cadastro/
+│       │   │   ├── alunos/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-alunos.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── alunos-service.ts
+│       │   │   │   └── AlunosFeature.tsx
+│       │   │   ├── colaboradores/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-colaboradores.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── colaboradores-service.ts
+│       │   │   │   └── ColaboradoresFeature.tsx
+│       │   │   ├── combos/
+│       │   │   │   ├── components/
+│       │   │   │   │   ├── ComboDialog.tsx
+│       │   │   │   │   └── CombosFeature.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-combos.ts
+│       │   │   │   └── services/
+│       │   │   │       └── combos-service.ts
+│       │   │   ├── matriculas/
+│       │   │   │   ├── components/
+│       │   │   │   │   └── MatriculaDetalhesDialog.tsx
+│       │   │   │   ├── hooks/
+│       │   │   │   │   ├── use-matriculas.ts
+│       │   │   │   │   └── use-reenviar-cobranca.tsx
+│       │   │   │   ├── services/
+│       │   │   │   │   ├── matriculas-actions-service.ts
+│       │   │   │   │   └── matriculas-service.ts
+│       │   │   │   └── MatriculasFeature.tsx
+│       │   │   ├── modalidades/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-modalidades.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── modalidades-service.ts
+│       │   │   │   └── ModalidadesFeature.tsx
+│       │   │   ├── planos/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-planos.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── planos-service.ts
+│       │   │   │   └── PlanosFeature.tsx
+│       │   │   ├── professores/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-professores.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── professores-service.ts
+│       │   │   │   └── ProfessoresFeature.tsx
+│       │   │   ├── rematriculas/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-rematriculas.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── rematriculas-service.ts
+│       │   │   │   └── RematriculasFeature.tsx
+│       │   │   ├── salas/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── use-salas.ts
+│       │   │   │   ├── services/
+│       │   │   │   │   └── salas-service.ts
+│       │   │   │   └── SalasFeature.tsx
+│       │   │   └── turmas/
+│       │   │       ├── components/
+│       │   │       │   ├── TurmaCard.tsx
+│       │   │       │   ├── TurmaCardSkeleton.tsx
+│       │   │       │   └── TurmasGridFeature.tsx
+│       │   │       ├── hooks/
+│       │   │       │   └── use-turmas.ts
+│       │   │       ├── services/
+│       │   │       │   └── turmas-service.ts
+│       │   │       └── TurmasFeature.tsx
+│       │   ├── comunicacao/
+│       │   │   ├── hooks/
+│       │   │   │   └── use-twilio-send.ts
+│       │   │   ├── services/
+│       │   │   │   └── twilio-service.ts
+│       │   │   └── ComunicacaoFeature.tsx
+│       │   ├── configuracoes/
+│       │   │   └── notificacoes/
+│       │   │       └── asaas/
+│       │   │           ├── hooks/
+│       │   │           │   └── useAsaasNotificationSettings.ts
+│       │   │           ├── AsaasNotificationSettings.tsx
+│       │   │           ├── constants.ts
+│       │   │           └── types.ts
+│       │   ├── conta/
+│       │   │   └── AssinaturasFeature.tsx
+│       │   ├── financeiro/
+│       │   │   ├── cobrancas/
+│       │   │   │   └── ChargesTable.tsx
+│       │   │   ├── components/
+│       │   │   │   └── FinanceSummary.tsx
+│       │   │   └── pagamentos/
+│       │   │       ├── components/
+│       │   │       │   └── PagamentoDetalhesDialog.tsx
+│       │   │       └── PaymentsTable.tsx
+│       │   ├── integracoes/
+│       │   │   ├── asaas/
+│       │   │   │   ├── hooks/
+│       │   │   │   │   └── useAsaasCredentials.ts
+│       │   │   │   ├── AsaasCredentialsForm.tsx
+│       │   │   │   ├── AsaasIntegrationCard.tsx
+│       │   │   │   ├── AsaasIntegrationPageContent.tsx
+│       │   │   │   └── AsaasIntegrationPanel.tsx
+│       │   │   ├── components/
+│       │   │   │   └── IntegrationCard.tsx
+│       │   │   └── IntegracoesFeature.tsx
+│       │   └── portal/
+│       │       ├── dashboard/
+│       │       │   ├── components/
+│       │       │   │   └── AlunoSelector.tsx
+│       │       │   └── PortalDashboardFeature.tsx
+│       │       ├── eventos/
+│       │       │   └── PortalEventosFeature.tsx
+│       │       ├── financeiro/
+│       │       │   ├── CobrancaDetalhesFeature.tsx
+│       │       │   ├── PortalCheckoutFeature.tsx
+│       │       │   ├── PortalFinanceiroFeature.tsx
+│       │       │   └── PortalFinanceiroTable.tsx
+│       │       ├── matriculas/
+│       │       │   └── PortalMatriculasFeature.tsx
+│       │       └── perfil/
+│       │           └── PortalPerfilFeature.tsx
+│       ├── hooks/
+│       │   ├── entity/
+│       │   │   └── use-entity-list-filtering.ts
+│       │   ├── use-current-user.ts
+│       │   ├── use-delete-dialog.ts
+│       │   ├── use-edit-dialog.ts
+│       │   ├── use-matricula-submit.tsx
+│       │   ├── use-portal-notifications.ts
+│       │   ├── use-professores-lookup.ts
+│       │   └── use-turma-lookups.ts
+│       ├── lib/
+│       │   ├── auth/
+│       │   │   └── session.ts
+│       │   ├── stores/
+│       │   │   ├── user-store.test.ts
+│       │   │   └── user-store.ts
+│       │   ├── utils/
+│       │   │   ├── asaas-sync.ts
+│       │   │   ├── decimal-format.ts
+│       │   │   ├── masks.ts
+│       │   │   └── whatsapp.ts
+│       │   ├── validations/
+│       │   │   ├── aluno-responsavel.schema.ts
+│       │   │   ├── financeiro.schema.ts
+│       │   │   ├── plano.schema.ts
+│       │   │   ├── resumo.schema.ts
+│       │   │   ├── taxa.schema.ts
+│       │   │   └── turma-plano.schema.ts
+│       │   ├── validators/
+│       │   │   └── professor.ts
+│       │   ├── asaas-status-mapper.ts
+│       │   ├── auth-options.ts
+│       │   ├── auth-service.ts
+│       │   ├── cep.ts
+│       │   ├── cn.ts
+│       │   ├── debug-logger.ts
+│       │   ├── first-user-service.ts
+│       │   ├── formatters.ts
+│       │   ├── image.ts
+│       │   ├── prisma.ts
+│       │   ├── profile-preferences.ts
+│       │   ├── rate-limit.ts
+│       │   ├── safe-redirect.ts
+│       │   ├── safe-server-session.ts
+│       │   ├── status.ts
+│       │   ├── ui.ts
+│       │   ├── utils.ts
+│       │   ├── variants.ts
+│       │   ├── variants.tsx
+│       │   └── zod-error-map.ts
+│       ├── prisma/
+│       │   ├── client.d.ts
+│       │   ├── client.d.ts.map
+│       │   ├── client.js
+│       │   └── client.ts
+│       ├── public/
+│       │   ├── asaas/
+│       │   │   └── asaas-icon.png
+│       │   ├── brand/
+│       │   │   ├── alusa-logo.svg
+│       │   │   ├── logo-dark.svg
+│       │   │   ├── logo.svg
+│       │   │   └── LogoSymbol.svg
+│       │   ├── uploads/
+│       │   │   ├── cobrancas/
+│       │   │   ├── 03934c5d-22ca-4e1b-9e1a-0b481e4adeee.jpg
+│       │   │   ├── 05406d1f-e1f8-4782-aa33-22e9d3f89b1b.png
+│       │   │   ├── 07129364-1349-4120-be20-cd0a46df2961.jpg
+│       │   │   ├── 11678633-7748-4d04-970d-d51b9a7810ae.jpg
+│       │   │   ├── 1cbe62ee-af22-4afd-8d0a-819192adc58b.jpg
+│       │   │   ├── 1dda2fde-2c0a-4544-9e50-ae8fa40af812.jpg
+│       │   │   ├── 20ee6d30-87bb-461e-85f6-01e71780586f.jpg
+│       │   │   ├── 21ecfffa-93b7-4f2c-919a-b71f0b25e788.jpg
+│       │   │   ├── 260f2480-88fb-4fd5-b8f1-16917dcbca71.jpg
+│       │   │   ├── 287a240b-5bd4-4f5c-a1eb-63b926499e09.jpg
+│       │   │   ├── 30a27605-7859-4359-947e-ed7d0d6a8ce9.jpg
+│       │   │   ├── 31ae19af-9b77-4489-a7e6-5d9522322def.jpg
+│       │   │   ├── 355e3bf7-f545-4e6b-8fed-058c6d5b051f.png
+│       │   │   ├── 3565f5e2-0a4e-4d5a-b2ef-3e3f821a4fb9.jpg
+│       │   │   ├── 38e34149-f088-4f7b-b510-1b344037ab68.jpg
+│       │   │   ├── 3bcacbf5-12c7-4103-b4bd-54e9ecb94b06.jpg
+│       │   │   ├── 3df727fb-fcd9-4345-af38-2d55109453ed.jpg
+│       │   │   ├── 407ba19f-d6f4-44cb-95d2-e2cd3683f470.jpg
+│       │   │   ├── 434a98e2-1004-4c41-bc8c-df18ea44402c.jpg
+│       │   │   ├── 4737752a-3fc8-48ca-92e0-94a581b04924.jpg
+│       │   │   ├── 5a29ad4d-309d-4ce9-b0ba-21dc3875de92.jpg
+│       │   │   ├── 7524d5aa-1a63-44f0-9c9a-3d33eabe94b9.jpg
+│       │   │   ├── 7713d06c-dba2-4c74-bf60-cfc4424d4b19.jpg
+│       │   │   ├── 77899290-0447-457f-8038-68e4dd00ad59.jpg
+│       │   │   ├── 787e9176-52f9-44d3-9268-44668b7e1f05.jpg
+│       │   │   ├── 816b3aa3-285a-4417-8fc6-4cafdc4b99d8.png
+│       │   │   ├── 8e14d87e-b8b6-47c2-8029-1b9621810063.jpg
+│       │   │   ├── 8f6cb8d9-d5b1-4228-9f0a-e736cff78b65.jpg
+│       │   │   ├── 99ef7734-55c7-430f-a422-3e82091ae5d9.jpg
+│       │   │   ├── a05c4900-2344-488c-9f62-a10e0d227dc7.jpg
+│       │   │   ├── a257d4db-43b4-4bab-b9af-cf997f497d91.jpg
+│       │   │   ├── a8066310-1e47-4645-8f83-a7c365653f3f.jpg
+│       │   │   ├── ae444c12-9d36-43ff-acd6-6b6ecaf6a9db.jpg
+│       │   │   ├── b4b441d9-7a23-4870-a65b-9bc31123aed8.jpg
+│       │   │   ├── b6ab3c39-31f7-4045-bada-600cd528df12.jpg
+│       │   │   ├── bc5db454-bba1-4b00-9c35-ce78d4ac1f78.jpg
+│       │   │   ├── bc98e5a1-d5ba-4ebc-8908-24e09b7a23b1.jpg
+│       │   │   ├── c105c58e-7cbf-4640-b334-0c55b893598f.jpg
+│       │   │   ├── ca9fd35a-4620-45cd-b96f-f37172d5435a.png
+│       │   │   ├── d03f1c9b-fa53-4904-baa4-25e5cd4bc085.jpg
+│       │   │   ├── d3e4debe-4d9b-4722-8680-54174e381427.jpg
+│       │   │   ├── d67eee96-339d-40e8-b001-7e7306edf16b.jpg
+│       │   │   ├── da97c86a-7339-4cb4-9a4d-6fbb57d979b6.jpg
+│       │   │   ├── dd978aeb-3d35-4792-8184-86c4a94d1dc1.jpg
+│       │   │   ├── dec74b61-a372-40b7-bade-051bb6cb4daa.jpg
+│       │   │   ├── e8fb0951-2908-4994-b7bc-10f2ec8c3729.jpg
+│       │   │   ├── e9042957-9b2d-4997-b709-01058c5341f2.jpg
+│       │   │   ├── f562f759-1861-4f8d-81d4-2871ed9e290b.jpg
+│       │   │   ├── fc3280ee-1ded-4ac8-a21b-0cdaae25a6ad.jpg
+│       │   │   └── fca50ac9-6033-4c0e-8385-be7d60e05018.jpg
+│       │   └── alusa-logo.svg
+│       ├── scripts/
+│       │   ├── backfill-invite-contaId.ts
+│       │   ├── list-professores.ts
+│       │   ├── sync-asaas-payment.mjs
+│       │   ├── test-asaas-integration.mjs
+│       │   └── test-professores-get.ts
+│       ├── src/
+│       │   ├── __tests__/
+│       │   │   ├── auth-callbacks.contract.test.ts
+│       │   │   ├── auth-service.test.ts
+│       │   │   ├── env.test.ts
+│       │   │   └── safe-redirect.test.ts
+│       │   ├── app.d.ts
+│       │   ├── env.ts
+│       │   ├── prisma.d.ts
+│       │   ├── prisma.d.ts.map
+│       │   ├── prisma.js
+│       │   └── prisma.ts
+│       ├── test/
+│       │   ├── combos.unit.test.ts
+│       │   └── setup.ts
+│       ├── test-results/
+│       │   └── .last-run.json
+│       ├── tests/
+│       │   ├── e2e/
+│       │   │   ├── utils/
+│       │   │   │   ├── login.ts
+│       │   │   │   └── reset-db.ts
+│       │   │   ├── auth-first-register.spec.ts
+│       │   │   ├── centros-custo.spec.ts
+│       │   │   ├── financeiro-cobrancas.spec.ts
+│       │   │   ├── financeiro-pagamentos.spec.ts
+│       │   │   ├── integracoes.spec.ts
+│       │   │   ├── matricula-wizard.spec.ts
+│       │   │   ├── planos.spec.ts
+│       │   │   └── professor-wizard.spec.ts
+│       │   ├── unit/
+│       │   │   ├── checkout/
+│       │   │   ├── components/
+│       │   │   │   ├── ui/
+│       │   │   │   │   └── status-badge.test.tsx
+│       │   │   │   ├── CardHeader.test.tsx
+│       │   │   │   └── NotificationsPanel.test.tsx
+│       │   │   ├── dashboard/
+│       │   │   │   └── TotalAlunosCard.test.tsx
+│       │   │   ├── hooks/
+│       │   │   ├── integracoes/
+│       │   │   │   └── asaas-credentials-service.test.ts
+│       │   │   ├── matricula/
+│       │   │   │   ├── aluno-responsavel.test.ts
+│       │   │   │   ├── financeiro.test.ts
+│       │   │   │   ├── integracao-wizard.test.ts
+│       │   │   │   ├── plano.test.ts
+│       │   │   │   ├── resumo.test.ts
+│       │   │   │   ├── taxa.test.ts
+│       │   │   │   └── turma-plano.test.ts
+│       │   │   ├── twilio/
+│       │   │   │   └── send.test.ts
+│       │   │   ├── asaas.customers.api.test.ts
+│       │   │   ├── asaas.payments.api.test.ts
+│       │   │   ├── asaas.webhooks.api.test.ts
+│       │   │   ├── centro-custo-schema.spec.ts
+│       │   │   ├── colaborador.api.test.ts
+│       │   │   ├── colaborador.schema.test.ts
+│       │   │   ├── config-notificacoes-asaas.api.test.ts
+│       │   │   ├── conta.forma-pagamento.api.test.ts
+│       │   │   ├── conta.forma-pagamento.get.test.ts
+│       │   │   ├── create-first-user.test.ts
+│       │   │   ├── debug-turmas-api.test.ts
+│       │   │   ├── financeiro.cobrancas.api.test.ts
+│       │   │   ├── formatarNumeroWhatsApp.test.ts
+│       │   │   ├── matricula.service.test.ts
+│       │   │   ├── modalidade.service.test.ts
+│       │   │   ├── modalidades.api.test.ts
+│       │   │   ├── password-policy.test.ts
+│       │   │   ├── planos.form.test.ts
+│       │   │   ├── portal.financeiro.api.test.ts
+│       │   │   ├── professor.api.test.ts
+│       │   │   ├── professor.schema.test.ts
+│       │   │   ├── sala.service.test.ts
+│       │   │   ├── salas.api.capacidade-string.test.ts
+│       │   │   ├── salas.api.test.ts
+│       │   │   ├── turma.professores.test.ts
+│       │   │   ├── turma.service.test.ts
+│       │   │   ├── users.accept.api.test.ts
+│       │   │   ├── users.invite.api.test.ts
+│       │   │   └── users.me.patch.test.ts
+│       │   ├── utils/
+│       │   │   └── reset-db.ts
+│       │   └── README-tests.md
+│       ├── types/
+│       │   ├── next-auth.d.ts
+│       │   ├── react-qr-code.d.ts
+│       │   └── sonner.d.ts
+│       ├── .env.local
+│       ├── .eslintignore
+│       ├── .gitignore
+│       ├── components.json
+│       ├── debug-colaboradores-page.png
+│       ├── eslint.config.js
+│       ├── middleware.ts
+│       ├── next-env.d.ts
+│       ├── next.config.mjs
+│       ├── nul
+│       ├── package.json
+│       ├── playwright.config.ts
+│       ├── postcss.config.cjs
+│       ├── postcss.config.js
+│       ├── README.professores.md
+│       ├── tailwind.config.js
+│       ├── tsconfig.json
+│       ├── vitest-empty.css
+│       └── vitest.config.ts
+├── context7/
+│   ├── .github/
+│   │   ├── workflows/
+│   │   │   ├── check.yaml
+│   │   │   └── release.yml
+│   │   └── dependabot.yml
+│   ├── docs/
+│   │   ├── adding-projects.md
+│   │   ├── README.ar.md
+│   │   ├── README.de.md
+│   │   ├── README.es.md
+│   │   ├── README.fr.md
+│   │   ├── README.id-ID.md
+│   │   ├── README.it.md
+│   │   ├── README.ja.md
+│   │   ├── README.ko.md
+│   │   ├── README.pt-BR.md
+│   │   ├── README.ru.md
+│   │   ├── README.tr.md
+│   │   ├── README.uk.md
+│   │   ├── README.vi.md
+│   │   ├── README.zh-CN.md
+│   │   └── README.zh-TW.md
+│   ├── mcpb/
+│   │   ├── .mcpbignore
+│   │   ├── context7.mcpb
+│   │   └── manifest.json
+│   ├── public/
+│   │   ├── context7-icon-green.svg
+│   │   ├── context7-icon.svg
+│   │   ├── context7-logo.svg
+│   │   ├── cover.png
+│   │   └── icon.png
+│   ├── schema/
+│   │   └── context7.json
+│   ├── src/
+│   │   ├── lib/
+│   │   │   ├── api.ts
+│   │   │   ├── encryption.ts
+│   │   │   ├── types.ts
+│   │   │   └── utils.ts
+│   │   └── index.ts
+│   ├── .gitignore
+│   ├── bun.lock
+│   ├── Dockerfile
+│   ├── eslint.config.js
+│   ├── LICENSE
+│   ├── package.json
+│   ├── prettier.config.mjs
+│   ├── README.md
+│   ├── smithery.yaml
+│   └── tsconfig.json
+├── docs/
+│   ├── api/
+│   │   └── asaas/
+│   │       └── AsaasIntegration.md
+│   ├── cadastro/
+│   │   ├── alunos/
+│   │   │   ├── AlunosFeature.md
+│   │   │   ├── fluxo-cadastro.md
+│   │   │   └── WizardAluno.md
+│   │   ├── colaboradores/
+│   │   │   ├── ColaboradoresFeature.md
+│   │   │   ├── fluxo-cadastro.md
+│   │   │   └── WizardColaborador.md
+│   │   ├── combos/
+│   │   │   ├── CombosFeature.md
+│   │   │   └── fluxo-cadastro.md
+│   │   ├── modalidades/
+│   │   │   ├── fluxo-cadastro.md
+│   │   │   └── ModalidadesFeature.md
+│   │   ├── planos/
+│   │   │   ├── fluxo-cadastro.md
+│   │   │   └── PlanosFeature.md
+│   │   ├── salas/
+│   │   │   ├── fluxo-cadastro.md
+│   │   │   └── SalasFeature.md
+│   │   └── turmas/
+│   │       ├── fluxo-cadastro.md
+│   │       └── TurmasFeature.md
+│   ├── components/
+│   │   ├── dashboard/
+│   │   │   ├── CashflowCard.md
+│   │   │   └── README.md
+│   │   └── README.md
+│   ├── configuracoes/
+│   │   ├── integracoes/
+│   │   │   └── asaas/
+│   │   │       └── AsaasAPI.md
+│   │   └── notificações/
+│   │       └── asaas-notifications.md
+│   ├── guia/
+│   │   ├── boas-praticas.md
+│   │   ├── correcao-avatares-dashboard.md
+│   │   ├── escopo-alusa.md
+│   │   └── estilo-sistema.md
+│   ├── matrículas/
+│   │   └── gestão-de-matrículas.md
+│   ├── MCP/
+│   │   └── alusadb/
+│   │       └── README.md
+│   ├── rematrícula/
+│   │   └── fluxorematrícula.md
+│   └── analise-fluxo-rematricula.md
+├── mcp/
+│   ├── asaas/
+│   │   ├── cache/
+│   │   │   ├── .gitkeep
+│   │   │   └── asaas-docs.json
+│   │   ├── lib/
+│   │   │   ├── asaas-client.ts
+│   │   │   ├── codegen.ts
+│   │   │   ├── doc-fetcher.ts
+│   │   │   ├── doc-manager.ts
+│   │   │   ├── doc-sources.ts
+│   │   │   ├── doc-types.ts
+│   │   │   ├── examples.ts
+│   │   │   ├── intent-parser.ts
+│   │   │   └── smart-response.ts
+│   │   ├── tests/
+│   │   │   ├── doc-manager.test.ts
+│   │   │   └── intent-parser.test.ts
+│   │   ├── server.ts
+│   │   └── tsconfig.json
+│   ├── .npmrc
+│   ├── database.ts
+│   ├── generators.ts
+│   ├── package.json
+│   ├── postgres-server.ts
+│   ├── prisma-reader.ts
+│   ├── README.md
+│   ├── security.ts
+│   ├── tsconfig.json
+│   └── types.ts
+├── packages/
+│   ├── config/
+│   │   └── eslint-config.js
+│   ├── eslint-preset/
+│   │   ├── index.cjs
+│   │   └── package.json
+│   ├── lib/
+│   │   ├── .vscode/
+│   │   │   └── tasks.json
+│   │   ├── src/
+│   │   │   ├── alunos/
+│   │   │   │   ├── aluno.schema.ts
+│   │   │   │   ├── aluno.service.test.ts
+│   │   │   │   ├── aluno.service.ts
+│   │   │   │   ├── map-flatten.test.ts
+│   │   │   │   ├── map-flatten.ts
+│   │   │   │   └── sync-aluno-asaas.ts
+│   │   │   ├── asaas/
+│   │   │   │   ├── __tests__/
+│   │   │   │   │   ├── financeiroService.test.ts
+│   │   │   │   │   └── utils.timezone.test.ts
+│   │   │   │   ├── tests/
+│   │   │   │   │   └── utils.test.ts
+│   │   │   │   ├── client.test.ts
+│   │   │   │   ├── client.ts
+│   │   │   │   ├── credentials.ts
+│   │   │   │   ├── customer.helpers.ts
+│   │   │   │   ├── customer.ts
+│   │   │   │   ├── env.ts
+│   │   │   │   ├── financeiroService.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── logFinanceiro.ts
+│   │   │   │   ├── logIntegracao.ts
+│   │   │   │   ├── payment-helpers.test.ts
+│   │   │   │   ├── payment-helpers.ts
+│   │   │   │   ├── payment.ts
+│   │   │   │   ├── README.md
+│   │   │   │   ├── schemas.ts
+│   │   │   │   ├── subscription.helpers.ts
+│   │   │   │   ├── subscription.ts
+│   │   │   │   ├── types.ts
+│   │   │   │   └── utils.ts
+│   │   │   ├── combos/
+│   │   │   │   ├── combo.schema.ts
+│   │   │   │   └── combo.service.ts
+│   │   │   ├── hooks/
+│   │   │   │   ├── useIsClient.test.ts
+│   │   │   │   └── useIsClient.ts
+│   │   │   ├── integrations/
+│   │   │   │   └── asaas/
+│   │   │   │       ├── asaas-customer.helpers.ts
+│   │   │   │       ├── asaas-customer.service.ts
+│   │   │   │       ├── asaas-subscription.helpers.ts
+│   │   │   │       ├── asaas-subscription.service.ts
+│   │   │   │       └── index.ts
+│   │   │   ├── invite/
+│   │   │   │   ├── build-invite-url.test.ts
+│   │   │   │   └── build-invite-url.ts
+│   │   │   ├── jobs/
+│   │   │   │   ├── encerrar-contratos-expirados.test.ts
+│   │   │   │   └── encerrar-contratos-expirados.ts
+│   │   │   ├── notifications/
+│   │   │   │   └── matricula-notifications.ts
+│   │   │   ├── planos/
+│   │   │   │   ├── planos-schema.ts
+│   │   │   │   └── planos-service.ts
+│   │   │   ├── prisma/
+│   │   │   │   └── client.ts
+│   │   │   ├── schemas/
+│   │   │   │   ├── colaborador.ts
+│   │   │   │   ├── modalidade.schema.ts
+│   │   │   │   ├── professor.ts
+│   │   │   │   ├── sala.schema.ts
+│   │   │   │   └── turma.schema.ts
+│   │   │   ├── security/
+│   │   │   │   ├── encryption.test.ts
+│   │   │   │   └── encryption.ts
+│   │   │   ├── server/
+│   │   │   │   ├── repositories/
+│   │   │   │   │   └── professor-repo.ts
+│   │   │   │   └── services/
+│   │   │   │       ├── colaborador-service.test.ts
+│   │   │   │       ├── colaborador-service.ts
+│   │   │   │       ├── invite-service.test.ts
+│   │   │   │       ├── invite-service.ts
+│   │   │   │       ├── invite-user-service.ts
+│   │   │   │       └── professor-service.ts
+│   │   │   ├── services/
+│   │   │   │   ├── integracoes/
+│   │   │   │   │   ├── __tests__/
+│   │   │   │   │   │   └── matricula-sync.service.test.ts
+│   │   │   │   │   ├── asaas-credentials-service.ts
+│   │   │   │   │   ├── asaas-notifications.service.ts
+│   │   │   │   │   └── matricula-sync.service.ts
+│   │   │   │   ├── checkout-token.ts
+│   │   │   │   ├── matricula.end-date.test.ts
+│   │   │   │   ├── matricula.listar.test.ts
+│   │   │   │   ├── matricula.ts
+│   │   │   │   ├── modalidade.service.ts
+│   │   │   │   ├── rematricula.test.ts
+│   │   │   │   ├── rematricula.ts
+│   │   │   │   ├── sala.service.ts
+│   │   │   │   └── turma.service.ts
+│   │   │   ├── twilio/
+│   │   │   │   ├── tests/
+│   │   │   │   │   └── utils.test.ts
+│   │   │   │   ├── credentials.ts
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── README.md
+│   │   │   │   ├── schemas.ts
+│   │   │   │   ├── service.ts
+│   │   │   │   ├── types.ts
+│   │   │   │   └── utils.ts
+│   │   │   ├── utils/
+│   │   │   │   ├── format-name.ts
+│   │   │   │   └── mask.ts
+│   │   │   ├── validators/
+│   │   │   │   └── professor.ts
+│   │   │   ├── client.ts
+│   │   │   ├── index.ts
+│   │   │   ├── math.test.ts
+│   │   │   ├── math.ts
+│   │   │   ├── prisma.ts
+│   │   │   └── zod-error-map.ts
+│   │   ├── package.json
+│   │   ├── tsconfig.build.json
+│   │   ├── tsconfig.json
+│   │   └── vitest.config.ts
+│   └── ui/
+│       ├── src/
+│       │   ├── datatable/
+│       │   │   └── columns.tsx
+│       │   ├── primitive/
+│       │   │   ├── Button.test.tsx
+│       │   │   ├── Button.tsx
+│       │   │   └── Select.tsx
+│       │   ├── globals.d.ts
+│       │   └── index.ts
+│       ├── test/
+│       │   └── setup.ts
+│       ├── package.json
+│       ├── tsconfig.build.json
+│       ├── tsconfig.json
+│       └── vitest.config.ts
+├── prisma/
+│   ├── migrations/
+│   │   ├── 20250830183021_init/
+│   │   │   └── migration.sql
+│   │   ├── 20250830_auth_init/
+│   │   │   └── migration.sql
+│   │   ├── 20250831020549_web_dev/
+│   │   │   └── migration.sql
+│   │   ├── 20250831155042_alunos/
+│   │   │   └── migration.sql
+│   │   ├── 20250901181200_add_foto_aluno/
+│   │   │   └── migration.sql
+│   │   ├── 20250901181732_expand_campos_aluno/
+│   │   │   └── migration.sql
+│   │   ├── 20250910194819_unique_cpf_responsavel/
+│   │   │   └── migration.sql
+│   │   ├── 20250916020903_aluno_endereco_estruturado/
+│   │   │   └── migration.sql
+│   │   ├── 20250916043544_harden_multi_tenant_indices/
+│   │   │   └── migration.sql
+│   │   ├── 20250916115000_matriculas/
+│   │   │   └── migration.sql
+│   │   ├── 20250916162007_matriculas/
+│   │   │   └── migration.sql
+│   │   ├── 20250916182148_add_professor_model/
+│   │   │   └── migration.sql
+│   │   ├── 20250919061558_matriculas/
+│   │   │   └── migration.sql
+│   │   ├── 20250920051703_add_invite_model/
+│   │   │   └── migration.sql
+│   │   ├── 20250920183752_add_foto_to_usuario/
+│   │   │   └── migration.sql
+│   │   ├── 20250921013143_add_conta_id_to_invite_and_relation/
+│   │   │   └── migration.sql
+│   │   ├── 20250921194432_colaborador_wizard_refactor_fields/
+│   │   │   └── migration.sql
+│   │   ├── 20250921212356_make_cpf_optional_in_colaborador/
+│   │   │   └── migration.sql
+│   │   ├── 20250922214909_add_owner_user_to_conta/
+│   │   │   └── migration.sql
+│   │   ├── 2025092222_invite_role_enum_and_unique/
+│   │   │   ├── migration.sql
+│   │   │   └── migration_lock.toml
+│   │   ├── 20250922234328_add_invite_audit_fields/
+│   │   │   └── migration.sql
+│   │   ├── 20250922235000_add_owner_to_conta/
+│   │   │   └── migration.sql
+│   │   ├── 20250922235832_apply_owner_not_null_constraint/
+│   │   │   └── migration.sql
+│   │   ├── 20250923002137_owner_optional_bootstrap/
+│   │   │   └── migration.sql
+│   │   ├── 20250923023237_add_usuario_id_to_aluno/
+│   │   │   └── migration.sql
+│   │   ├── 20250923035419_colaborador_unique_per_conta/
+│   │   │   └── migration.sql
+│   │   ├── 20250923041205_remove_telefone2_from_colaborador/
+│   │   │   └── migration.sql
+│   │   ├── 20250923093000_add_usuarioid_to_responsavel/
+│   │   │   ├── migration.sql
+│   │   │   └── README.md
+│   │   ├── 20250923123000_modalidades_crud/
+│   │   │   └── migration.sql
+│   │   ├── 20250924024101_turma_expand_relations_and_schedule_fields/
+│   │   │   └── migration.sql
+│   │   ├── 20250924_salas_crud/
+│   │   │   └── migration.sql
+│   │   ├── 20250927090000_planos/
+│   │   │   └── migration.sql
+│   │   ├── 20250928093000_plano_periodicidade_update/
+│   │   │   └── migration.sql
+│   │   ├── 20250928095000_rebuild_planos_module/
+│   │   │   └── migration.sql
+│   │   ├── 20250929034454_planos/
+│   │   │   └── migration.sql
+│   │   ├── 20250930153000_matriculas_module/
+│   │   │   └── migration.sql
+│   │   ├── 20251001002152_add_semanal_quinzenal_periodicidade/
+│   │   │   └── migration.sql
+│   │   ├── 20251001004325_combos_extend/
+│   │   │   └── migration.sql
+│   │   ├── 20251003024810_add_asaas_integration_fields/
+│   │   │   └── migration.sql
+│   │   ├── 20251003141244_add_status_financeiro_matricula/
+│   │   │   └── migration.sql
+│   │   ├── 20251003142504_add_avulsa_tipo_cobranca/
+│   │   │   └── migration.sql
+│   │   ├── 20251003142548_add_taxa_justificativa/
+│   │   │   └── migration.sql
+│   │   ├── 20251003173934_add_asaas_credentials_to_conta/
+│   │   │   └── migration.sql
+│   │   ├── 20251004000601_add_asaas_credit_card_token/
+│   │   │   └── migration.sql
+│   │   ├── 20251004001022_add_processando_status/
+│   │   │   └── migration.sql
+│   │   ├── 20251007044007_add_log_financeiro/
+│   │   │   └── migration.sql
+│   │   ├── 20251007224751_add_status_pausada_matricula/
+│   │   │   └── migration.sql
+│   │   ├── 20251008045725_add_juros_multa_desconto_matricula/
+│   │   │   └── migration.sql
+│   │   ├── 20251008232457_add_forma_pagamento_taxa/
+│   │   │   └── migration.sql
+│   │   ├── 20251009043147_add_log_integracao/
+│   │   │   └── migration.sql
+│   │   ├── 20251009215315_adicionar_campos_auditoria_cobranca/
+│   │   │   └── migration.sql
+│   │   ├── 20251013020855_add_arquivo_cobranca/
+│   │   │   └── migration.sql
+│   │   ├── 20251013024219_add_multa_juros_desconto_cobranca/
+│   │   │   └── migration.sql
+│   │   ├── 20251013031307_add_detailed_financial_fields/
+│   │   │   └── migration.sql
+│   │   ├── 20251013045420_convert_deprecated_payment_types/
+│   │   │   └── migration.sql
+│   │   ├── 20251013045735_sync_asaas_payment_types/
+│   │   │   └── migration.sql
+│   │   ├── 20251017120000_user_profile_preferences/
+│   │   │   └── migration.sql
+│   │   ├── 20251017123000_user_notification_preferences/
+│   │   │   └── migration.sql
+│   │   ├── 20251022002115_invite_email_optional_with_metadata/
+│   │   │   └── migration.sql
+│   │   ├── 20251022215557_add_payment_method_fields_to_responsavel/
+│   │   │   └── migration.sql
+│   │   ├── 20251118214333_add_matricula_contrato_fields/
+│   │   │   └── migration.sql
+│   │   ├── 20251118214404_drop_default_data_fim_contrato/
+│   │   │   └── migration.sql
+│   │   ├── 20251120170000_lancamentos/
+│   │   │   └── migration.sql
+│   │   ├── 20251120173000_add_centro_custo/
+│   │   │   └── migration.sql
+│   │   ├── 20251202152830_add_desconto_tipo_matricula/
+│   │   │   └── migration.sql
+│   │   ├── 20251202221001_add_juros_multa_tipo_asaas/
+│   │   │   └── migration.sql
+│   │   ├── 20251203025956_asaas_notification_preferences/
+│   │   │   └── migration.sql
+│   │   ├── 20251203163821_combo_valor_periodicidade/
+│   │   │   └── migration.sql
+│   │   ├── 20251203164107_matricula_plano_opcional/
+│   │   │   └── migration.sql
+│   │   ├── 20251205034102_add_matricula_turma/
+│   │   │   └── migration.sql
+│   │   ├── 20251002180339_matriculas_refactor.sql
+│   │   └── migration_lock.toml
+│   ├── zod/
+│   │   └── aluno.ts
+│   ├── schema.prisma
+│   ├── seed-conta.sql
+│   └── seed.ts
+├── scripts/
+│   ├── check-asaas-api.ts
+│   ├── check-integration-logs.ts
+│   ├── check-lara-sync.ts
+│   ├── check-lara.ts
+│   ├── check-vera-elaine.ts
+│   ├── clean-invalid-checkout-links.ts
+│   ├── cleanup-asaas-customer-ids.ts
+│   ├── debug-customer-asaas.ts
+│   ├── debug-pausar-matricula.ts
+│   ├── find-lara.ts
+│   ├── fix-duplicate-asaas-customers.ts
+│   ├── fix-forma-pagamento.ts
+│   ├── list-recent-alunos.ts
+│   ├── recreate-customer.ts
+│   ├── restore-customer.ts
+│   ├── test-asaas-customer-logic.ts
+│   ├── test-asaas-notifications.ts
+│   ├── test-asaas.ts
+│   ├── test-pix-flow.ts
+│   ├── test-sync-cartao.ts
+│   ├── validate-asaas-refactor.sh
+│   ├── verify-asaas-customer.ts
+│   └── verify-test-db.mjs
+├── specs/
+│   ├── asaas/
+│   │   ├── fluxo-notificacoes-asaas.spec.md
+│   │   └── notificacao-global-asaas.spec.md
+│   └── twilio/
+│       └── lista-espera-twilio.spec.md
+├── tmp/
+│   ├── create-planos.ts
+│   ├── get-aluno.cjs
+│   ├── get-combo.cjs
+│   ├── get-matricula.cjs
+│   ├── inspect-matricula-logs.cjs
+│   ├── inspect-matriculas.cjs
+│   ├── inspect-matriculas.js
+│   └── planos-get.ts
+├── .copilotignore
+├── .env
+├── .env.example
+├── .env.local.template
+├── .env.test
+├── .env.test.example
+├── .eslintrc.cjs
+├── .gitignore
+├── .prettierrc.json
+├── alusa.code-workspace
+├── debug-turma.mjs
+├── eslint.config.js
+├── mcp.config.json
+├── nul
+├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
+├── README.md
+├── test-env-vars.mjs
+├── test-twilio-api.sh
+├── test-twilio-direct.js
+├── tsconfig.base.json
+├── turbo.json
+├── workspace-arvore.md
+└── workspace-arvore.txt

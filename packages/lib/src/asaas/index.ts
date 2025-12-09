@@ -30,7 +30,7 @@ export { getAsaasClient } from './client';
 export { getAsaasClientForConta, invalidateAsaasClientCache } from './client';
 
 // Environment validation
-export { validateAsaasEnv, isAsaasEnabled, AsaasEnvError } from './env';
+export { validateAsaasEnv, isAsaasEnabled, AsaasEnvError, getAsaasBaseUrl, isSandboxApiKey, ASAAS_API_URLS } from './env';
 export type { AsaasEnv } from './env';
 
 // Customer
@@ -53,10 +53,13 @@ export {
   deleteSubscription,
   listSubscriptions,
   listSubscriptionPayments,
+  inactivateSubscription,
+  reactivateSubscription,
   createSubscriptionSchema,
   billingTypeSchema,
   cycleSchema,
   type CreateSubscriptionInput,
+  type UpdateSubscriptionInput,
   type AsaasSubscription,
   type BillingType,
   type Cycle,
@@ -73,8 +76,46 @@ export {
   restorePayment,
   confirmCashPayment,
   undoCashPayment,
+  getPixQrCode,
   createPaymentSchema,
   type CreatePaymentInput,
   type AsaasPayment,
   type PaymentStatus,
+  type PixQrCodeResponse,
 } from './payment';
+
+// Financeiro service helpers
+export {
+  deleteCobranca,
+  pauseAssinatura,
+  reenviarCobranca,
+  gerarSegundaVia,
+  refundCobranca,
+  confirmarPagamentoManual,
+  reativarAssinatura,
+} from './financeiroService';
+
+export type {
+  DeleteCobrancaInput,
+  PauseAssinaturaInput,
+  ReenviarCobrancaInput,
+  GerarSegundaViaInput,
+  RefundCobrancaInput,
+  ConfirmarPagamentoManualInput,
+  ReativarAssinaturaInput,
+  FinanceiroActionResponse,
+  SegundaViaResponse,
+} from './financeiroService';
+
+// Utility functions
+export {
+  formatDate,
+  getCurrentBrasiliaDate,
+  calcularProximoVencimento,
+  mapPaymentStatus,
+} from './utils';
+export { registrarLogFinanceiro, type AcaoFinanceira } from './logFinanceiro';
+
+// Payment helpers
+export { createAvulsaPayment, getAvulsaPaymentData } from './payment-helpers';
+export type { AvulsaPaymentInput, AvulsaPaymentResult } from './payment-helpers';

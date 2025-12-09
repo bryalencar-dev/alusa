@@ -26,22 +26,28 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createHmac } from 'node:crypto';
 import { prisma } from '@/src/prisma';
-import crypto from 'crypto';
-import { loadDecryptedAsaasCredentials } from '@alusa/lib';
+import { loadDecryptedAsaasCredentials, mapPaymentStatus } from '@alusa/lib';
+import { FormaPagamento } from '@prisma/client';
 
 /**
- * Valida assinatura do webhook Asaas
+ * Valida token de autenticação do webhook Asaas
  *
- * O Asaas envia um header `asaas-signature` com HMAC-SHA256
- * do payload usando o ASAAS_WEBHOOK_SECRET
+ * O Asaas envia um header `asaas-access-token` com o token configurado no painel
+ * Alternativamente, aceita `asaas-signature` para retrocompatibilidade
  */
 async function validateWebhookSignature(
-  payload: string,
+  _payload: string,
   signature: string | null,
   contaId: string | null,
 ): Promise<boolean> {
+  // Se não há assinatura/token, aceita em modo desenvolvimento
   if (!signature) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Webhook Asaas] ⚠️ Assinatura não fornecida (aceitando em dev)');
+      return true;
+    }
     console.warn('[Webhook Asaas] Assinatura não fornecida');
     return false;
   }
@@ -53,28 +59,24 @@ async function validateWebhookSignature(
   }
   // Fallback para variável global (legado / desenvolvimento)
   if (!secret) secret = process.env.ASAAS_WEBHOOK_SECRET || null;
+
+  // Se não há secret configurado, aceita em modo desenvolvimento
   if (!secret) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Webhook Asaas] ⚠️ Secret não configurado (aceitando em dev)');
+      return true;
+    }
     console.error('[Webhook Asaas] Nenhum webhook secret configurado (conta ou env)');
     return false;
   }
-  const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  return signature === expectedSignature;
-}
 
-/**
- * Mapeia status de pagamento do Asaas para status interno
- */
-function mapPaymentStatus(asaasStatus: string): string {
-  const map: Record<string, string> = {
-    PENDING: 'PENDENTE',
-    RECEIVED: 'PAGO',
-    CONFIRMED: 'PAGO',
-    OVERDUE: 'ATRASADO',
-    REFUNDED: 'ESTORNADO',
-    RECEIVED_IN_CASH: 'PAGO',
-    DELETED: 'CANCELADO',
-  };
-  return map[asaasStatus] || 'PENDENTE';
+  // Validação simples: token deve ser igual ao secret configurado
+  if (signature === secret) {
+    return true;
+  }
+
+  const expectedHmac = createHmac('sha256', secret).update(_payload).digest('hex');
+  return signature === expectedHmac;
 }
 
 /**
@@ -90,6 +92,7 @@ async function processPaymentEvent(
     paymentDate?: string | null;
     subscription?: string;
     customer?: string;
+    billingType?: string; // Forma de pagamento usada no Asaas (BOLETO, PIX, CREDIT_CARD, UNDEFINED)
   },
 ) {
   console.log(`[Webhook Asaas] Processando pagamento ${paymentId}, evento: ${event}`);
@@ -97,7 +100,13 @@ async function processPaymentEvent(
   // Buscar cobrança pelo asaasPaymentId
   let cobranca = await prisma.cobranca.findUnique({
     where: { asaasPaymentId: paymentId },
-    include: { matricula: true },
+    include: {
+      matricula: {
+        include: {
+          aluno: true,
+        },
+      },
+    },
   });
 
   // Se não encontrou e há subscription, buscar pela subscription e atualizar o asaasPaymentId
@@ -112,17 +121,45 @@ async function processPaymentEvent(
             tipo: 'MENSALIDADE',
           },
           orderBy: { vencimento: 'asc' },
-          take: 1,
         },
       },
     });
 
     if (matricula && matricula.cobrancas.length > 0) {
-      // Atualizar a primeira cobrança pendente com o paymentId
+      // Tentar encontrar cobrança pelo vencimento (se disponível no payload)
+      let cobrancaParaVincular = matricula.cobrancas[0];
+      
+      if (paymentData.dueDate) {
+        const dueDateAsaas = new Date(paymentData.dueDate);
+        const cobrancaPorVencimento = matricula.cobrancas.find((c) => {
+          const vencLocal = new Date(c.vencimento);
+          // Comparar apenas ano, mês e dia
+          return (
+            vencLocal.getFullYear() === dueDateAsaas.getFullYear() &&
+            vencLocal.getMonth() === dueDateAsaas.getMonth() &&
+            vencLocal.getDate() === dueDateAsaas.getDate()
+          );
+        });
+        
+        if (cobrancaPorVencimento) {
+          cobrancaParaVincular = cobrancaPorVencimento;
+          console.log(
+            `[Webhook Asaas] Cobrança encontrada por vencimento ${paymentData.dueDate}`,
+          );
+        }
+      }
+
+      // Atualizar a cobrança com o paymentId
       cobranca = await prisma.cobranca.update({
-        where: { id: matricula.cobrancas[0].id },
+        where: { id: cobrancaParaVincular.id },
         data: { asaasPaymentId: paymentId },
-        include: { matricula: true },
+        include: {
+          matricula: {
+            include: {
+              aluno: true,
+            },
+          },
+        },
       });
       console.log(
         `[Webhook Asaas] Cobrança ${cobranca.id} vinculada ao payment ${paymentId} da subscription ${paymentData.subscription}`,
@@ -147,9 +184,28 @@ async function processPaymentEvent(
   };
   const novoStatus = statusMap[mapPaymentStatus(paymentData.status || 'PENDING')] || 'PENDENTE';
 
+  // Mapear billingType do Asaas para FormaPagamento
+  const billingTypeMap: Record<string, FormaPagamento> = {
+    BOLETO: FormaPagamento.BOLETO,
+    PIX: FormaPagamento.PIX,
+    CREDIT_CARD: FormaPagamento.CARTAO_CREDITO,
+    UNDEFINED: FormaPagamento.INDEFINIDO,
+  };
+  const formaPagamentoAtualizado =
+    paymentData.billingType && billingTypeMap[paymentData.billingType]
+      ? billingTypeMap[paymentData.billingType]
+      : cobranca.formaPagamento;
+
+  console.log(
+    `[Webhook Asaas] Atualizando cobrança ${cobranca.id}: status ${cobranca.status} → ${novoStatus}, formaPagamento ${cobranca.formaPagamento} → ${formaPagamentoAtualizado} (billingType: ${paymentData.billingType || 'N/A'})`,
+  );
+
   await prisma.cobranca.update({
     where: { id: cobranca.id },
-    data: { status: novoStatus },
+    data: {
+      status: novoStatus,
+      formaPagamento: formaPagamentoAtualizado, // Atualizar com o método real usado no Asaas
+    },
   });
 
   // Se pagamento confirmado, criar registro de pagamento
@@ -181,6 +237,59 @@ async function processPaymentEvent(
         data: { status: 'ATIVA', taxaStatus: 'PAGO' },
       });
     }
+
+    // Se pagamento foi com CARTÃO DE CRÉDITO, sincronizar dados do cartão
+    if (paymentData.billingType === 'CREDIT_CARD' && paymentData.customer) {
+      try {
+        // Buscar responsável financeiro
+        const responsavel = await prisma.responsavel.findFirst({
+          where: {
+            asaasCustomerId: paymentData.customer,
+          },
+          select: {
+            id: true,
+            asaasCreditCardToken: true,
+          }
+        });
+
+        if (responsavel) {
+          // Buscar dados do customer no Asaas (inclui cartão)
+          const { getCustomer } = await import('@alusa/lib');
+          const customer = await getCustomer(paymentData.customer, {
+            contaId: cobranca.matricula.aluno.contaId
+          });
+
+          // Se customer tem cartão salvo, sincronizar
+          if (customer.creditCard) {
+            const brandMap: Record<string, string> = {
+              VISA: 'VISA',
+              MASTERCARD: 'MASTERCARD',
+              AMEX: 'AMEX',
+              ELO: 'ELO',
+              HIPERCARD: 'HIPERCARD',
+              DINERS: 'DINERS',
+            };
+
+            const creditCardBrand = customer.creditCard.creditCardBrand;
+            await prisma.responsavel.update({
+              where: { id: responsavel.id },
+              data: {
+                asaasCreditCardToken: customer.creditCard.creditCardToken,
+                creditCardBrand: creditCardBrand ? (brandMap[creditCardBrand] || creditCardBrand) : null,
+                creditCardLast4: customer.creditCard.creditCardNumber,
+                creditCardUpdatedAt: new Date(),
+                preferredBillingType: 'CREDIT_CARD',
+              },
+            });
+
+            console.log(`[Webhook Asaas] Cartão sincronizado automaticamente para responsável ${responsavel.id}`);
+          }
+        }
+      } catch (syncError) {
+        console.error('[Webhook Asaas] Erro ao sincronizar cartão:', syncError);
+        // Não falhar o webhook por causa disso
+      }
+    }
   }
 
   // Se pagamento em atraso
@@ -191,25 +300,161 @@ async function processPaymentEvent(
 
   // Se pagamento estornado
   if (event === 'PAYMENT_REFUNDED') {
+    const valorOriginal = Number(cobranca.valor);
+    const valorEstornado = paymentData.value || valorOriginal;
+    const isEstornoParcial = valorEstornado < valorOriginal;
+
+    // Atualizar cobrança para ESTORNADO ou ESTORNADO_PARCIAL com campos de auditoria
+    await prisma.cobranca.update({
+      where: { id: cobranca.id },
+      data: {
+        status: isEstornoParcial ? 'ESTORNADO_PARCIAL' : 'ESTORNADO',
+        estornadoEm: new Date(),
+        estornadoValor: valorEstornado,
+        estornadoMotivo: isEstornoParcial
+          ? `Estorno parcial de R$ ${valorEstornado.toFixed(2)} do valor total de R$ ${valorOriginal.toFixed(2)}`
+          : `Estorno total de R$ ${valorOriginal.toFixed(2)}`,
+        estornadoPor: 'Asaas Webhook',
+      },
+    });
+
+    // Atualizar pagamento
     await prisma.pagamento.updateMany({
       where: { asaasPaymentId: paymentId },
       data: { status: 'ESTORNADO' },
     });
+
+    // Registrar log do estorno
+    await prisma.logFinanceiro.create({
+      data: {
+        contaId: cobranca.matricula.aluno.contaId,
+        usuarioId: 'system', // TODO: Pegar usuário do contexto quando disponível
+        cobrancaId: cobranca.id,
+        acao: isEstornoParcial ? 'ESTORNO_PARCIAL' : 'ESTORNO_TOTAL',
+        detalhes: {
+          event,
+          paymentId,
+          valorOriginal,
+          valorEstornado,
+          isEstornoParcial,
+          descricao: isEstornoParcial
+            ? `Estorno parcial de R$ ${valorEstornado.toFixed(2)} (valor original: R$ ${valorOriginal.toFixed(2)})`
+            : `Estorno total de R$ ${valorOriginal.toFixed(2)}`,
+        },
+      },
+    });
+
+    console.log(
+      `[Webhook Asaas] Pagamento ${paymentId} estornado: ${isEstornoParcial ? 'PARCIAL' : 'TOTAL'} - R$ ${valorEstornado.toFixed(2)}`,
+    );
+  }
+
+  // Se pagamento cancelado
+  if (event === 'PAYMENT_DELETED') {
+    // Registrar log do cancelamento antes de atualizar
+    await prisma.logFinanceiro.create({
+      data: {
+        contaId: cobranca.matricula.aluno.contaId,
+        usuarioId: 'system', // TODO: Pegar usuário do contexto quando disponível
+        cobrancaId: cobranca.id,
+        acao: 'CANCELAMENTO',
+        detalhes: {
+          event,
+          paymentId,
+          valor: Number(cobranca.valor),
+          descricao: 'Cobrança cancelada no Asaas',
+          motivoCancelamento: 'Cancelamento via Asaas',
+        },
+      },
+    });
+
+    console.log(`[Webhook Asaas] Pagamento ${paymentId} cancelado`);
+  }
+
+  // Recebimento em dinheiro desfeito (reverte baixa manual)
+  if (event === 'PAYMENT_RECEIVED_IN_CASH_UNDONE') {
+    await prisma.cobranca.update({
+      where: { id: cobranca.id },
+      data: { status: 'PENDENTE', dataPagamento: null },
+    });
+
+    await prisma.pagamento.updateMany({
+      where: { asaasPaymentId: paymentId },
+      data: { status: 'ESTORNADO' },
+    });
+
+    await prisma.logFinanceiro.create({
+      data: {
+        contaId: cobranca.matricula.aluno.contaId,
+        usuarioId: 'system',
+        cobrancaId: cobranca.id,
+        acao: 'RECEBIMENTO_EM_DINHEIRO_DESFEITO',
+        detalhes: {
+          event,
+          paymentId,
+          descricao: 'Recebimento em dinheiro desfeito via Asaas',
+        },
+      },
+    });
+
+    console.log(`[Webhook Asaas] Recebimento em dinheiro desfeito para pagamento ${paymentId}`);
+  }
+
+  // Pagamento restaurado (após cancelamento)
+  if (event === 'PAYMENT_RESTORED') {
+    await prisma.cobranca.update({
+      where: { id: cobranca.id },
+      data: { status: 'PENDENTE' },
+    });
+
+    await prisma.logFinanceiro.create({
+      data: {
+        contaId: cobranca.matricula.aluno.contaId,
+        usuarioId: 'system',
+        cobrancaId: cobranca.id,
+        acao: 'COBRANCA_RESTAURADA',
+        detalhes: {
+          event,
+          paymentId,
+          descricao: 'Cobrança restaurada via Asaas',
+        },
+      },
+    });
+
+    console.log(`[Webhook Asaas] Pagamento ${paymentId} restaurado`);
   }
 }
 
 /**
  * Processa evento de assinatura
  */
+type AsaasSubscriptionDiscount = {
+  value?: number;
+  limitDate?: string | null;
+  dueDateLimitDays?: number;
+  type?: string;
+} | null;
+
+type AsaasSubscriptionFineOrInterest = {
+  value?: number;
+  type?: string;
+} | null;
+
+type AsaasSubscriptionPayload = {
+  status?: string;
+  customer?: string;
+  value?: number;
+  nextDueDate?: string;
+  endDate?: string; // Data de fim da assinatura (formato: YYYY-MM-DD)
+  discount?: AsaasSubscriptionDiscount;
+  fine?: AsaasSubscriptionFineOrInterest;
+  interest?: AsaasSubscriptionFineOrInterest;
+};
+
 async function processSubscriptionEvent(
   event: string,
   subscriptionId: string,
-  subscriptionData: {
-    status?: string;
-    customer?: string;
-    value?: number;
-    nextDueDate?: string;
-  },
+  subscriptionData: AsaasSubscriptionPayload,
 ) {
   console.log(`[Webhook Asaas] Processando subscription ${subscriptionId}, evento: ${event}`);
 
@@ -226,6 +471,20 @@ async function processSubscriptionEvent(
 
   // Se assinatura foi criada
   if (event === 'SUBSCRIPTION_CREATED') {
+    // Sincronizar dataFimContrato se presente no payload
+    const updateData: { dataFimContrato?: Date } = {};
+    if (subscriptionData.endDate) {
+      updateData.dataFimContrato = new Date(subscriptionData.endDate);
+      console.log(`[Webhook Asaas] Sincronizando dataFimContrato: ${subscriptionData.endDate}`);
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.matricula.update({
+        where: { id: matricula.id },
+        data: updateData,
+      });
+    }
+
     await prisma.matriculaLog.create({
       data: {
         matriculaId: matricula.id,
@@ -235,6 +494,7 @@ async function processSubscriptionEvent(
           subscriptionId,
           valor: subscriptionData.value,
           status: subscriptionData.status,
+          endDate: subscriptionData.endDate,
         },
       },
     });
@@ -243,6 +503,36 @@ async function processSubscriptionEvent(
 
   // Se assinatura foi cancelada
   if (event === 'SUBSCRIPTION_DELETED') {
+    // Verificar se a matrícula já tem uma NOVA subscription (caso de rematrícula)
+    // Se tiver outra subscription, não cancelar a matrícula
+    const matriculaAtualizada = await prisma.matricula.findUnique({
+      where: { id: matricula.id },
+      select: { asaasSubscriptionId: true, status: true },
+    });
+
+    // Se a subscription deletada é diferente da atual, significa que foi uma rematrícula
+    // Não devemos cancelar a matrícula nesse caso
+    if (matriculaAtualizada?.asaasSubscriptionId && 
+        matriculaAtualizada.asaasSubscriptionId !== subscriptionId) {
+      console.log(
+        `[Webhook Asaas] Subscription ${subscriptionId} deletada, mas matrícula ${matricula.id} já possui nova subscription ${matriculaAtualizada.asaasSubscriptionId}. Ignorando cancelamento.`
+      );
+      
+      await prisma.matriculaLog.create({
+        data: {
+          matriculaId: matricula.id,
+          action: 'ASSINATURA_ANTIGA_DELETADA_REMATRICULA',
+          actorId: 'system',
+          metadata: {
+            subscriptionIdDeletada: subscriptionId,
+            subscriptionIdAtual: matriculaAtualizada.asaasSubscriptionId,
+            motivo: 'Subscription anterior deletada após rematrícula',
+          },
+        },
+      });
+      return;
+    }
+
     await prisma.matricula.update({
       where: { id: matricula.id },
       data: { status: 'CANCELADA' },
@@ -265,24 +555,62 @@ async function processSubscriptionEvent(
 
   // Se assinatura foi atualizada
   if (event === 'SUBSCRIPTION_UPDATED') {
+    // Sincronizar dataFimContrato, juros, multa e desconto se presente no payload
+    const updateData: {
+      status?: 'CANCELADA';
+      dataFimContrato?: Date;
+      jurosMensal?: number | null;
+      multaPercentual?: number | null;
+    } = {};
+    
+    if (subscriptionData.endDate) {
+      updateData.dataFimContrato = new Date(subscriptionData.endDate);
+      console.log(`[Webhook Asaas] Sincronizando dataFimContrato atualizada: ${subscriptionData.endDate}`);
+    }
+
     if (subscriptionData.status === 'INACTIVE') {
+      updateData.status = 'CANCELADA';
+    }
+
+    // Sincronizar juros mensais
+    if (subscriptionData.interest && subscriptionData.interest.value !== undefined) {
+      updateData.jurosMensal = subscriptionData.interest.value;
+      console.log(
+        `[Webhook Asaas] Sincronizando juros mensais: ${subscriptionData.interest.value}%`,
+      );
+    }
+
+    // Sincronizar multa percentual
+    if (subscriptionData.fine && subscriptionData.fine.value !== undefined) {
+      updateData.multaPercentual = subscriptionData.fine.value;
+      console.log(
+        `[Webhook Asaas] Sincronizando multa percentual: ${subscriptionData.fine.value}%`,
+      );
+    }
+
+    if (Object.keys(updateData).length > 0) {
       await prisma.matricula.update({
         where: { id: matricula.id },
-        data: { status: 'CANCELADA' },
-      });
-
-      await prisma.matriculaLog.create({
-        data: {
-          matriculaId: matricula.id,
-          action: 'ASSINATURA_INATIVADA',
-          actorId: 'system',
-          metadata: {
-            subscriptionId,
-            status: subscriptionData.status,
-          },
-        },
+        data: updateData,
       });
     }
+
+    await prisma.matriculaLog.create({
+      data: {
+        matriculaId: matricula.id,
+        action:
+          subscriptionData.status === 'INACTIVE' ? 'ASSINATURA_INATIVADA' : 'ASSINATURA_ATUALIZADA',
+        actorId: 'system',
+        metadata: {
+          subscriptionId,
+          status: subscriptionData.status,
+          endDate: subscriptionData.endDate,
+          interest: subscriptionData.interest,
+          fine: subscriptionData.fine,
+          discount: subscriptionData.discount,
+        },
+      },
+    });
 
     console.log(
       `[Webhook Asaas] Assinatura ${subscriptionId} atualizada para status ${subscriptionData.status}`,
@@ -298,7 +626,8 @@ export async function POST(req: NextRequest) {
   try {
     // Ler payload bruto
     const rawPayload = await req.text();
-    const signature = req.headers.get('asaas-signature');
+    // Asaas pode enviar token via asaas-access-token ou asaas-signature
+    const signature = req.headers.get('asaas-access-token') || req.headers.get('asaas-signature');
 
     // Parse do payload (precisamos do payment/subscription id para inferir conta antes de validar assinatura)
     const payload = JSON.parse(rawPayload);
@@ -332,10 +661,12 @@ export async function POST(req: NextRequest) {
       });
       if (matricula?.aluno?.contaId) contaId = matricula.aluno.contaId;
     }
-    // Fallback legacy: primeira conta (apenas se não encontrado por relacionamentos)
+    // Restrições: não usar fallback em produção para evitar associar eventos à conta errada
     if (!contaId) {
-      const fallback = await prisma.conta.findFirst({ select: { id: true } });
-      contaId = fallback?.id || null;
+      if (process.env.NODE_ENV === 'development') {
+        const fallback = await prisma.conta.findFirst({ select: { id: true } });
+        contaId = fallback?.id || null;
+      }
     }
 
     // Validar assinatura só agora que temos (ou não) o contaId
@@ -349,8 +680,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Assinatura inválida' }, { status: 401 });
     }
 
-    // Gerar eventId para logs e idempotência
-    eventId = payment?.id || subscription?.id || `${event}-${Date.now()}`;
+    // Gerar eventId para logs e idempotência (inclui evento + identificadores + campos relevantes)
+    if (payment?.id) {
+      const status = payment.status || 'NA';
+      const when = payment.paymentDate || payment.dueDate || 'NA';
+      eventId = `${event}:${payment.id}:${status}:${when}`;
+    } else if (subscription?.id) {
+      const status = subscription.status || 'NA';
+      const when = subscription.nextDueDate || subscription.endDate || 'NA';
+      eventId = `${event}:${subscription.id}:${status}:${when}`;
+    } else {
+      eventId = `${event}-${Date.now()}`;
+    }
 
     console.log('[Webhook Asaas] Recebido', {
       eventId,

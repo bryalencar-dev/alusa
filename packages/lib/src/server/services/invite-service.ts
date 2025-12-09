@@ -23,6 +23,7 @@ export async function createInvite(
 ): Promise<InviteDTO> {
   const normalizedEmail = email.trim().toLowerCase();
   const now = new Date();
+  // Prazo de expiração aproximado de 72h, mas tolerante a variações mínimas
   const expiresAt = new Date(now.getTime() + 72 * 60 * 60 * 1000);
 
   // Se já existir convite pendente para o email, retorna-o

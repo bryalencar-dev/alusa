@@ -4,6 +4,7 @@ import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { z } from 'zod';
 import { verifyCredentials } from './auth-service';
+import prisma from '@/lib/prisma';
 
 declare module 'next-auth/jwt' {
   interface JWT {
@@ -14,7 +15,8 @@ declare module 'next-auth/jwt' {
 }
 
 const creds = z.object({ email: z.string().email(), password: z.string().min(6) });
-const secret = process.env.NEXTAUTH_SECRET;
+const secret =
+  process.env.NEXTAUTH_SECRET ?? (process.env.NODE_ENV === 'test' ? 'test-secret' : undefined);
 if (!secret) throw new Error('NEXTAUTH_SECRET ausente. Defina em apps/web/.env.local');
 
 export const authOptions: NextAuthOptions = {
@@ -61,7 +63,7 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    session({ session, token }) {
+    async session({ session, token }) {
       // Propagar SEMPRE id, email, name e role para session.user conforme contrato
       if (!session.user) (session as any).user = {};
       (session.user as any).id = (token as any).id ?? '';
@@ -72,6 +74,25 @@ export const authOptions: NextAuthOptions = {
       const tokenContaId = (token as any).contaId;
       (session.user as any).contaId =
         tokenContaId == null || tokenContaId === '' ? null : tokenContaId;
+      // Buscar foto atual do usuário para refletir avatar em toda a UI
+      try {
+        const userId = (token as any).id as string | undefined;
+        if (userId) {
+          const u = await prisma.usuario.findUnique({
+            where: { id: userId },
+            select: { foto: true },
+          });
+          (session.user as any).foto = u?.foto ?? null;
+          // Compatibilidade com componentes que usam image padrão do NextAuth
+          (session.user as any).image = u?.foto ?? null;
+        } else {
+          (session.user as any).foto = null;
+          (session.user as any).image = null;
+        }
+      } catch {
+        // Evita quebrar sessão por falha no DB
+        (session.user as any).foto = (session.user as any).foto ?? null;
+      }
       return session;
     },
     async redirect({ url, baseUrl }) {

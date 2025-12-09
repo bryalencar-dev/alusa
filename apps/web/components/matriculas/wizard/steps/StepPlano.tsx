@@ -74,26 +74,26 @@ export function StepPlano({ ctx, contaId }: StepPlanoProps) {
                 key={p.id}
                 type="button"
                 onClick={() => update({ planoId: p.id, planoLabel: p.nome, planoValor: p.valor })}
-                className={`flex h-full flex-col justify-between rounded-xl border p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${
+                className={`flex items-center justify-between rounded-xl border p-4 text-left shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-200 ${
                   active
                     ? 'border-violet-500 bg-violet-50'
                     : 'border-gray-200 bg-white hover:border-violet-200 hover:bg-violet-50/40'
                 }`}
               >
-                <div className="space-y-2">
+                <div className="flex flex-col gap-1">
                   <p className="text-base font-semibold text-gray-900">{p.nome}</p>
                   {p.valor != null && (
-                    <p className="text-xl font-semibold text-violet-700">
+                    <p className="text-lg font-semibold text-violet-700">
                       {formatter.format(p.valor)}
                       <span className="ml-1 text-sm font-medium text-gray-500">/ mês</span>
                     </p>
                   )}
                 </div>
-                <p className="text-sm text-gray-600">
-                  Ideal para alunos que precisam de acompanhamento contínuo.
-                </p>
                 {active && (
-                  <span className="mt-4 inline-flex w-max items-center gap-2 rounded-full bg-violet-600 px-3 py-1 text-xs font-medium text-white">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1 text-xs font-medium text-white">
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
                     Selecionado
                   </span>
                 )}

@@ -16,9 +16,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-// import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth';
 import { z } from 'zod';
-// import { authOptions } from '@/lib/auth-options';
+import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/src/prisma';
 import {
   createCustomer,
@@ -55,11 +55,10 @@ const requestSchema = z
 
 export async function POST(req: NextRequest) {
   try {
-    // Verificar autenticação (comentado para testes)
-    // const session = await getServerSession(authOptions);
-    // if (!session?.user) {
-    //   return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
-    // }
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.contaId) {
+      return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    }
 
     // Verificar feature flag
     if (!isAsaasEnabled()) {
@@ -72,6 +71,8 @@ export async function POST(req: NextRequest) {
 
     // Preparar dados do customer
     let customerData: CreateCustomerInput;
+
+    let contaId: string | null = session.user.contaId;
 
     if (customData) {
       // Usar dados customizados
@@ -96,6 +97,12 @@ export async function POST(req: NextRequest) {
           { status: 409 },
         );
       }
+
+      if (aluno.contaId !== session.user.contaId) {
+        return NextResponse.json({ error: 'Conta inválida' }, { status: 403 });
+      }
+
+      contaId = aluno.contaId;
 
       customerData = {
         name: aluno.nome,
@@ -131,6 +138,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (responsavel.contaId !== session.user.contaId) {
+        return NextResponse.json({ error: 'Conta inválida' }, { status: 403 });
+      }
+
+      contaId = responsavel.contaId;
+
       customerData = {
         name: responsavel.nome,
         cpfCnpj: responsavel.cpf,
@@ -148,8 +161,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Dados insuficientes' }, { status: 400 });
     }
 
+    if (!contaId) {
+      return NextResponse.json({ error: 'Conta não identificada' }, { status: 400 });
+    }
+
     // Criar customer no Asaas
-    const customer = await createCustomer(customerData);
+    const customer = await createCustomer(customerData, {
+      contaId,
+      idempotencyKey: customerData.externalReference ?? customerData.cpfCnpj,
+    });
 
     // Atualizar banco de dados
     if (alunoId) {

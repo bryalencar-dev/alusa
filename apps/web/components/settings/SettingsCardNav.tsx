@@ -5,10 +5,9 @@ import { usePathname } from "next/navigation";
 type Item = { href: string; label: string };
 
 const items: Item[] = [
-  { href: "/admin/configuracoes/conta", label: "Conta" },
   { href: "/admin/configuracoes/usuarios", label: "Usuários e Convites" },
   { href: "/admin/configuracoes/integracoes", label: "Integrações" },
-  { href: "/admin/configuracoes/seguranca", label: "Segurança" },
+  { href: "/admin/configuracoes/notificacoes", label: "Notificações" },
 ];
 
 export default function SettingsCardNav() {

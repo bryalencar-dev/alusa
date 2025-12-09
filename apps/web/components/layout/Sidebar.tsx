@@ -36,6 +36,7 @@ import {
 } from '@/components/icons/icons';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { useSession } from 'next-auth/react';
+import { usePortalNotifications } from '@/hooks/use-portal-notifications';
 
 /** Tokens visuais (mantém sua coluna/tamanho) */
 const TOKENS = {
@@ -103,12 +104,6 @@ const GROUPS: Group[] = [
         icon: <BuildingLibraryIcon className="h-5 w-5" />,
         iconSolid: <BuildingLibrarySolid className="h-5 w-5" />,
       },
-      {
-        label: 'Cursos',
-        href: '/cursos',
-        icon: <RectangleStackIcon className="h-5 w-5" />,
-        iconSolid: <RectangleStackSolid className="h-5 w-5" />,
-      },
     ],
   },
   {
@@ -120,6 +115,12 @@ const GROUPS: Group[] = [
       {
         label: 'Minhas Matrículas',
         href: '/matriculas',
+        icon: <ClipboardDocumentCheckIcon className="h-5 w-5" />,
+        iconSolid: <ClipboardDocumentCheckSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Rematrículas',
+        href: '/rematriculas',
         icon: <ClipboardDocumentCheckIcon className="h-5 w-5" />,
         iconSolid: <ClipboardDocumentCheckSolid className="h-5 w-5" />,
       },
@@ -142,6 +143,18 @@ const GROUPS: Group[] = [
         href: '/financeiro/pagamentos',
         icon: <BanknotesIcon className="h-5 w-5" />,
         iconSolid: <BanknotesSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Lancamentos',
+        href: '/financeiro/lancamentos',
+        icon: <ChartBarIcon className="h-5 w-5" />,
+        iconSolid: <ChartBarSolid className="h-5 w-5" />,
+      },
+      {
+        label: 'Centros de Custo',
+        href: '/financeiro/centros-custo',
+        icon: <ChartBarIcon className="h-5 w-5" />,
+        iconSolid: <ChartBarSolid className="h-5 w-5" />,
       },
       {
         label: 'Relatórios',
@@ -257,6 +270,52 @@ const GROUPS: Group[] = [
   },
 ];
 
+// Grupos específicos para Portal do Aluno/Responsável
+const PORTAL_GROUPS: Group[] = [
+  {
+    key: 'portal-matriculas',
+    label: 'Matrículas',
+    icon: <ClipboardDocumentCheckIcon className="h-5 w-5" />,
+    iconSolid: <ClipboardDocumentCheckSolid className="h-5 w-5" />,
+    items: [
+      {
+        label: 'Minhas Matrículas',
+        href: '/portal/matriculas',
+        icon: <ClipboardDocumentCheckIcon className="h-5 w-5" />,
+        iconSolid: <ClipboardDocumentCheckSolid className="h-5 w-5" />,
+      },
+    ],
+  },
+  {
+    key: 'portal-financeiro',
+    label: 'Financeiro',
+    icon: <BanknotesIcon className="h-5 w-5" />,
+    iconSolid: <BanknotesSolid className="h-5 w-5" />,
+    items: [
+      {
+        label: 'Cobranças',
+        href: '/portal/financeiro',
+        icon: <BanknotesIcon className="h-5 w-5" />,
+        iconSolid: <BanknotesSolid className="h-5 w-5" />,
+      },
+    ],
+  },
+  {
+    key: 'portal-eventos',
+    label: 'Eventos',
+    icon: <TicketIcon className="h-5 w-5" />,
+    iconSolid: <TicketSolid className="h-5 w-5" />,
+    items: [
+      {
+        label: 'Meus Eventos',
+        href: '/portal/eventos',
+        icon: <TicketIcon className="h-5 w-5" />,
+        iconSolid: <TicketSolid className="h-5 w-5" />,
+      },
+    ],
+  },
+];
+
 // Mapa de permissões por role
 type RoleKey = 'ADMIN' | 'FINANCEIRO' | 'RECEPCAO' | 'PROFESSOR' | 'RESPONSAVEL' | 'ALUNO' | string;
 const PERMISSIONS: Record<
@@ -298,13 +357,13 @@ const PERMISSIONS: Record<
   },
   RESPONSAVEL: {
     allowDashboard: true,
-    allowGroups: [],
+    allowGroups: PORTAL_GROUPS.map((g) => ({ key: g.key })),
     allowPortal: true,
     allowSettings: false,
   },
   ALUNO: {
     allowDashboard: true,
-    allowGroups: [],
+    allowGroups: PORTAL_GROUPS.map((g) => ({ key: g.key })),
     allowPortal: true,
     allowSettings: false,
   },
@@ -386,9 +445,13 @@ function Sidebar() {
   const [activeKey, setActiveKey] = useState<string | 'dashboard' | null>('dashboard'); // quem está selecionado
   const { isDark } = useTheme();
   const { navRef, markerRef, setActiveElement, visible } = useFloatingMarker();
+  const { notifications } = usePortalNotifications();
   const anyGroupOpen = !collapsed && openKey !== null;
   // Gutter lateral quando recolhido (para centralizar e evitar cortar bordas)
   const collapsedGutter = Math.max(0, (TOKENS.widthCollapsed - TOKENS.itemH) / 2); // 6px
+  
+  // Verificar se o usuário é do portal
+  const isPortalUser = role === 'ALUNO' || role === 'RESPONSAVEL';
 
   // Largura sincronizada com o layout
   useEffect(() => {
@@ -401,8 +464,10 @@ function Sidebar() {
 
   // Rota → abre grupo correspondente e controla seleção
   useEffect(() => {
+    // Usa sourceGroups baseado no role
+    const currentGroups = (role === 'ALUNO' || role === 'RESPONSAVEL') ? PORTAL_GROUPS : GROUPS;
     let found: string | null = null;
-    for (const g of GROUPS) {
+    for (const g of currentGroups) {
       if (g.items.some((i) => pathname.startsWith(i.href))) {
         found = g.key;
         break;
@@ -411,14 +476,14 @@ function Sidebar() {
     if (found) {
       setOpenKey(found);
       setActiveKey(found); // grupo fica selecionado quando está em um submenu
-    } else if (pathname.startsWith('/dashboard')) {
+    } else if (pathname.startsWith('/dashboard') || pathname.startsWith('/portal')) {
       setOpenKey(null);
       setActiveKey('dashboard');
     } else {
       setActiveKey(null);
       setOpenKey(null);
     }
-  }, [pathname]);
+  }, [pathname, role]);
 
   const toggleSidebar = useCallback(() => setCollapsed((c) => !c), []);
   const onClickDashboard = () => {
@@ -448,8 +513,11 @@ function Sidebar() {
     } as React.CSSProperties;
   };
 
+  // Escolhe o conjunto de grupos baseado no role
+  const sourceGroups = (role === 'ALUNO' || role === 'RESPONSAVEL') ? PORTAL_GROUPS : GROUPS;
+  
   // Filtra grupos conforme permissões
-  const allowedGroups = GROUPS.filter((g) => {
+  const allowedGroups = sourceGroups.filter((g) => {
     if (perm.allowGroups.some((p) => p.key === g.key && (!p.items || p.items.length === 0)))
       return true;
     // se houver filtro por items, mantenha o grupo e filtra itens adiante
@@ -546,12 +614,12 @@ function Sidebar() {
           />
         )}
         <ul className="flex flex-col gap-2">
-          {/* Dashboard */}
+          {/* Dashboard / Início */}
           {perm.allowDashboard && (
             <li className="relative">
               <Link
-                href="/dashboard"
-                aria-label="Dashboard"
+                href={(role === 'ALUNO' || role === 'RESPONSAVEL') ? '/portal' : '/dashboard'}
+                aria-label={(role === 'ALUNO' || role === 'RESPONSAVEL') ? 'Início' : 'Dashboard'}
                 className={[
                   'group relative mx-auto flex items-center rounded-[10px] text-[16px] outline-none select-none transition-[width,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
                   collapsed ? 'justify-center gap-0 px-0 pl-0' : 'gap-3 px-4 pl-[30px]',
@@ -590,7 +658,7 @@ function Sidebar() {
                     collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto',
                   ].join(' ')}
                 >
-                  Dashboard
+                  {(role === 'ALUNO' || role === 'RESPONSAVEL') ? 'Início' : 'Dashboard'}
                 </span>
               </Link>
             </li>
@@ -698,6 +766,12 @@ function Sidebar() {
                             >
                               {item.label}
                             </span>
+                            {/* Badge de notificação para Financeiro */}
+                            {isPortalUser && item.href === '/portal/financeiro' && (notifications.cobrancasPendentes > 0 || notifications.cobrancasAtrasadas > 0) && !collapsed && (
+                              <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white relative z-10">
+                                {notifications.cobrancasPendentes + notifications.cobrancasAtrasadas}
+                              </span>
+                            )}
                           </Link>
                         </li>
                       );

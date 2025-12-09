@@ -5,7 +5,7 @@
  */
 
 import axios, { type AxiosInstance } from 'axios';
-import { validateAsaasEnv } from './env';
+import { getAsaasBaseUrl, validateAsaasEnv } from './env';
 import { loadDecryptedAsaasCredentials } from '../services/integracoes/asaas-credentials-service';
 
 /**
@@ -99,6 +99,13 @@ function buildClient(cfg: ClientConfig): AxiosInstance {
 let globalClient: AxiosInstance | null = null;
 
 /**
+ * Função interna para resetar o client global (usada apenas em testes)
+ */
+export function __resetAsaasClientForTests() {
+  globalClient = null;
+}
+
+/**
  * Client padrão baseado em variáveis de ambiente (legado / fallback)
  */
 export function getAsaasClient(): AxiosInstance {
@@ -121,9 +128,8 @@ export async function getAsaasClientForConta(contaId: string): Promise<AxiosInst
   // Verifica se a conta possui credenciais cadastradas
   const creds = await loadDecryptedAsaasCredentials(contaId).catch(() => null);
   if (creds?.apiKey) {
-    // Base URL ainda vem das envs por enquanto (poderíamos futuramente guardar ambiente por conta)
-    const env = validateAsaasEnv();
-    const client = buildClient({ baseUrl: env.baseUrl, apiKey: creds.apiKey });
+    const baseUrl = getAsaasBaseUrl(creds.apiKey);
+    const client = buildClient({ baseUrl, apiKey: creds.apiKey });
     perContaCache.set(contaId, client);
     return client;
   }

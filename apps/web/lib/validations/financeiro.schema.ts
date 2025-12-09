@@ -80,6 +80,82 @@ export function validarDataInicio(dataInicio: string | undefined): {
 }
 
 /**
+ * Valida data de fim do contrato
+ */
+export function validarDataFimContrato(
+  dataFimContrato: string | undefined,
+  dataInicio: string | undefined,
+): {
+  valido: boolean;
+  mensagem: string;
+  tipo: 'success' | 'error' | 'warning';
+} {
+  if (!dataFimContrato) {
+    return {
+      valido: false,
+      mensagem: 'Data de fim do contrato é obrigatória',
+      tipo: 'error',
+    };
+  }
+
+  const dataFim = new Date(dataFimContrato);
+  if (isNaN(dataFim.getTime())) {
+    return {
+      valido: false,
+      mensagem: 'Data de fim do contrato inválida',
+      tipo: 'error',
+    };
+  }
+
+  // Validar que dataFimContrato >= dataInicio
+  if (dataInicio) {
+    const dataIni = new Date(dataInicio);
+    if (!isNaN(dataIni.getTime())) {
+      dataFim.setHours(0, 0, 0, 0);
+      dataIni.setHours(0, 0, 0, 0);
+
+      if (dataFim < dataIni) {
+        return {
+          valido: false,
+          mensagem: 'Data de fim do contrato não pode ser anterior à data de início',
+          tipo: 'error',
+        };
+      }
+    }
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  dataFim.setHours(0, 0, 0, 0);
+
+  const diffDias = Math.floor((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Data no passado (permitir com aviso)
+  if (diffDias < 0) {
+    return {
+      valido: true,
+      mensagem: 'Data de fim do contrato está no passado. Confirme se está correto.',
+      tipo: 'warning',
+    };
+  }
+
+  // Data muito distante no futuro (mais de 2 anos)
+  if (diffDias > 730) {
+    return {
+      valido: true,
+      mensagem: 'Data de fim do contrato está muito distante. Confirme se está correto.',
+      tipo: 'warning',
+    };
+  }
+
+  return {
+    valido: true,
+    mensagem: 'Data de fim do contrato configurada',
+    tipo: 'success',
+  };
+}
+
+/**
  * Valida dia de vencimento
  */
 export function validarDiaVencimento(dia: number | undefined): {

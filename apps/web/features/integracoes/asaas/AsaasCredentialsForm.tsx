@@ -1,165 +1,138 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { z } from 'zod';
-import { useSession } from 'next-auth/react';
 
-const schema = z.object({
-  token: z.string().min(10, 'Informe o token da API'),
+import { useState } from 'react';
+import { z } from 'zod';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const tokenSchema = z.object({
+  token: z.string().min(10, 'Informe o token completo gerado no painel do Asaas.'),
 });
 
-type FormState = {
-  token: string;
-};
-
-interface FetchState {
+interface AsaasCredentialsFormProps {
+  maskedToken: string | null;
+  updatedAt: string | null;
   loading: boolean;
   saving: boolean;
+  testing: boolean;
   error: string | null;
-  updatedAt: string | null;
-  maskedToken: string | null;
   success: string | null;
+  onSubmit: (token: string) => Promise<boolean>;
+  onTest: () => Promise<boolean>;
+  onClearFeedback: () => void;
 }
 
-export function AsaasCredentialsForm() {
-  const { data: session } = useSession();
-  const [form, setForm] = useState<FormState>({ token: '' });
-  const [state, setState] = useState<FetchState>({
-    loading: true,
-    saving: false,
-    error: null,
-    updatedAt: null,
-    maskedToken: null,
-    success: null,
-  });
+function formatTimestamp(value: string | null): string {
+  if (!value) return 'Nunca sincronizado';
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
 
-  const load = async () => {
-    setState((s) => ({ ...s, loading: true, error: null }));
-    try {
-      const res = await fetch('/api/integracoes/asaas', { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const json = await res.json();
-      setState((s) => ({
-        ...s,
-        loading: false,
-        maskedToken: json.credentials?.apiKeyMasked ?? null,
-        updatedAt: json.credentials?.updatedAt ?? null,
-      }));
-    } catch (e) {
-      setState((s) => ({ ...s, loading: false, error: (e as Error).message }));
-    }
-  };
+export function AsaasCredentialsForm({
+  maskedToken,
+  updatedAt,
+  loading,
+  saving,
+  testing,
+  error,
+  success,
+  onSubmit,
+  onTest,
+  onClearFeedback,
+}: AsaasCredentialsFormProps) {
+  const [token, setToken] = useState('');
+  const [showToken, setShowToken] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
-  };
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const parse = schema.safeParse(form);
-    if (!parse.success) {
-      setState((s) => ({ ...s, error: parse.error.issues[0].message }));
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onClearFeedback();
+    const parsed = tokenSchema.safeParse({ token });
+    if (!parsed.success) {
+      setValidationError(parsed.error.issues[0]?.message ?? 'Token inválido');
       return;
     }
-    setState((s) => ({ ...s, saving: true, error: null }));
-    try {
-      const res = await fetch('/api/integracoes/asaas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: parse.data.token }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Falha ao salvar');
-      setForm({ token: '' });
-      setState((s) => ({
-        ...s,
-        saving: false,
-        maskedToken: json.credentials?.apiKeyMasked ?? null,
-        updatedAt: json.credentials?.updatedAt ?? null,
-        success: 'Token salvo com sucesso',
-      }));
-    } catch {
-      setState((s) => ({ ...s, saving: false, error: 'Erro ao salvar token' }));
+    setValidationError(null);
+    const saved = await onSubmit(parsed.data.token);
+    if (saved) {
+      setToken('');
+      setShowToken(false);
     }
   };
 
-  if (!session?.user) {
-    return <div className="p-4 text-sm text-red-600">Necessita autenticação.</div>;
-  }
+  const handleTest = async () => {
+    onClearFeedback();
+    await onTest();
+  };
+
+  const statusText = loading ? 'Carregando…' : maskedToken ? 'Token configurado' : 'Token ausente';
 
   return (
-    <div className="space-y-4 max-w-xl">
-      <h2 className="text-lg font-semibold">Credenciais Asaas</h2>
-      {state.error && (
-        <div className="rounded bg-red-50 border border-red-200 p-2 text-sm text-red-700">
-          {state.error}
-        </div>
-      )}
-      {state.success && (
-        <div className="rounded bg-green-50 border border-green-200 p-2 text-sm text-green-700">
-          {state.success}
-        </div>
-      )}
-      <div className="text-sm text-gray-600">
-        <p>Status: {state.loading ? 'Carregando...' : 'Pronto'}</p>
-        {state.maskedToken && (
-          <p>
-            Token atual: <code>{state.maskedToken}</code>
-          </p>
-        )}
-        {state.updatedAt && <p>Atualizado em: {new Date(state.updatedAt).toLocaleString()}</p>}
-      </div>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium" htmlFor="token">
+    <div className="space-y-5">
+      {error ? (
+        <Alert variant="warning">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {success ? (
+        <Alert variant="success">
+          <AlertDescription>{success}</AlertDescription>
+        </Alert>
+      ) : null}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="asaas-token" className="text-sm font-semibold text-gray-900">
             Token da API do Asaas
-          </label>
-          <input
-            id="token"
-            name="token"
-            type="password"
-            value={form.token}
-            onChange={onChange}
-            placeholder="cole aqui seu token..."
-            className="rounded border px-3 py-2 text-sm"
-            autoComplete="off"
-          />
+          </Label>
+          <div>
+            <Input
+              id="asaas-token"
+              name="token"
+              type="password"
+              value={token}
+              onChange={(event) => {
+                if (validationError) setValidationError(null);
+                onClearFeedback();
+                setToken(event.target.value);
+              }}
+              placeholder={maskedToken ? '••••••' + maskedToken.slice(-4) : 'Cole aqui o token disponível no painel do Asaas'}
+              autoComplete="off"
+            />
+          </div>
+          {validationError ? (
+            <p className="text-xs text-rose-600">{validationError}</p>
+          ) : null}
         </div>
-        <div className="flex gap-2">
-          <button
-            disabled={state.saving}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm px-4 py-2 rounded"
-            type="submit"
-          >
-            {state.saving ? 'Salvando...' : 'Salvar'}
-          </button>
-          {/* Opcional: Testar conexão */}
-          <button
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={saving} className="bg-brand-accent hover:bg-brand-accent/90">
+            {saving ? 'Salvando…' : 'Salvar token'}
+          </Button>
+          <Button
             type="button"
-            onClick={async () => {
-              setState((s) => ({ ...s, error: null, success: null }));
-              try {
-                const res = await fetch('/api/integracoes/asaas/testar', { method: 'POST' });
-                if (!res.ok) throw new Error('Falha ao testar conexão');
-                setState((s) => ({ ...s, success: 'Conexão ok com Asaas' }));
-              } catch {
-                setState((s) => ({ ...s, error: 'Falha ao testar conexão' }));
-              }
-            }}
-            className="text-sm px-3 py-2 rounded border"
-            disabled={state.loading}
+            variant="outline"
+            onClick={handleTest}
+            disabled={testing || loading || !maskedToken}
           >
-            Testar conexão
-          </button>
+            {testing ? 'Testando…' : 'Testar conexão'}
+          </Button>
+        </div>
+        <div className="text-xs text-gray-500">
+          <span className="font-semibold text-gray-700">Última atualização:</span> {formatTimestamp(updatedAt)}
         </div>
       </form>
-      <p className="text-xs text-gray-500 leading-relaxed">
-        Ao salvar, o token é armazenado de forma ofuscada e pode ser rotacionado a qualquer momento.
-        A implementação de criptografia forte será adicionada (TODO) antes de ir para produção.
+
+      <p className="text-xs leading-relaxed text-gray-500">
+        Armazenamos o token de forma ofuscada, criptografada e com auditoria de alterações. Evite reutilizar chaves
+        anteriores e revogue tokens que não forem mais necessários.
       </p>
     </div>
   );

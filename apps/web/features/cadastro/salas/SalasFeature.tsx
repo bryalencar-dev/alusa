@@ -26,6 +26,7 @@ import { useSalas } from './hooks/use-salas';
 import {
   updateSala,
   createSala,
+  deleteSala,
   type SalaListItem,
   type UpdateSalaPayload,
   type SalaStatus,
@@ -53,19 +54,7 @@ export function SalasFeature() {
   const deleteDialog = useDeleteDialog<SalaListItem>({
     onDelete: async (sala) => {
       if (!contaId) throw new Error('Conta não informada para exclusão.');
-      // Hard delete: simplesmente dispara remoção; hook remove irá filtrar.
-      await fetch(`/api/salas/${sala.id}?contaId=${encodeURIComponent(contaId)}`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json' },
-      }).then(async (res) => {
-        if (!res.ok) {
-          const json = await res.json().catch(() => null);
-          throw new Error(
-            (json as { error?: { message?: string } } | null)?.error?.message ||
-              'Não foi possível excluir a sala.',
-          );
-        }
-      });
+      await deleteSala({ id: sala.id, contaId });
       setItems((prev) => prev.filter((item) => item.id !== sala.id));
     },
   });

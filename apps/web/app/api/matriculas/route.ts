@@ -138,7 +138,8 @@ export async function GET(req: Request) {
       status: item.status,
       statusFinanceiro: item.statusFinanceiro,
       dataInicio: item.dataInicio.toISOString(),
-      dataFim: item.dataFim ? item.dataFim.toISOString() : null,
+      dataFimContrato: item.dataFimContrato.toISOString(),
+      statusContrato: item.statusContrato,
       taxaMatricula: Number(item.taxaMatricula),
       taxaStatus: item.taxaStatus,
       aluno: {
@@ -146,11 +147,13 @@ export async function GET(req: Request) {
         nome: item.aluno.nome,
         cpf: item.aluno.cpf,
       },
-      plano: {
-        id: item.plano.id,
-        nome: item.plano.nome,
-        valor: Number(item.plano.valor),
-      },
+      plano: item.plano
+        ? {
+            id: item.plano.id,
+            nome: item.plano.nome,
+            valor: Number(item.plano.valor),
+          }
+        : null,
       turma: item.turma
         ? {
             id: item.turma.id,
@@ -160,6 +163,13 @@ export async function GET(req: Request) {
             horaFim: item.turma.horaFim,
           }
         : null,
+      turmas: item.turmas?.map((t) => ({
+        id: t.id,
+        nome: t.nome,
+        diasSemana: t.diasSemana,
+        horaInicio: t.horaInicio,
+        horaFim: t.horaFim,
+      })) ?? [],
       combo: item.combo ? { id: item.combo.id, nome: item.combo.nome } : null,
       cobrancas: item.cobrancas.map((cobranca) => ({
         id: cobranca.id,
@@ -168,6 +178,13 @@ export async function GET(req: Request) {
         formaPagamento: cobranca.formaPagamento,
         tipo: cobranca.tipo,
         vencimento: cobranca.vencimento.toISOString(),
+        descricao: cobranca.descricao,
+        asaasPaymentId: cobranca.asaasPaymentId,
+        asaasId: cobranca.asaasId,
+        createdAt: cobranca.createdAt.toISOString(),
+        competenciaInicio: cobranca.competenciaInicio.toISOString(),
+        competenciaFim: cobranca.competenciaFim.toISOString(),
+        dataPagamento: cobranca.dataPagamento?.toISOString() ?? null,
       })),
       taxaIsenta: item.taxaIsenta,
       vencimentoDia: item.vencimentoDia,
@@ -264,15 +281,33 @@ export async function POST(req: Request) {
       return undefined;
     };
 
+    // Função de mapeamento para normalizar formas de pagamento do wizard para o enum Prisma
+    const normalizarFormaPagamento = (raw: unknown): FormaPagamento | undefined => {
+      if (typeof raw !== 'string' || !raw.trim()) return undefined;
+      
+      const normalized = raw.trim().toUpperCase();
+      
+      // Mapeamento: wizard → Prisma enum
+      const mapping: Record<string, FormaPagamento> = {
+        'CARTAO': FormaPagamento.CARTAO_CREDITO,
+        'CARTAO_CREDITO': FormaPagamento.CARTAO_CREDITO,
+        'PIX': FormaPagamento.PIX,
+        'BOLETO': FormaPagamento.BOLETO,
+        'DINHEIRO': FormaPagamento.INDEFINIDO,
+        'INDEFINIDO': FormaPagamento.INDEFINIDO,
+      };
+      
+      const mapped = mapping[normalized];
+      
+      // Validar se o valor mapeado existe no enum
+      return mapped && Object.values(FormaPagamento).includes(mapped) ? mapped : undefined;
+    };
+
     const formaPagamentoRaw = (body as { formaPagamento?: unknown }).formaPagamento;
-    const formaPagamento =
-      typeof formaPagamentoRaw === 'string'
-        ? (formaPagamentoRaw.trim().toUpperCase() as FormaPagamento)
-        : undefined;
-    const formaPagamentoValida =
-      formaPagamento && Object.values(FormaPagamento).includes(formaPagamento)
-        ? formaPagamento
-        : undefined;
+    const formaPagamentoValida = normalizarFormaPagamento(formaPagamentoRaw);
+
+    const formaPagamentoTaxaRaw = (body as { formaPagamentoTaxa?: unknown }).formaPagamentoTaxa;
+    const formaPagamentoTaxaValida = normalizarFormaPagamento(formaPagamentoTaxaRaw);
 
     const taxaMatriculaValue = parseNumber((body as { taxaMatricula?: unknown }).taxaMatricula);
     const taxaIsentaValue = parseBoolean((body as { taxaIsenta?: unknown }).taxaIsenta);
@@ -281,6 +316,12 @@ export async function POST(req: Request) {
       (body as { gerarCobrancaTaxa?: unknown }).gerarCobrancaTaxa,
     );
 
+    const dataInicioValue = toDate((body as { dataInicio?: unknown }).dataInicio) ?? new Date();
+    const dataFimContratoValue = toDate((body as { dataFimContrato?: unknown }).dataFimContrato);
+    if (!dataFimContratoValue) {
+      return jsonError(400, 'DATA_FIM_CONTRATO_OBRIGATORIA', 'dataFimContrato é obrigatório.');
+    }
+
     const payload = {
       ...body,
       contaId: auth.contaId,
@@ -288,11 +329,20 @@ export async function POST(req: Request) {
       taxaIsenta: taxaIsentaValue,
       pagarTaxaAgora: pagarTaxaAgoraValue ?? false,
       gerarCobrancaTaxa: gerarCobrancaTaxaValue ?? false,
-      dataInicio: toDate((body as { dataInicio?: unknown }).dataInicio),
+      dataInicio: dataInicioValue,
+      dataFimContrato: dataFimContratoValue,
       vencimento: toDate((body as { vencimento?: unknown }).vencimento),
       formaPagamento: formaPagamentoValida,
+      formaPagamentoTaxa: formaPagamentoTaxaValida,
       createdById: auth.user.id,
     };
+
+    console.log('[API Matrícula] Mapeamento de formas de pagamento:', {
+      formaPagamentoRaw,
+      formaPagamentoMapeada: formaPagamentoValida,
+      formaPagamentoTaxaRaw,
+      formaPagamentoTaxaMapeada: formaPagamentoTaxaValida,
+    });
 
     console.log('[API Matrícula] Payload estruturado:', {
       hasAlunoId: !!payload.alunoId,
@@ -304,7 +354,9 @@ export async function POST(req: Request) {
       taxaMatricula: payload.taxaMatricula,
       taxaIsenta: payload.taxaIsenta,
       pagarTaxaAgora: payload.pagarTaxaAgora,
+      gerarCobrancaTaxa: payload.gerarCobrancaTaxa,
       formaPagamento: payload.formaPagamento,
+      formaPagamentoTaxa: payload.formaPagamentoTaxa,
       dataInicio: payload.dataInicio,
       vencimentoDia: payload.vencimentoDia,
     });
@@ -325,9 +377,10 @@ export async function POST(req: Request) {
         turmaId: matricula.turmaId,
         comboId: matricula.comboId,
         status: matricula.status,
+        statusContrato: matricula.statusContrato,
         statusFinanceiro: matricula.statusFinanceiro,
         dataInicio: matricula.dataInicio.toISOString(),
-        dataFim: matricula.dataFim ? matricula.dataFim.toISOString() : null,
+        dataFimContrato: matricula.dataFimContrato.toISOString(),
         taxaMatricula: Number(matricula.taxaMatricula),
         taxaStatus: matricula.taxaStatus as StatusTaxaMatricula,
         taxaIsenta: matricula.taxaIsenta,
@@ -349,6 +402,10 @@ export async function POST(req: Request) {
               formaPagamento: result.cobrancas.taxa.formaPagamento as FormaPagamento,
               status: result.cobrancas.taxa.status as StatusCobranca,
               asaasId: result.cobrancas.taxa.asaasId,
+              asaasPaymentId: result.cobrancas.taxa.asaasPaymentId,
+              descricao: result.cobrancas.taxa.descricao,
+              createdAt: result.cobrancas.taxa.createdAt.toISOString(),
+              dataPagamento: result.cobrancas.taxa.dataPagamento?.toISOString() ?? null,
             }
           : null,
         mensalidade: result.cobrancas.mensalidade
@@ -362,6 +419,10 @@ export async function POST(req: Request) {
               formaPagamento: result.cobrancas.mensalidade.formaPagamento as FormaPagamento,
               status: result.cobrancas.mensalidade.status as StatusCobranca,
               asaasId: result.cobrancas.mensalidade.asaasId,
+              asaasPaymentId: result.cobrancas.mensalidade.asaasPaymentId,
+              descricao: result.cobrancas.mensalidade.descricao,
+              createdAt: result.cobrancas.mensalidade.createdAt.toISOString(),
+              dataPagamento: result.cobrancas.mensalidade.dataPagamento?.toISOString() ?? null,
             }
           : null,
       },

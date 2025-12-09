@@ -1,12 +1,11 @@
-'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+"use client";
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import TableLayout from '@/components/layout/TableLayout';
 import { table } from '@/components/layout/TableStyles';
 import { Plus } from '@/components/icons/icons';
 import Pagination from '@/components/layout/Pagination';
 import EntityFiltersBar from '@/components/layout/EntityFiltersBar';
-import { useSession } from 'next-auth/react';
 import { useCombos } from '../hooks/use-combos';
 import {
   createComboRequest,
@@ -24,22 +23,19 @@ import { statusColumn, actionsColumn } from '@alusa/ui/datatable/columns';
 import { formatPlanoValorBRL } from '@/features/cadastro/planos/services/planos-service';
 import ConfirmDeleteDialog from '@/components/dialogs/ConfirmDeleteDialog';
 import { useDeleteDialog } from '@/hooks/use-delete-dialog';
+import useCurrentUser from '@/hooks/use-current-user';
+import { useEntityListFiltering } from '@/hooks/entity/use-entity-list-filtering';
 
 export function CombosFeature() {
-  const { data: session } = useSession();
-  const contaId = session?.user?.contaId || null;
-  const { items, loading, reload } = useCombos({ contaId: contaId || '', search: undefined });
+  const { user, loading: userLoading } = useCurrentUser();
+  const contaId = user?.contaId ?? null;
+  const { items, loading, reload } = useCombos({ contaId, search: undefined });
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [editing, setEditing] = useState<ComboListItem | null>(null);
 
-  // Filters & pagination
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'TODOS' | 'ATIVO' | 'INATIVO'>('TODOS');
-  const [sort, setSort] = useState<'ASC' | 'DESC'>('ASC');
-  const [page, setPage] = useState(1);
   const pageSize = 10;
 
   const accountMissing = !contaId;
@@ -52,36 +48,39 @@ export function CombosFeature() {
     },
   });
 
+  const {
+    search: searchTerm,
+    setSearch: setSearchTerm,
+    status: statusFilter,
+    setStatus: setStatusFilter,
+    sort,
+    setSort,
+    page,
+    setPage,
+    ordered,
+    paginated,
+    resetFilters,
+  } = useEntityListFiltering<ComboListItem>({
+    items,
+    nameAccessor: (combo) => combo.nome ?? "",
+    statusAccessor: (combo) => combo.status ?? "ATIVO",
+    initialSort: "ASC",
+  });
+
   const handleSearch = useCallback(() => {
     void reload({
-      status: statusFilter === 'TODOS' ? undefined : statusFilter,
+      status: statusFilter === "TODOS" ? undefined : statusFilter,
       search: searchTerm,
     });
   }, [reload, statusFilter, searchTerm]);
 
   useEffect(() => {
     void reload({
-      status: statusFilter === 'TODOS' ? undefined : statusFilter,
+      status: statusFilter === "TODOS" ? undefined : statusFilter,
       search: searchTerm,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const filtered = useMemo(() => {
-    let base = items;
-    if (searchTerm.trim())
-      base = base.filter((c) => c.nome.toLowerCase().includes(searchTerm.toLowerCase()));
-    if (statusFilter !== 'TODOS') base = base.filter((c) => c.status === statusFilter);
-    const dir = sort === 'ASC' ? 1 : -1;
-    return [...base].sort((a, b) => a.nome.localeCompare(b.nome) * dir);
-  }, [items, searchTerm, statusFilter, sort]);
-
-  const paginated = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, page]);
-
-  const total = filtered.length;
 
   const openCreate = () => {
     setEditing(null);
@@ -135,16 +134,33 @@ export function CombosFeature() {
       skeleton: <div className="h-4 w-40 bg-gray-200 rounded" />,
     },
     {
-      id: 'valorMensal',
-      header: 'Valor Mensal',
+      id: 'valor',
+      header: 'Valor do Ciclo',
       width: 'w-32',
       align: 'right',
       render: (c) => (
         <span className="font-medium text-gray-900 whitespace-nowrap">
-          {formatPlanoValorBRL(c.valorMensal)}
+          {formatPlanoValorBRL(c.valor)}
         </span>
       ),
       skeleton: <div className="h-4 w-16 bg-gray-200 rounded ml-auto" />,
+    },
+    {
+      id: 'periodicidade',
+      header: 'Periodicidade',
+      width: 'w-28',
+      align: 'center',
+      render: (c) => {
+        const labels: Record<string, string> = {
+          SEMANAL: 'Semanal',
+          QUINZENAL: 'Quinzenal',
+          MENSAL: 'Mensal',
+          TRIMESTRAL: 'Trimestral',
+          ANUAL: 'Anual',
+        };
+        return <span className="text-gray-700">{labels[c.periodicidade] ?? c.periodicidade}</span>;
+      },
+      skeleton: <div className="h-4 w-16 bg-gray-200 rounded mx-auto" />,
     },
     {
       id: 'qtd',
@@ -163,16 +179,18 @@ export function CombosFeature() {
     }),
   ];
 
+  const total = ordered.length;
+
   const tableContent = accountMissing ? (
     <div className="bg-white rounded-xl border px-6 py-12 text-center text-gray-500">
       Conecte-se a uma conta para visualizar os combos cadastrados.
     </div>
   ) : (
-    <div className={table.container} data-testid="combos-table">
+        <div className={table.container} data-testid="combos-table">
       <DataTable
         columns={columns}
         data={paginated}
-        loading={loading}
+            loading={loading || userLoading}
         rowKey={(c) => c.id}
         skeletonRows={5}
         emptyMessage={
@@ -203,10 +221,7 @@ export function CombosFeature() {
             onSearchChange={setSearchTerm}
             onSearchEnter={handleSearch}
             statusValue={statusFilter}
-            onStatusChange={(value) => {
-              setStatusFilter(value);
-              void reload({ status: value === 'TODOS' ? undefined : value, search: searchTerm });
-            }}
+            onStatusChange={(value) => setStatusFilter(value)}
             sortOrder={sort}
             onSortChange={(o) => setSort(o)}
             searchPlaceholder="Buscar por nome..."

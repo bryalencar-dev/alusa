@@ -71,7 +71,7 @@ export async function saveAsaasTokenOnly(contaId: string, token: string): Promis
 
 export async function loadDecryptedAsaasCredentials(
   contaId: string,
-): Promise<{ apiKey: string; webhookSecret: string } | null> {
+): Promise<{ apiKey: string; webhookSecret: string | null } | null> {
   const conta = await prisma.conta.findUnique({
     where: { id: contaId },
     select: {
@@ -81,7 +81,8 @@ export async function loadDecryptedAsaasCredentials(
   });
   if (!conta) return null;
   const apiKey = decryptSecret(conta.asaasApiKeyEncrypted);
+  // webhookSecret é opcional - token da API é suficiente para autenticação
   const webhookSecret = decryptSecret(conta.asaasWebhookSecretEncrypted);
-  if (!apiKey || !webhookSecret) return null;
+  if (!apiKey) return null;
   return { apiKey, webhookSecret };
 }

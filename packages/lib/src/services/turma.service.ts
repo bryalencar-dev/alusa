@@ -1,5 +1,5 @@
 import type { Turma } from '@prisma/client';
-import { Prisma } from '@prisma/client';
+import { Prisma, StatusMatricula } from '@prisma/client';
 import { prisma } from '../prisma';
 import { turmaSchema } from '../schemas/turma.schema';
 import type { TurmaCreateInput, TurmaUpdateInput } from '../schemas/turma.schema';
@@ -301,7 +301,7 @@ export async function updateTurma(input: TurmaUpdateInput): Promise<Turma> {
   return turma;
 }
 
-export type TurmaListItem = Turma & { professoresCount?: number };
+export type TurmaListItem = Turma & { professoresCount?: number; vagasOcupadas?: number };
 
 export async function listTurmas(
   contaId: string,
@@ -322,20 +322,49 @@ export async function listTurmas(
         _count: {
           select: {
             professores: true,
-            matriculas: {
-              where: {
-                status: 'ATIVA',
-              },
-            },
           },
         },
       },
     }),
     prisma.turma.count({ where }),
   ]);
+  const turmaIds = items.map((t) => t.id);
+
+  const ocupacaoPorTurma = new Map<string, number>();
+
+  if (turmaIds.length) {
+    const matriculasAtivas = await prisma.matricula.findMany({
+      where: {
+        status: StatusMatricula.ATIVA,
+        aluno: { contaId },
+        OR: [
+          { turmaId: { in: turmaIds } },
+          { matriculaTurmas: { some: { turmaId: { in: turmaIds } } } },
+        ],
+      },
+      select: {
+        id: true,
+        turmaId: true,
+        matriculaTurmas: {
+          where: { turmaId: { in: turmaIds } },
+          select: { turmaId: true },
+        },
+      },
+    });
+
+    for (const m of matriculasAtivas) {
+      const turmasDaMatricula = new Set<string>();
+      if (m.turmaId) turmasDaMatricula.add(m.turmaId);
+      m.matriculaTurmas.forEach((mt) => turmasDaMatricula.add(mt.turmaId));
+      turmasDaMatricula.forEach((tid) => {
+        ocupacaoPorTurma.set(tid, (ocupacaoPorTurma.get(tid) ?? 0) + 1);
+      });
+    }
+  }
+
   const data = items.map((t) => {
     const professoresCount = (t as { _count?: { professores?: number } })._count?.professores || 0;
-    const vagasOcupadas = (t as { _count?: { matriculas?: number } })._count?.matriculas || 0;
+    const vagasOcupadas = ocupacaoPorTurma.get(t.id) ?? 0;
     const rest = t as unknown as Turma;
     return { ...rest, professoresCount, vagasOcupadas };
   });

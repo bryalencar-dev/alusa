@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { PeriodicidadePlano, Status } from '@prisma/client';
 import { prisma } from '@alusa/lib';
 
@@ -196,7 +196,17 @@ describe('serviço de matrícula', () => {
       ownerId = owner.id;
     });
 
+    afterEach(async () => {
+      if (!alunoId) return;
+      await prisma.cobranca.deleteMany({ where: { matricula: { alunoId } } });
+      await prisma.matricula.deleteMany({ where: { alunoId } });
+    });
+
     it('criarMatricula mantém taxa pendente sem gerar cobrança imediata por padrão', async () => {
+      const dataInicio = new Date();
+      const dataFimContrato = new Date(dataInicio);
+      dataFimContrato.setMonth(dataFimContrato.getMonth() + 12);
+
       const { matricula, cobrancas, preco, checkoutLink, primeiroVencimento } =
         await criarMatricula({
           contaId,
@@ -208,7 +218,9 @@ describe('serviço de matrícula', () => {
           formaPagamento: 'BOLETO',
           criarCobranca: true,
           gerarCobrancaTaxa: false,
-          dataInicio: new Date(),
+          pagarTaxaAgora: false,
+          dataInicio,
+          dataFimContrato,
           vencimentoDia: 5,
           createdById: ownerId,
         });
@@ -221,6 +233,10 @@ describe('serviço de matrícula', () => {
     });
 
     it('criarMatricula gera cobrança da taxa quando explicitamente habilitado', async () => {
+      const dataInicio = new Date();
+      const dataFimContrato = new Date(dataInicio);
+      dataFimContrato.setMonth(dataFimContrato.getMonth() + 12);
+
       const { cobrancas, checkoutLink } = await criarMatricula({
         contaId,
         alunoId,
@@ -228,10 +244,12 @@ describe('serviço de matrícula', () => {
         planoId,
         taxaMatricula: 15,
         taxaIsenta: false,
-        formaPagamento: 'BOLETO',
+        formaPagamento: 'CARTAO_CREDITO',
         criarCobranca: true,
         gerarCobrancaTaxa: true,
-        dataInicio: new Date(),
+        pagarTaxaAgora: true,
+        dataInicio,
+        dataFimContrato,
         vencimentoDia: 5,
         createdById: ownerId,
       });
@@ -243,6 +261,27 @@ describe('serviço de matrícula', () => {
     });
 
     it('listarMatriculas retorna matrículas do aluno', async () => {
+      const dataInicio = new Date();
+      const dataFimContrato = new Date(dataInicio);
+      dataFimContrato.setMonth(dataFimContrato.getMonth() + 12);
+
+      await criarMatricula({
+        contaId,
+        alunoId,
+        turmaId,
+        planoId,
+        taxaMatricula: 0,
+        taxaIsenta: true,
+        formaPagamento: 'PIX',
+        criarCobranca: false,
+        gerarCobrancaTaxa: false,
+        pagarTaxaAgora: false,
+        dataInicio,
+        dataFimContrato,
+        vencimentoDia: 10,
+        createdById: ownerId,
+      });
+
       const { data: list } = await listarMatriculas({ contaId, alunoId });
       const typed = list as Array<{
         turma?: { nome: string };

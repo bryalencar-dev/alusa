@@ -15,7 +15,7 @@ import { CustomToast } from '@/components/CustomToast';
 import { toast } from 'sonner';
 import type {
   ComboListItem,
-  ComboModoMatricula,
+  ComboPeriodicidade,
   ComboStatus,
   CreateComboInput,
   UpdateComboInput,
@@ -34,14 +34,9 @@ interface Props {
 type FormState = {
   nome: string;
   descricao: string;
-  valorMensal: string;
-  taxaMatricula: string;
-  categoriaMensal: string;
-  categoriaTaxa: string;
-  modoMatricula: ComboModoMatricula;
+  valor: string;
+  periodicidade: ComboPeriodicidade;
   status: ComboStatus;
-  vigenciaIni: string;
-  vigenciaFim: string;
   vagasLimite: string;
   turmaIds: string[];
 };
@@ -49,14 +44,9 @@ type FormState = {
 const defaults: FormState = {
   nome: '',
   descricao: '',
-  valorMensal: '',
-  taxaMatricula: '',
-  categoriaMensal: '',
-  categoriaTaxa: '',
-  modoMatricula: 'RESERVADA',
+  valor: '',
+  periodicidade: 'MENSAL',
   status: 'ATIVO',
-  vigenciaIni: '',
-  vigenciaFim: '',
   vagasLimite: '',
   turmaIds: [],
 };
@@ -72,14 +62,9 @@ export function ComboDialog({ open, mode, contaId, combo, onOpenChange, onSubmit
         setValues({
           nome: combo.nome,
           descricao: combo.descricao ?? '',
-          valorMensal: combo.valorMensal.toFixed(2),
-          taxaMatricula: combo.taxaMatricula == null ? '' : combo.taxaMatricula.toFixed(2),
-          categoriaMensal: combo.categoriaMensal ?? '',
-          categoriaTaxa: combo.categoriaTaxa ?? '',
-          modoMatricula: combo.modoMatricula,
+          valor: combo.valor.toFixed(2),
+          periodicidade: combo.periodicidade,
           status: combo.status,
-          vigenciaIni: combo.vigenciaIni ? combo.vigenciaIni.substring(0, 10) : '',
-          vigenciaFim: combo.vigenciaFim ? combo.vigenciaFim.substring(0, 10) : '',
           vagasLimite: combo.vagasLimite == null ? '' : String(combo.vagasLimite),
           turmaIds: combo.turmas.map((t) => t.id),
         });
@@ -108,13 +93,8 @@ export function ComboDialog({ open, mode, contaId, combo, onOpenChange, onSubmit
   function validate(): boolean {
     const next: Partial<Record<keyof FormState, string>> = {};
     if (values.nome.trim().length < 2) next.nome = 'Informe o nome.';
-    const vm = parseNumber(values.valorMensal);
-    if (vm == null || vm < 0) next.valorMensal = 'Valor mensal inválido';
-    const tm = values.taxaMatricula ? parseNumber(values.taxaMatricula) : null;
-    if (values.taxaMatricula && tm == null) next.taxaMatricula = 'Taxa inválida';
-    if (values.vigenciaIni && values.vigenciaFim && values.vigenciaFim < values.vigenciaIni) {
-      next.vigenciaFim = 'Fim deve ser >= início';
-    }
+    const vm = parseNumber(values.valor);
+    if (vm == null || vm <= 0) next.valor = 'Valor do ciclo deve ser maior que zero';
     if (values.vagasLimite) {
       const v = Number(values.vagasLimite);
       if (!Number.isInteger(v) || v <= 0) next.vagasLimite = 'Vagas inválidas';
@@ -158,13 +138,8 @@ export function ComboDialog({ open, mode, contaId, combo, onOpenChange, onSubmit
         contaId,
         nome: values.nome.trim(),
         descricao: values.descricao.trim() || undefined,
-        valorMensal: parseNumber(values.valorMensal)!,
-        taxaMatricula: values.taxaMatricula ? parseNumber(values.taxaMatricula) : undefined,
-        categoriaMensal: values.categoriaMensal.trim() || undefined,
-        categoriaTaxa: values.categoriaTaxa.trim() || undefined,
-        modoMatricula: values.modoMatricula,
-        vigenciaIni: values.vigenciaIni || undefined,
-        vigenciaFim: values.vigenciaFim || undefined,
+        valor: parseNumber(values.valor)!,
+        periodicidade: values.periodicidade,
         vagasLimite: values.vagasLimite ? Number(values.vagasLimite) : undefined,
         turmaIds: values.turmaIds,
       };
@@ -251,43 +226,33 @@ export function ComboDialog({ open, mode, contaId, combo, onOpenChange, onSubmit
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Valor mensal (R$)</label>
+                <label className="text-xs font-medium text-slate-600">Valor do ciclo (R$)</label>
                 <Input
-                  value={values.valorMensal}
+                  value={values.valor}
                   placeholder="0,00"
                   inputMode="numeric"
                   className={baseInputCls}
-                  onChange={(e) => setField('valorMensal', formatCurrencyInput(e.target.value))}
+                  onChange={(e) => setField('valor', formatCurrencyInput(e.target.value))}
                 />
-                {errors.valorMensal && (
-                  <p className="text-[11px] font-medium text-red-600">{errors.valorMensal}</p>
+                {errors.valor && (
+                  <p className="text-[11px] font-medium text-red-600">{errors.valor}</p>
                 )}
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Taxa matrícula (R$)</label>
-                <Input
-                  value={values.taxaMatricula}
-                  placeholder="0,00"
-                  inputMode="numeric"
-                  className={baseInputCls}
-                  onChange={(e) => setField('taxaMatricula', formatCurrencyInput(e.target.value))}
-                />
-                {errors.taxaMatricula && (
-                  <p className="text-[11px] font-medium text-red-600">{errors.taxaMatricula}</p>
-                )}
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Modo matrícula</label>
+                <label className="text-xs font-medium text-slate-600">Periodicidade</label>
                 <Select
-                  value={values.modoMatricula}
-                  onValueChange={(v: ComboModoMatricula) => setField('modoMatricula', v)}
+                  value={values.periodicidade}
+                  onValueChange={(v: ComboPeriodicidade) => setField('periodicidade', v)}
                 >
                   <SelectTrigger className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="RESERVADA">Reservada</SelectItem>
-                    <SelectItem value="SOB_DEMANDA">Sob demanda</SelectItem>
+                    <SelectItem value="SEMANAL">Semanal</SelectItem>
+                    <SelectItem value="QUINZENAL">Quinzenal</SelectItem>
+                    <SelectItem value="MENSAL">Mensal</SelectItem>
+                    <SelectItem value="TRIMESTRAL">Trimestral</SelectItem>
+                    <SelectItem value="ANUAL">Anual</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -303,45 +268,6 @@ export function ComboDialog({ open, mode, contaId, combo, onOpenChange, onSubmit
                 {errors.vagasLimite && (
                   <p className="text-[11px] font-medium text-red-600">{errors.vagasLimite}</p>
                 )}
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Vigência início</label>
-                <Input
-                  type="date"
-                  value={values.vigenciaIni}
-                  className={baseInputCls}
-                  onChange={(e) => setField('vigenciaIni', e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Vigência fim</label>
-                <Input
-                  type="date"
-                  value={values.vigenciaFim}
-                  className={baseInputCls}
-                  onChange={(e) => setField('vigenciaFim', e.target.value)}
-                />
-                {errors.vigenciaFim && (
-                  <p className="text-[11px] font-medium text-red-600">{errors.vigenciaFim}</p>
-                )}
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Categoria mensal</label>
-                <Input
-                  value={values.categoriaMensal}
-                  placeholder="Ex.: Mensalidade"
-                  className={baseInputCls}
-                  onChange={(e) => setField('categoriaMensal', e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-slate-600">Categoria taxa</label>
-                <Input
-                  value={values.categoriaTaxa}
-                  placeholder="Ex.: Taxa inscrição"
-                  className={baseInputCls}
-                  onChange={(e) => setField('categoriaTaxa', e.target.value)}
-                />
               </div>
               {mode === 'edit' && (
                 <div className="flex flex-col gap-1">

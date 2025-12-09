@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidCpf } from '../asaas/utils';
 
 // Regex simples (pode ser substituído por validação mais robusta depois)
 const cpfRegex = /^\d{11}$/;
@@ -31,7 +32,9 @@ export const enderecoSchemaFlexible = z.preprocess(parseJsonIfString, enderecoSc
 
 export const responsavelSchema = z.object({
   nome: z.string().min(3),
-  cpf: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(cpfRegex)),
+  cpf: z
+    .preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(cpfRegex))
+    .refine(isValidCpf, 'CPF inválido'),
   email: z.preprocess(emptyOrNullToUndefined, z.string().email()),
   telefone: z.preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(telRegex)),
   endereco: z.preprocess(parseJsonIfString, enderecoSchema.partial()).optional(),
@@ -45,6 +48,7 @@ export const alunoBaseSchema = z.object({
   dataNasc: z.date().refine((d) => d <= new Date()),
   cpf: z
     .preprocess((v) => emptyOrNullToUndefined(onlyDigits(v)), z.string().regex(cpfRegex))
+    .refine(isValidCpf, 'CPF inválido')
     .optional(),
   email: z.preprocess(emptyOrNullToUndefined, z.string().email()).optional(),
   telefone: z
@@ -86,9 +90,6 @@ export const alunoBaseSchema = z.object({
 
 const alunoRefined = alunoBaseSchema.superRefine((data, ctx) => {
   const idade = calcIdade(data.dataNasc);
-  if (data.cpf && !cpfRegex.test(data.cpf)) {
-    ctx.addIssue({ code: 'custom', path: ['cpf'] });
-  }
   if (
     data.bolsaDescontoPercent &&
     (data.bolsaDescontoPercent < 0 || data.bolsaDescontoPercent > 100)

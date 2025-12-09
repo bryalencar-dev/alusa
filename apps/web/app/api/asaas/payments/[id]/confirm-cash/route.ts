@@ -7,13 +7,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/src/prisma';
-import { confirmCashPayment, isAsaasEnabled, AsaasEnvError } from '@alusa/lib/asaas';
+import { confirmCashPayment, isAsaasEnabled, AsaasEnvError, getCurrentBrasiliaDate } from '@alusa/lib/asaas';
 
 /**
  * Schema de confirmação
  */
 const confirmSchema = z.object({
-  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // ✅ Agora opcional
   value: z.number().positive().optional(),
   notifyCustomer: z.boolean().optional(),
 });
@@ -31,11 +31,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const body = await req.json();
-    const { paymentDate, value, notifyCustomer } = confirmSchema.parse(body);
+    const { paymentDate: requestedPaymentDate, value, notifyCustomer } = confirmSchema.parse(body);
+
+    // ✅ Obter data atual no timezone de Brasília (timezone-safe)
+    const brasiliaDate = getCurrentBrasiliaDate();
+    const paymentDate = requestedPaymentDate || brasiliaDate.dateStr;
 
     console.log('[API POST /asaas/payments/:id/confirm-cash]', {
       paymentId: id,
-      paymentDate,
+      requestedPaymentDate,
+      paymentDateUsed: paymentDate,
+      brasiliaCurrentDate: brasiliaDate.dateStr,
       value,
       notifyCustomer,
     });
@@ -50,14 +56,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (cobranca) {
       await prisma.cobranca.update({
         where: { id: cobranca.id },
-        data: { status: 'PAGO' },
+        data: { 
+          status: 'PAGO',
+          dataPagamento: requestedPaymentDate 
+            ? new Date(requestedPaymentDate + 'T12:00:00.000Z')
+            : brasiliaDate.dateObj,
+        },
       });
 
       // Criar registro de pagamento
       await prisma.pagamento.create({
         data: {
           cobrancaId: cobranca.id,
-          dataPagamento: new Date(paymentDate),
+          dataPagamento: requestedPaymentDate 
+            ? new Date(requestedPaymentDate + 'T12:00:00.000Z')
+            : brasiliaDate.dateObj,
           formaPagamento: 'DINHEIRO',
           valorPago: value || cobranca.valor,
           status: 'CONFIRMADO',

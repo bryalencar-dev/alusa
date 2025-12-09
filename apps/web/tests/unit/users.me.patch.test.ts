@@ -4,22 +4,37 @@ vi.mock('next-auth', () => {
     getServerSession: vi.fn(),
   };
 });
+
+const { mockPrisma } = vi.hoisted(() => {
+  const usuario = {
+    update: vi.fn(async ({ where, data }: { where: { id: string }; data: { nome?: string; telefone?: string | null; foto?: string | null } }) => {
+      return {
+        id: where.id,
+        nome: data.nome ?? 'Nome',
+        email: 'u@test.com',
+        role: 'ADMIN',
+        telefone: typeof data.telefone === 'undefined' ? '11999999999' : data.telefone,
+        foto: data.foto ?? null,
+      };
+    }),
+    findUnique: vi.fn(async () => ({ id: 'user-1', telefone: '11999999999', foto: null })),
+  };
+
+  return {
+    mockPrisma: {
+      usuario,
+    },
+  };
+});
+
+vi.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: mockPrisma,
+  prisma: mockPrisma,
+}));
+
 import { getServerSession } from 'next-auth';
 import { PATCH } from '@/app/api/users/me/route';
-
-vi.mock('@prisma/client', async (orig) => {
-  const actual = await (orig as unknown as () => Promise<Record<string, unknown>>)();
-  type UsuarioUpdateArgs = { where: { id: string }; data: Partial<{ nome: string; telefone: string | null; foto: string | null }> };
-  class MockPrisma {
-    usuario = {
-      update: vi.fn(async ({ where, data }: UsuarioUpdateArgs) => {
-        return { id: where.id, nome: data.nome ?? 'Nome', email: 'u@test.com', role: 'ADMIN', telefone: data.telefone ?? null, foto: data.foto ?? null };
-      }),
-      findUnique: vi.fn(async () => ({ telefone: '11999999999', foto: null })),
-    };
-  }
-  return { ...actual, PrismaClient: MockPrisma };
-});
 
 describe('PATCH /api/users/me', () => {
   beforeEach(() => {

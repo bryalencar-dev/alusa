@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Plus,
@@ -246,15 +246,7 @@ export default function ColaboradoresList() {
                           {c.telefone1 || '-'}
                         </div>
                         <div className="col-span-1 flex justify-center">
-                          {c.status === 'ATIVO' ? (
-                            <Badge className="bg-green-100 text-green-700 border-green-200">
-                              Ativo
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-red-100 text-red-700 border-red-200">
-                              Inativo
-                            </Badge>
-                          )}
+                          <StatusBadge status={c.status === 'ATIVO' ? 'ATIVO' : 'INATIVO'} />
                         </div>
                         <div className="col-span-1 flex justify-center gap-1">
                           <button

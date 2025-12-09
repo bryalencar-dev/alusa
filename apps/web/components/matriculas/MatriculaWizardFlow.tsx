@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { StepAluno } from './wizard/steps/StepAluno';
 import { StepTurmasCombo } from './wizard/steps/StepTurmasCombo';
 import { StepPlano } from './wizard/steps/StepPlano';
+import { StepJurosMulta } from './wizard/steps/StepJurosMulta';
 import { StepFinanceiro } from './wizard/steps/StepFinanceiro';
 import { StepResumo } from './wizard/steps/StepResumo';
 import { StepTaxa } from './wizard/steps/StepTaxa';
@@ -57,16 +58,19 @@ function canAdvanceFromPlano(state: WizardState) {
 }
 
 function canAdvanceFromFinanceiro(state: WizardState) {
-  return Boolean(state.formaPagamento);
+  return Boolean(state.formaPagamento && state.dataInicio && state.dataFimContrato);
 }
 
 function canSubmit(state: WizardState) {
   if (!state.aluno?.id) return false;
-  if (!state.planoId) return false;
+  // planoId só é obrigatório quando não é combo
+  if (state.modoTurmas !== 'COMBO' && !state.planoId) return false;
   if (!state.dataInicio) return false;
+  if (!state.dataFimContrato) return false;
   if (!state.formaPagamento) return false;
   if (!canAdvanceFromTaxa(state)) return false;
   if (!canAdvanceFromTurmas(state)) return false;
+  if (state.confirmacaoRevisao !== true) return false;
   return true;
 }
 
@@ -123,6 +127,8 @@ export function MatriculaWizardFlow({
           return <StepTaxa ctx={ctx} />;
         case 'plano':
           return <StepPlano ctx={ctx} contaId={contaId} />;
+        case 'jurosMulta':
+          return <StepJurosMulta ctx={ctx} />;
         case 'financeiro':
           return <StepFinanceiro ctx={ctx} />;
         case 'resumo':
@@ -150,6 +156,8 @@ export function MatriculaWizardFlow({
         return canAdvanceFromTaxa(state);
       case 'plano':
         return canAdvanceFromPlano(state);
+      case 'jurosMulta':
+        return true; // Step opcional, sempre permite avançar
       case 'financeiro':
         return canAdvanceFromFinanceiro(state);
       case 'resumo':
@@ -186,12 +194,12 @@ export function MatriculaWizardFlow({
     <div
       className={
         variant === 'page'
-          ? 'flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm'
-          : 'flex flex-col overflow-hidden bg-slate-50'
+          ? 'flex w-full flex-col rounded-2xl border border-slate-200 bg-slate-50 shadow-sm'
+          : 'flex flex-col rounded-2xl bg-slate-50'
       }
       data-testid="matricula-wizard-flow"
     >
-      <div className="relative border-b border-slate-200 bg-slate-50 p-4 md:p-6">
+      <div className="relative rounded-t-2xl border-b border-slate-200 bg-slate-50 p-4 md:p-6">
         <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-accent/40 to-transparent" />
         <h2 className="text-xl font-semibold tracking-tight text-slate-900">Cadastrar matrícula</h2>
         <p className="mt-1 text-sm text-slate-600">Preencha os dados da matrícula em etapas.</p>
@@ -215,16 +223,19 @@ export function MatriculaWizardFlow({
       <div
         className={
           variant === 'dialog'
-            ? 'flex max-h-[78vh] flex-col overflow-x-hidden'
-            : 'flex flex-col overflow-x-hidden'
+            ? 'flex max-h-[78vh] flex-col'
+            : 'flex flex-col'
         }
       >
-        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-50 p-4 md:p-6">
+        <div 
+          className="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent" 
+          style={{ scrollbarWidth: 'thin', scrollbarGutter: 'stable', scrollbarColor: '#d1d5db transparent' }}
+        >
           <div className="mx-auto w-full max-w-5xl space-y-6" id="wizard-step-content">
             {renderStep(wizard)}
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 p-4 md:p-6">
+        <div className="flex items-center justify-between gap-3 rounded-b-2xl border-t border-slate-200 bg-slate-50 p-4 md:p-6">
           {/* Área esquerda para botões extras (ex: Cadastrar aluno) */}
           <div className="flex items-center gap-3" id="wizard-left-actions">
             {/* Conteúdo injetado pelo step, se houver */}

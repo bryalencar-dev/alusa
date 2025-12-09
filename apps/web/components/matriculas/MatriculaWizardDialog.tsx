@@ -20,7 +20,7 @@ export default function MatriculaWizardDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-full max-w-5xl overflow-hidden bg-slate-50 p-0 transition-all duration-300"
+        className="w-full max-w-5xl overflow-visible rounded-2xl bg-slate-50 p-0 transition-all duration-300"
         data-testid="matricula-wizard"
       >
         <DialogTitle className="sr-only">Cadastrar matrícula</DialogTitle>
